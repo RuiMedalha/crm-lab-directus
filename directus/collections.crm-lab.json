@@ -1,0 +1,93 @@
+{
+  "collections": [
+    {
+      "collection": "contacts",
+      "meta": {
+        "icon": "business",
+        "note": "CRM Lab - Ficha de Cliente. Idealmente, manter keys iguais ao frontend para evitar Payload Invalid.",
+        "display_template": "{{company_name}}"
+      },
+      "schema": {
+        "name": "contacts"
+      },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "created_at", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "company_name", "type": "string", "meta": { "required": true, "interface": "input", "display": "raw", "display_name": "Nome da Empresa" } },
+        { "field": "contact_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome do Contacto" } },
+
+        { "field": "nif", "type": "string", "meta": { "interface": "input", "display_name": "NIF" } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "whatsapp_number", "type": "string", "meta": { "interface": "input", "display_name": "WhatsApp" } },
+
+        { "field": "address", "type": "string", "meta": { "interface": "input", "display_name": "Morada" } },
+        { "field": "postal_code", "type": "string", "meta": { "interface": "input", "display_name": "Código Postal" } },
+        { "field": "city", "type": "string", "meta": { "interface": "input", "display_name": "Localidade" } },
+        { "field": "website", "type": "string", "meta": { "interface": "input", "display_name": "Website" } },
+
+        { "field": "accept_newsletter", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Aceita Newsletter" } },
+        { "field": "newsletter_welcome_sent", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Welcome Sent" } },
+
+        { "field": "tags", "type": "json", "meta": { "interface": "tags", "display_name": "Tags" } },
+        { "field": "quick_notes", "type": "json", "meta": { "interface": "json", "display_name": "Notas (timeline)" } },
+        { "field": "sku_history", "type": "json", "meta": { "interface": "json", "display_name": "Histórico de SKU" } },
+
+        { "field": "contact_person", "type": "string", "meta": { "interface": "input", "display_name": "Contacto Secundário - Nome" } },
+        { "field": "contact_phone", "type": "string", "meta": { "interface": "input", "display_name": "Contacto Secundário - Telefone" } },
+        { "field": "contact_email", "type": "string", "meta": { "interface": "input", "display_name": "Contacto Secundário - Email" } },
+
+        { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas internas" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+
+        { "field": "moloni_client_id", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client ID" } },
+        { "field": "source", "type": "string", "meta": { "interface": "input", "display_name": "Origem" } },
+        { "field": "source_call_id", "type": "string", "meta": { "interface": "input", "display_name": "Source Call ID" } }
+      ]
+    },
+    {
+      "collection": "leads",
+      "meta": {
+        "icon": "support_agent",
+        "note": "CRM Lab - Entrada de Leads (popup + não atendidas agregadas). Um item por contacto (dedupe_key) com attempt_count + attempt_log.",
+        "display_template": "{{display_name}}"
+      },
+      "schema": {
+        "name": "leads"
+      },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "created_at", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
+        { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Origem (canal)" } },
+
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "display_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome (se conhecido)" } },
+        { "field": "nif", "type": "string", "meta": { "interface": "input", "display_name": "NIF" } },
+
+        { "field": "dedupe_key", "type": "string", "meta": { "interface": "input", "display_name": "Dedupe Key" } },
+        { "field": "attempt_count", "type": "integer", "meta": { "interface": "input", "display_name": "Nº tentativas" } },
+        { "field": "attempt_log", "type": "json", "meta": { "interface": "json", "display_name": "Histórico tentativas (horários)" } },
+        { "field": "first_attempt_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Primeira tentativa" } },
+        { "field": "last_attempt_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Última tentativa" } },
+
+        { "field": "contact_id", "type": "string", "meta": { "interface": "input", "display_name": "Contacto (id)" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+
+        { "field": "claimed_by", "type": "string", "meta": { "interface": "input", "display_name": "Atendido por" } },
+        { "field": "claimed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Atendido em" } },
+
+        { "field": "discarded_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Descartado em" } }
+      ]
+    }
+  ],
+  "notes": [
+    "Se o Directus já tiver campos com capitalização diferente (ex: Nome, NIF), não renomeies o frontend: usa VITE_DIRECTUS_CONTACT_FIELD_MAP para mapear keys sem quebrar UX.",
+    "Os interfaces/meta acima são sugestivos; no Directus podes ajustar sem afetar as keys técnicas.",
+    "Para o fluxo multi-canal (phone/whatsapp/typebot/chatwoot/email/central), o campo leads.source deve guardar exatamente a origem para mostrar no popup e na lista."
+  ]
+}
+
