@@ -60,8 +60,8 @@ export default function Leads360() {
 
   const sorted = useMemo(() => {
     return [...items].sort((a, b) => {
-      const da = new Date(a.last_attempt_at || a.created_at || 0).getTime();
-      const db = new Date(b.last_attempt_at || b.created_at || 0).getTime();
+      const da = new Date(a.last_attempt_at || a.date_created || 0).getTime();
+      const db = new Date(b.last_attempt_at || b.date_created || 0).getTime();
       return db - da;
     });
   }, [items]);
@@ -159,7 +159,7 @@ export default function Leads360() {
                         </CardTitle>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                           <Clock className="h-3 w-3" />
-                          <span>Última: {fmtDate(lead.last_attempt_at || lead.created_at)}</span>
+                          <span>Última: {fmtDate(lead.last_attempt_at || lead.date_created)}</span>
                           <span className="text-orange-700 font-medium">• {attempts}x</span>
                         </div>
                       </div>

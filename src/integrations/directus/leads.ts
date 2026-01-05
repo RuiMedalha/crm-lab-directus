@@ -1,5 +1,7 @@
 import { directusRequest } from "@/integrations/directus/client";
 
+const DIRECTUS_LEADS_COLLECTION = import.meta.env.VITE_DIRECTUS_LEADS_COLLECTION || "leads";
+
 export type LeadSource =
   | "phone"
   | "central"
@@ -20,7 +22,9 @@ export interface LeadAttempt {
 
 export interface LeadItem {
   id: string;
-  created_at?: string | null;
+  // Directus system fields
+  date_created?: string | null;
+  date_updated?: string | null;
   status?: LeadStatus | null;
   source?: LeadSource | null;
   phone?: string | null;
@@ -67,9 +71,9 @@ export function computeDedupeKey(input: { phone?: string | null; email?: string 
 
 export async function fetchLatestIncomingLead(): Promise<LeadItem | null> {
   const res = await directusRequest<{ data: LeadItem[] }>(
-    `/items/leads${qs({
+    `/items/${DIRECTUS_LEADS_COLLECTION}${qs({
       limit: 1,
-      sort: "-created_at",
+      sort: "-date_created",
       fields: "*",
       "filter[status][_eq]": "incoming",
     })}`
@@ -79,9 +83,9 @@ export async function fetchLatestIncomingLead(): Promise<LeadItem | null> {
 
 export async function fetchMissedLeads(): Promise<LeadItem[]> {
   const res = await directusRequest<{ data: LeadItem[] }>(
-    `/items/leads${qs({
+    `/items/${DIRECTUS_LEADS_COLLECTION}${qs({
       limit: 200,
-      sort: "-last_attempt_at,-created_at",
+      sort: "-last_attempt_at,-date_created",
       fields: "*",
       "filter[status][_eq]": "missed",
     })}`
@@ -90,7 +94,7 @@ export async function fetchMissedLeads(): Promise<LeadItem[]> {
 }
 
 export async function patchLead(id: string, patch: Partial<LeadItem>): Promise<LeadItem> {
-  const res = await directusRequest<{ data: LeadItem }>(`/items/leads/${encodeURIComponent(id)}`, {
+  const res = await directusRequest<{ data: LeadItem }>(`/items/${DIRECTUS_LEADS_COLLECTION}/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
   });
@@ -98,7 +102,7 @@ export async function patchLead(id: string, patch: Partial<LeadItem>): Promise<L
 }
 
 export async function deleteLead(id: string): Promise<void> {
-  await directusRequest(`/items/leads/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await directusRequest(`/items/${DIRECTUS_LEADS_COLLECTION}/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 export async function markLeadMissedWithAggregation(lead: LeadItem): Promise<{ keptId: string }> {
@@ -110,7 +114,7 @@ export async function markLeadMissedWithAggregation(lead: LeadItem): Promise<{ k
     await patchLead(lead.id, {
       status: "missed",
       last_attempt_at: now,
-      first_attempt_at: lead.first_attempt_at || lead.created_at || now,
+      first_attempt_at: lead.first_attempt_at || lead.date_created || now,
       attempt_count: Math.max(lead.attempt_count || 0, 1),
       attempt_log: Array.isArray(lead.attempt_log) && lead.attempt_log.length > 0 ? lead.attempt_log : [{ at: now, source: lead.source || undefined }],
     });
@@ -119,10 +123,10 @@ export async function markLeadMissedWithAggregation(lead: LeadItem): Promise<{ k
 
   // Try to find an existing missed record with same dedupe_key (the “single card” rule)
   const search = await directusRequest<{ data: LeadItem[] }>(
-    `/items/leads${qs({
+    `/items/${DIRECTUS_LEADS_COLLECTION}${qs({
       limit: 1,
-      sort: "-last_attempt_at,-created_at",
-      fields: "id,attempt_count,attempt_log,first_attempt_at,created_at",
+      sort: "-last_attempt_at,-date_created",
+      fields: "id,attempt_count,attempt_log,first_attempt_at,date_created",
       "filter[status][_eq]": "missed",
       "filter[dedupe_key][_eq]": dedupe_key,
     })}`
@@ -138,7 +142,7 @@ export async function markLeadMissedWithAggregation(lead: LeadItem): Promise<{ k
       attempt_count: prevCount + 1,
       attempt_log: nextLog,
       last_attempt_at: now,
-      first_attempt_at: existing.first_attempt_at || existing.created_at || now,
+      first_attempt_at: existing.first_attempt_at || existing.date_created || now,
     });
 
     // Remove the duplicate record (optional; matches your “não cria vários cards” requirement)
@@ -157,7 +161,7 @@ export async function markLeadMissedWithAggregation(lead: LeadItem): Promise<{ k
     attempt_count: Math.max(lead.attempt_count || 0, 1),
     attempt_log: nextLog,
     last_attempt_at: now,
-    first_attempt_at: lead.first_attempt_at || lead.created_at || now,
+    first_attempt_at: lead.first_attempt_at || lead.date_created || now,
   });
 
   return { keptId: lead.id };

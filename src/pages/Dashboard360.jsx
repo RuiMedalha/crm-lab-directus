@@ -42,6 +42,8 @@ const DIRECTUS_CONTACT_FIELD_MAP = (() => {
   }
 })();
 
+const DIRECTUS_CONTACTS_COLLECTION = import.meta.env.VITE_DIRECTUS_CONTACTS_COLLECTION || "contacts";
+
 function mapToDirectusPayload(frontendPatch) {
   const payload = {};
   Object.entries(frontendPatch || {}).forEach(([k, v]) => {
@@ -80,7 +82,7 @@ function qs(params) {
 }
 
 async function getContactById(id) {
-  const res = await directusRequest(`/items/contacts/${encodeURIComponent(id)}${qs({ fields: "*" })}`);
+  const res = await directusRequest(`/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: "*" })}`);
   return mapFromDirectusItem(res?.data);
 }
 
@@ -92,9 +94,10 @@ async function findDuplicateContact({ nif, phone }) {
   if (cleanNif && cleanNif.length >= 9) {
     const nifKey = DIRECTUS_CONTACT_FIELD_MAP.nif || "nif";
     const res = await directusRequest(
-      `/items/contacts${qs({
+      `/items/${DIRECTUS_CONTACTS_COLLECTION}${qs({
         limit: 1,
-        fields: "id,company_name,phone,nif,whatsapp_number,contact_phone",
+        // Use * because Directus field keys may be mapped (ex: nome/telefone)
+        fields: "*",
         [`filter[${nifKey}][_eq]`]: cleanNif,
       })}`
     );
@@ -108,9 +111,9 @@ async function findDuplicateContact({ nif, phone }) {
     const waKey = DIRECTUS_CONTACT_FIELD_MAP.whatsapp_number || "whatsapp_number";
     const contactPhoneKey = DIRECTUS_CONTACT_FIELD_MAP.contact_phone || "contact_phone";
     const res = await directusRequest(
-      `/items/contacts${qs({
+      `/items/${DIRECTUS_CONTACTS_COLLECTION}${qs({
         limit: 1,
-        fields: "id,company_name,phone,nif,whatsapp_number,contact_phone",
+        fields: "*",
         [`filter[_or][0][${phoneKey}][_eq]`]: cleanPhone,
         [`filter[_or][1][${waKey}][_eq]`]: cleanPhone,
         [`filter[_or][2][${contactPhoneKey}][_eq]`]: cleanPhone,
@@ -125,7 +128,7 @@ async function findDuplicateContact({ nif, phone }) {
 
 async function patchContact(id, patch) {
   const payload = mapToDirectusPayload(patch);
-  const res = await directusRequest(`/items/contacts/${encodeURIComponent(id)}`, {
+  const res = await directusRequest(`/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -134,7 +137,7 @@ async function patchContact(id, patch) {
 
 async function createContact(payload) {
   const directusPayload = mapToDirectusPayload(payload);
-  const res = await directusRequest(`/items/contacts`, {
+  const res = await directusRequest(`/items/${DIRECTUS_CONTACTS_COLLECTION}`, {
     method: "POST",
     body: JSON.stringify(directusPayload),
   });
