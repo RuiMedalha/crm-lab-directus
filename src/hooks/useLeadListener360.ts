@@ -6,7 +6,7 @@ import { fetchLatestIncomingLead, type LeadItem } from "@/integrations/directus/
  * - Shows popup once per lead id (even if user closes it).
  * - Backend should insert leads with status="incoming".
  */
-export function useLeadListener360() {
+export function useLeadListener360(enabled: boolean = true) {
   const [incomingLead, setIncomingLead] = useState<LeadItem | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const dismissedRef = useRef<Set<string>>(new Set());
@@ -19,6 +19,13 @@ export function useLeadListener360() {
   }, [incomingLead?.id]);
 
   useEffect(() => {
+    if (!enabled) {
+      // Ensure we don't keep stale popup state when feature is disabled.
+      setIsVisible(false);
+      setIncomingLead(null);
+      return;
+    }
+
     let active = true;
 
     const tick = async () => {
@@ -42,7 +49,7 @@ export function useLeadListener360() {
       active = false;
       clearInterval(interval);
     };
-  }, [incomingLead?.id]);
+  }, [enabled, incomingLead?.id]);
 
   return { incomingLead, isVisible, dismissLead };
 }

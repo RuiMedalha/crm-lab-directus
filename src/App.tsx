@@ -27,9 +27,9 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { incomingCall, isVisible, dismissCall } = useCallListener();
-  const { incomingLead, isVisible: leadVisible, dismissLead } = useLeadListener360();
   const useDirectus360 = import.meta.env.VITE_USE_DIRECTUS_360 === "true";
+  const { incomingCall, isVisible, dismissCall } = useCallListener();
+  const { incomingLead, isVisible: leadVisible, dismissLead } = useLeadListener360(useDirectus360);
 
   return (
     <>
