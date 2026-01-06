@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchLatestIncomingLead, type LeadItem } from "@/integrations/directus/leads";
+import { toast } from "@/hooks/use-toast";
 
 /**
  * Polling-based listener for Directus `leads` collection.
@@ -10,6 +11,7 @@ export function useLeadListener360() {
   const [incomingLead, setIncomingLead] = useState<LeadItem | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const dismissedRef = useRef<Set<string>>(new Set());
+  const warnedRef = useRef(false);
 
   const dismissLead = useCallback((leadId?: string) => {
     const id = leadId || incomingLead?.id;
@@ -31,8 +33,17 @@ export function useLeadListener360() {
 
         setIncomingLead(lead);
         setIsVisible(true);
-      } catch {
-        // silent: Directus may not be available in dev
+      } catch (e) {
+        // Don't fail silently: a missing token or wrong URL looks like “popup stopped working”.
+        if (!warnedRef.current) {
+          warnedRef.current = true;
+          const msg = e instanceof Error ? e.message : "Erro ao ligar ao Directus";
+          toast({
+            title: "Directus indisponível (popup 360)",
+            description: msg,
+            variant: "destructive",
+          });
+        }
       }
     };
 
