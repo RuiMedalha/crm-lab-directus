@@ -148,9 +148,46 @@ export async function getCollectionFields(collection = DIRECTUS_CONTACTS_COLLECT
   }
 }
 
+function unique<T>(arr: T[]): T[] {
+  return Array.from(new Set(arr));
+}
+
+function directusFieldListForContacts(): string {
+  // Always include id. Then include every mapped Directus field key (values of the map),
+  // plus common frontend keys (in case map is identity).
+  const mapped = Object.values(DIRECTUS_CONTACT_FIELD_MAP || {}).filter(Boolean);
+  const common = [
+    "company_name",
+    "contact_name",
+    "nif",
+    "phone",
+    "email",
+    "whatsapp_number",
+    "contact_person",
+    "contact_phone",
+    "contact_email",
+    "address",
+    "postal_code",
+    "city",
+    "website",
+    "tags",
+    "sku_history",
+    "delivery_addresses",
+    "logistics_notes",
+    "commercial_notes",
+    "internal_notes",
+    "notes",
+    "accept_newsletter",
+    "moloni_client_id",
+    "woo_id",
+    "moloni_id",
+  ];
+  return unique(["id", ...mapped, ...common]).join(",");
+}
+
 export async function getContactById(id: string): Promise<ContactItem | null> {
   const res = await directusRequest<{ data: ContactItem }>(
-    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: "*" })}`
+    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: directusFieldListForContacts() })}`
   );
   return mapFromDirectusItem(res?.data);
 }
@@ -262,8 +299,10 @@ export async function listContacts(params?: {
   const q: Record<string, string | number | undefined | null> = {
     limit,
     page,
-    sort: "-date_created",
-    fields: "*",
+    // Avoid system fields permission issues; sort by id (works for int/uuid).
+    sort: "-id",
+    // Avoid requesting "*" which can trigger 403 when some fields are restricted.
+    fields: directusFieldListForContacts(),
   };
 
   if (search) {
