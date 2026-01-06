@@ -5,8 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { CallPopup } from "@/components/CallPopup";
-import { useCallListener } from "@/hooks/useCallListener";
 import { LeadPopup360 } from "@/components/LeadPopup360";
 import { useLeadListener360 } from "@/hooks/useLeadListener360";
 import Dashboard from "./pages/Dashboard";
@@ -27,9 +25,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { incomingCall, isVisible, dismissCall } = useCallListener();
   const { incomingLead, isVisible: leadVisible, dismissLead } = useLeadListener360();
-  const useDirectus360 = import.meta.env.VITE_USE_DIRECTUS_360 === "true";
 
   return (
     <>
@@ -51,15 +47,7 @@ const AppContent = () => {
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {!useDirectus360 && incomingCall && (
-        <CallPopup 
-          call={incomingCall}
-          isVisible={isVisible}
-          onDismiss={dismissCall}
-        />
-      )}
-
-      {useDirectus360 && incomingLead && (
+      {incomingLead && (
         <LeadPopup360
           lead={incomingLead}
           isVisible={leadVisible}

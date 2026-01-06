@@ -13,6 +13,7 @@ import {
   patchLead,
   type LeadItem,
 } from "@/integrations/directus/leads";
+import { findDuplicateContact } from "@/integrations/directus/contacts";
 import { Clock, Mail, MessageCircle, Phone, Trash2 } from "lucide-react";
 
 const SOURCE_BADGE: Record<string, { label: string; icon: any }> = {
@@ -67,14 +68,28 @@ export default function Leads360() {
   }, [items]);
 
   const handleOpenCard = (lead: LeadItem) => {
-    const params = new URLSearchParams();
-    if (lead.phone) params.set("phone", lead.phone);
-    if (lead.email) params.set("email", lead.email);
-    if (lead.display_name) params.set("name", lead.display_name);
-    if (lead.nif) params.set("nif", lead.nif);
-    if (lead.source) params.set("source", String(lead.source));
-    params.set("leadId", lead.id);
-    navigate(`/dashboard360?${params.toString()}`);
+    (async () => {
+      const existing = await findDuplicateContact({
+        nif: lead.nif || null,
+        phone: lead.phone || null,
+        email: lead.email || null,
+      }).catch(() => null);
+
+      if (existing?.id) {
+        await patchLead(lead.id, { contact_id: String(existing.id) }).catch(() => undefined);
+        navigate(`/dashboard360/${encodeURIComponent(String(existing.id))}?leadId=${encodeURIComponent(lead.id)}`);
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (lead.phone) params.set("phone", lead.phone);
+      if (lead.email) params.set("email", lead.email);
+      if (lead.display_name) params.set("name", lead.display_name);
+      if (lead.nif) params.set("nif", lead.nif);
+      if (lead.source) params.set("source", String(lead.source));
+      params.set("leadId", lead.id);
+      navigate(`/dashboard360?${params.toString()}`);
+    })();
   };
 
   const handleDiscard = async (lead: LeadItem) => {

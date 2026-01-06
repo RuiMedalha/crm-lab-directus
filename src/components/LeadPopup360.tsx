@@ -21,6 +21,7 @@ import {
   patchLead,
   type LeadItem,
 } from "@/integrations/directus/leads";
+import { findDuplicateContact } from "@/integrations/directus/contacts";
 
 const TIMER_SECONDS = 18; // 15–20s (requested). Keep 18 as default.
 
@@ -118,6 +119,22 @@ export function LeadPopup360({
         claimed_at: new Date().toISOString(),
         claimed_by: currentUserLabel || undefined,
       });
+
+      // If contact exists in Directus, open the existing card (pre-filled).
+      // Otherwise open a blank card prefilled only with popup data.
+      const existing = await findDuplicateContact({
+        nif: lead.nif || null,
+        phone: lead.phone || null,
+        email: lead.email || null,
+      }).catch(() => null);
+
+      if (existing?.id) {
+        // Link lead → contact (optional but useful for traceability)
+        await patchLead(lead.id, { contact_id: String(existing.id) }).catch(() => undefined);
+        onDismiss(lead.id);
+        navigate(`/dashboard360/${encodeURIComponent(String(existing.id))}?leadId=${encodeURIComponent(lead.id)}`);
+        return;
+      }
 
       // Open the “card de contacto/lead” immediately to start filling
       const params = new URLSearchParams();
