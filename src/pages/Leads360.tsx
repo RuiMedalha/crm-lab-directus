@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import {
   fetchMissedLeads,
+  deleteLead,
   patchLead,
   type LeadItem,
 } from "@/integrations/directus/leads";
@@ -51,6 +52,7 @@ export default function Leads360() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<LeadItem[]>([]);
+  const [deleting, setDeleting] = useState<LeadItem | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -112,6 +114,19 @@ export default function Leads360() {
     } catch (e) {
       console.error(e);
       toast({ title: "Erro ao descartar", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteForever = async () => {
+    if (!deleting?.id) return;
+    try {
+      await deleteLead(deleting.id);
+      toast({ title: "Lead apagado" });
+      setDeleting(null);
+      load();
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Sem permissões para apagar (Directus)", variant: "destructive" });
     }
   };
 
@@ -266,7 +281,7 @@ export default function Leads360() {
                         size="sm"
                         variant="ghost"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDiscard(lead)}
+                        onClick={() => setDeleting(lead)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -278,6 +293,24 @@ export default function Leads360() {
           </div>
         )}
       </div>
+
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-background border shadow-lg p-4 space-y-3">
+            <div className="text-base font-semibold">Apagar lead?</div>
+            <div className="text-sm text-muted-foreground">
+              Isto apaga definitivamente do Directus. Confirma?
+              <div className="mt-2 font-mono text-xs">
+                {deleting.display_name || deleting.phone || deleting.email || deleting.id}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setDeleting(null)}>Cancelar</Button>
+              <Button variant="destructive" onClick={handleDeleteForever}>Apagar</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
