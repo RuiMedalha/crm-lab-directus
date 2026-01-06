@@ -17,6 +17,7 @@ import {
   getContactById,
   patchContact,
 } from "@/integrations/directus/contacts";
+import { createLead, patchLead } from "@/integrations/directus/leads";
 import {
   ArrowLeft,
   Building2,
@@ -144,6 +145,7 @@ export default function Dashboard360() {
   const [formData, setFormData] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingLead, setSavingLead] = useState(false);
   const [skuInput, setSkuInput] = useState("");
 
   const contactId = useMemo(() => (contact?.id ? String(contact.id) : id ? String(id) : null), [contact, id]);
@@ -234,7 +236,14 @@ export default function Dashboard360() {
     return formData[field] ?? contact?.[field] ?? "";
   };
 
-  const handleSave = async () => {
+  const leadId = searchParams.get("leadId");
+
+  const buildCardSnapshot = () => {
+    // Merge current saved contact + pending form edits
+    return { ...(contact || {}), ...(formData || {}) };
+  };
+
+  const handleSaveContact = async () => {
     // Incremental scope: ficha de cliente + newsletter (contacts collection)
     const patch = { ...formData };
     if (!Object.keys(patch).length) return;
@@ -258,6 +267,14 @@ export default function Dashboard360() {
             accept_newsletter: patch.accept_newsletter ?? false,
           });
 
+      // If we came from a lead, link it to the created/updated contact and mark it processed
+      if (leadId && saved?.id) {
+        await patchLead(String(leadId), {
+          contact_id: String(saved.id),
+          status: "processed",
+        }).catch(() => undefined);
+      }
+
       setContact(saved);
       setFormData({});
       setHasChanges(false);
@@ -267,6 +284,52 @@ export default function Dashboard360() {
       toast({ title: "Erro ao guardar contacto", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveLead = async () => {
+    const snapshot = buildCardSnapshot();
+    const phone = snapshot.phone || null;
+    const email = snapshot.email || null;
+    const nif = snapshot.nif || null;
+    const display_name =
+      snapshot.company_name || snapshot.contact_name || snapshot.display_name || phone || email || "Lead";
+    const source = snapshot.source || searchParams.get("source") || "phone";
+
+    setSavingLead(true);
+    try {
+      if (leadId) {
+        await patchLead(String(leadId), {
+          status: "open",
+          source: String(source),
+          phone,
+          email,
+          nif,
+          display_name: String(display_name),
+          lead_data: snapshot,
+          notes: snapshot.notes || null,
+        });
+      } else {
+        await createLead({
+          status: "open",
+          source: String(source),
+          phone,
+          email,
+          nif,
+          display_name: String(display_name),
+          lead_data: snapshot,
+          notes: snapshot.notes || null,
+        });
+      }
+
+      setFormData({});
+      setHasChanges(false);
+      toast({ title: "Lead guardado no Directus" });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro ao guardar lead", variant: "destructive" });
+    } finally {
+      setSavingLead(false);
     }
   };
 
@@ -340,9 +403,13 @@ export default function Dashboard360() {
             )}
 
             <Separator orientation="vertical" className="h-6 hidden sm:block" />
-            <Button size="sm" onClick={handleSave} disabled={!hasChanges || saving}>
+            <Button size="sm" variant="outline" onClick={handleSaveLead} disabled={!hasChanges || savingLead}>
+              {savingLead ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Guardar Lead
+            </Button>
+            <Button size="sm" onClick={handleSaveContact} disabled={!hasChanges || saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Guardar
+              Guardar Contacto
             </Button>
           </div>
         </div>

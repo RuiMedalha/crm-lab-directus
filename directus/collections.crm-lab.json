@@ -67,6 +67,7 @@
         { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
         { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Origem (canal)" } },
         { "field": "source_event_id", "type": "string", "meta": { "interface": "input", "display_name": "ID do evento (externo)" } },
+        { "field": "lead_data", "type": "json", "meta": { "interface": "json", "display_name": "Dados do Card360 (Lead)" } },
 
         { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
         { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },

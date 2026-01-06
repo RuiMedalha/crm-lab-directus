@@ -31,7 +31,8 @@ const navItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: Inbox, label: "Entrada de Leads", path: "/inbox" },
-  { icon: Users, label: "Contactos", path: "/contactos" },
+  // Single ficha: Card360 (Directus)
+  { icon: Users, label: "Card 360", path: "/dashboard360" },
   { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
   { icon: Shield, label: "Utilizadores", path: "/utilizadores" },
   { icon: Plug, label: "Integrações", path: "/integracoes" },

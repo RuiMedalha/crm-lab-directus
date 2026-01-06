@@ -32,6 +32,11 @@ export interface LeadItem {
    * (ex: Supabase calls.id, Chatwoot conversation id, etc.).
    */
   source_event_id?: string | null;
+  /**
+   * Stores the full Card360 data when saving as Lead (same ficha, different “bucket”).
+   * This lets you keep one UI while you decide when to convert to `contacts`.
+   */
+  lead_data?: any;
   phone?: string | null;
   email?: string | null;
   display_name?: string | null;
