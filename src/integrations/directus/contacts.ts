@@ -153,36 +153,16 @@ function unique<T>(arr: T[]): T[] {
 }
 
 function directusFieldListForContacts(): string {
-  // Always include id. Then include every mapped Directus field key (values of the map),
-  // plus common frontend keys (in case map is identity).
+  /**
+   * IMPORTANT:
+   * For collections where Directus field keys differ from frontend keys (ex: telefone vs phone),
+   * requesting unknown fields can trigger 403. So here we only request:
+   * - id
+   * - mapped Directus field keys (values of VITE_DIRECTUS_CONTACT_FIELD_MAP)
+   */
   const mapped = Object.values(DIRECTUS_CONTACT_FIELD_MAP || {}).filter(Boolean);
-  const common = [
-    "company_name",
-    "contact_name",
-    "nif",
-    "phone",
-    "email",
-    "whatsapp_number",
-    "contact_person",
-    "contact_phone",
-    "contact_email",
-    "address",
-    "postal_code",
-    "city",
-    "website",
-    "tags",
-    "sku_history",
-    "delivery_addresses",
-    "logistics_notes",
-    "commercial_notes",
-    "internal_notes",
-    "notes",
-    "accept_newsletter",
-    "moloni_client_id",
-    "woo_id",
-    "moloni_id",
-  ];
-  return unique(["id", ...mapped, ...common]).join(",");
+  const fields = unique(["id", ...mapped]).filter(Boolean);
+  return fields.join(",") || "id";
 }
 
 export async function getContactById(id: string): Promise<ContactItem | null> {
