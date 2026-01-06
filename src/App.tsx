@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LeadPopup360 } from "@/components/LeadPopup360";
 import { useLeadListener360 } from "@/hooks/useLeadListener360";
+import { useSupabaseToDirectusBridge } from "@/hooks/useSupabaseToDirectusBridge";
 import Dashboard from "./pages/Dashboard";
 import Pipeline from "./pages/Pipeline";
 import Inbox from "./pages/Inbox";
@@ -25,7 +26,19 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { incomingLead, isVisible: leadVisible, dismissLead } = useLeadListener360();
+  const { incomingLead, isVisible: leadVisible, dismissLead, pushLead } = useLeadListener360();
+  const enableSupabaseBridge = import.meta.env.VITE_ENABLE_SUPABASE_DIRECTUS_BRIDGE === "true";
+
+  // Transitional: while n8n still writes to Supabase `calls`, mirror them into Directus `leads`
+  // so the Directus-based popup keeps showing real events.
+  useSupabaseToDirectusBridge({
+    enabled: enableSupabaseBridge,
+    onLeadCreated: (lead) => {
+      // The bridge returns a LeadItem with fields, but we only need the object to show the popup.
+      // `pushLead` will display it immediately (without waiting for polling).
+      pushLead(lead as any);
+    },
+  });
 
   return (
     <>

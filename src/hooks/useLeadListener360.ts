@@ -13,6 +13,14 @@ export function useLeadListener360() {
   const dismissedRef = useRef<Set<string>>(new Set());
   const warnedRef = useRef(false);
 
+  const pushLead = useCallback((lead: LeadItem) => {
+    if (!lead?.id) return;
+    if (dismissedRef.current.has(lead.id)) return;
+    if (incomingLead?.id === lead.id) return;
+    setIncomingLead(lead);
+    setIsVisible(true);
+  }, [incomingLead?.id]);
+
   const dismissLead = useCallback((leadId?: string) => {
     const id = leadId || incomingLead?.id;
     if (id) dismissedRef.current.add(id);
@@ -31,8 +39,7 @@ export function useLeadListener360() {
         if (dismissedRef.current.has(lead.id)) return;
         if (incomingLead?.id === lead.id) return;
 
-        setIncomingLead(lead);
-        setIsVisible(true);
+        pushLead(lead);
       } catch (e) {
         // Don't fail silently: a missing token or wrong URL looks like “popup stopped working”.
         if (!warnedRef.current) {
@@ -53,8 +60,8 @@ export function useLeadListener360() {
       active = false;
       clearInterval(interval);
     };
-  }, [incomingLead?.id]);
+  }, [incomingLead?.id, pushLead]);
 
-  return { incomingLead, isVisible, dismissLead };
+  return { incomingLead, isVisible, dismissLead, pushLead };
 }
 

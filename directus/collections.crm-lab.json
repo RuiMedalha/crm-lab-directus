@@ -66,6 +66,7 @@
 
         { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
         { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Origem (canal)" } },
+        { "field": "source_event_id", "type": "string", "meta": { "interface": "input", "display_name": "ID do evento (externo)" } },
 
         { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
         { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },

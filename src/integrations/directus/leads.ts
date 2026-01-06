@@ -27,6 +27,11 @@ export interface LeadItem {
   date_updated?: string | null;
   status?: LeadStatus | null;
   source?: LeadSource | null;
+  /**
+   * Optional id to trace the external event that generated this lead
+   * (ex: Supabase calls.id, Chatwoot conversation id, etc.).
+   */
+  source_event_id?: string | null;
   phone?: string | null;
   email?: string | null;
   display_name?: string | null;
@@ -91,6 +96,14 @@ export async function fetchMissedLeads(): Promise<LeadItem[]> {
     })}`
   );
   return res?.data || [];
+}
+
+export async function createLead(payload: Partial<LeadItem>): Promise<LeadItem> {
+  const res = await directusRequest<{ data: LeadItem }>(`/items/${DIRECTUS_LEADS_COLLECTION}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return res.data;
 }
 
 export async function patchLead(id: string, patch: Partial<LeadItem>): Promise<LeadItem> {
