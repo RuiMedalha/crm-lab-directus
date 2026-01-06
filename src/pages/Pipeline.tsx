@@ -286,123 +286,198 @@ export default function Pipeline() {
         </Collapsible>
 
         {/* Kanban Board with DnD */}
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-2 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-            {DEAL_STATUSES.map((status) => {
-              const columnDeals = getDealsByStatus(status.value);
-              const columnTotal = getColumnTotal(status.value);
-              const isCollapsed = collapsedColumns.includes(status.value);
+        {/* Mobile: lista (sem drag & drop, mais estável no touch) */}
+        <div className="md:hidden space-y-3">
+          {isLoading ? (
+            [...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+          ) : filteredDeals.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Sem negócios
+              </CardContent>
+            </Card>
+          ) : (
+            filteredDeals.map((deal: any) => (
+              <Card key={deal.id} className="border">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{deal.title || "Sem título"}</div>
+                      <div className="text-xs text-muted-foreground truncate mt-1">
+                        {(deal as any).customer?.company_name || "Sem cliente"}
+                      </div>
+                      <div className="text-sm font-medium mt-2">
+                        {(deal.total_amount || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => setSelectedDealId(deal.id)}>
+                      Abrir
+                    </Button>
+                  </div>
 
-              if (isCollapsed) {
-                return (
-                  <div 
-                    key={status.value} 
-                    className="flex-shrink-0 w-12"
-                  >
-                    <Card 
-                      className={cn("h-full cursor-pointer hover:opacity-80 transition-opacity", statusColors[status.value])}
-                      onClick={() => toggleColumn(status.value)}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={deal.status || "lead"}
+                      onValueChange={async (value) => {
+                        try {
+                          await updateDeal.mutateAsync({ id: deal.id, status: value });
+                          const statusLabel = DEAL_STATUSES.find((s) => s.value === value)?.label || value;
+                          toast({ title: `Movido para ${statusLabel}` });
+                        } catch {
+                          toast({ title: "Erro ao atualizar estado", variant: "destructive" });
+                        }
+                      }}
                     >
-                      <CardContent className="p-2 flex flex-col items-center gap-2">
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        <Badge variant="secondary" className="text-xs">
-                          {columnDeals.length}
-                        </Badge>
-                        <div className="writing-mode-vertical text-xs font-medium text-muted-foreground" style={{ writingMode: 'vertical-rl' }}>
-                          {status.label}
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEAL_STATUSES.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={deal.manufacturer_id || "all"}
+                      onValueChange={() => undefined}
+                      disabled
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Fornecedor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Fornecedor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Desktop: Kanban com drag & drop */}
+        <div className="hidden md:block">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="flex gap-2 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+              {DEAL_STATUSES.map((status) => {
+                const columnDeals = getDealsByStatus(status.value);
+                const columnTotal = getColumnTotal(status.value);
+                const isCollapsed = collapsedColumns.includes(status.value);
+
+                if (isCollapsed) {
+                  return (
+                    <div 
+                      key={status.value} 
+                      className="flex-shrink-0 w-12"
+                    >
+                      <Card 
+                        className={cn("h-full cursor-pointer hover:opacity-80 transition-opacity", statusColors[status.value])}
+                        onClick={() => toggleColumn(status.value)}
+                      >
+                        <CardContent className="p-2 flex flex-col items-center gap-2">
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <Badge variant="secondary" className="text-xs">
+                            {columnDeals.length}
+                          </Badge>
+                          <div className="writing-mode-vertical text-xs font-medium text-muted-foreground" style={{ writingMode: 'vertical-rl' }}>
+                            {status.label}
+                          </div>
+                          <div className="text-xs font-medium text-primary mt-auto">
+                            {(columnTotal / 1000).toFixed(0)}k
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={status.value} className="flex-shrink-0 w-52 lg:w-60">
+                    <Card className={cn("h-full", statusColors[status.value])}>
+                      <CardHeader className="pb-2 px-3 pt-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+                            {status.label}
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {columnDeals.length}
+                            </Badge>
+                          </CardTitle>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => toggleColumn(status.value)}
+                            title="Colapsar coluna"
+                          >
+                            <ChevronLeft className="h-3 w-3" />
+                          </Button>
                         </div>
-                        <div className="text-xs font-medium text-primary mt-auto">
-                          {(columnTotal / 1000).toFixed(0)}k
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Euro className="h-3 w-3" />
+                          {columnTotal.toLocaleString("pt-PT", {
+                            style: "currency",
+                            currency: "EUR",
+                            maximumFractionDigits: 0,
+                          })}
                         </div>
-                      </CardContent>
+                      </CardHeader>
+                      
+                      <Droppable droppableId={status.value}>
+                        {(provided, snapshot) => (
+                          <CardContent
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={cn(
+                              "space-y-2 max-h-[calc(100vh-320px)] min-h-[100px] overflow-y-auto scrollbar-thin px-2 pb-2 transition-colors",
+                              snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20 ring-inset rounded-lg"
+                            )}
+                          >
+                            {isLoading ? (
+                              [...Array(3)].map((_, i) => (
+                                <Skeleton key={i} className="h-20 w-full" />
+                              ))
+                            ) : columnDeals.length === 0 && !snapshot.isDraggingOver ? (
+                              <div className="text-center py-6 text-muted-foreground text-xs">
+                                Sem negócios
+                              </div>
+                            ) : (
+                              columnDeals.map((deal, index) => (
+                                <Draggable
+                                  key={deal.id}
+                                  draggableId={deal.id}
+                                  index={index}
+                                >
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      style={provided.draggableProps.style}
+                                    >
+                                      <DealCard
+                                        deal={deal as any}
+                                        onClick={() => setSelectedDealId(deal.id)}
+                                        isDragging={snapshot.isDragging}
+                                      />
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))
+                            )}
+                            {provided.placeholder}
+                          </CardContent>
+                        )}
+                      </Droppable>
                     </Card>
                   </div>
                 );
-              }
-
-              return (
-                <div key={status.value} className="flex-shrink-0 w-52 lg:w-60">
-                  <Card className={cn("h-full", statusColors[status.value])}>
-                    <CardHeader className="pb-2 px-3 pt-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-xs font-medium flex items-center gap-1.5">
-                          {status.label}
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            {columnDeals.length}
-                          </Badge>
-                        </CardTitle>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => toggleColumn(status.value)}
-                          title="Colapsar coluna"
-                        >
-                          <ChevronLeft className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Euro className="h-3 w-3" />
-                        {columnTotal.toLocaleString("pt-PT", {
-                          style: "currency",
-                          currency: "EUR",
-                          maximumFractionDigits: 0,
-                        })}
-                      </div>
-                    </CardHeader>
-                    
-                    <Droppable droppableId={status.value}>
-                      {(provided, snapshot) => (
-                        <CardContent
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={cn(
-                            "space-y-2 max-h-[calc(100vh-320px)] min-h-[100px] overflow-y-auto scrollbar-thin px-2 pb-2 transition-colors",
-                            snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20 ring-inset rounded-lg"
-                          )}
-                        >
-                          {isLoading ? (
-                            [...Array(3)].map((_, i) => (
-                              <Skeleton key={i} className="h-20 w-full" />
-                            ))
-                          ) : columnDeals.length === 0 && !snapshot.isDraggingOver ? (
-                            <div className="text-center py-6 text-muted-foreground text-xs">
-                              Sem negócios
-                            </div>
-                          ) : (
-                            columnDeals.map((deal, index) => (
-                              <Draggable
-                                key={deal.id}
-                                draggableId={deal.id}
-                                index={index}
-                              >
-                                {(provided, snapshot) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    style={provided.draggableProps.style}
-                                  >
-                                    <DealCard
-                                      deal={deal}
-                                      onClick={() => setSelectedDealId(deal.id)}
-                                      isDragging={snapshot.isDragging}
-                                    />
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))
-                          )}
-                          {provided.placeholder}
-                        </CardContent>
-                      )}
-                    </Droppable>
-                  </Card>
-                </div>
-              );
-            })}
-          </div>
-        </DragDropContext>
+              })}
+            </div>
+          </DragDropContext>
+        </div>
       </div>
 
       {/* Deal Dialog */}

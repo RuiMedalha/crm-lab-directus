@@ -1,0 +1,163 @@
+{
+  "collections": [
+    {
+      "collection": "employees",
+      "meta": {
+        "icon": "badge",
+        "note": "Funcionários do CRM + role (admin/gestor/vendedor/visualizador).",
+        "display_template": "{{full_name}}"
+      },
+      "schema": { "name": "employees" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "full_name", "type": "string", "meta": { "required": true, "interface": "input", "display_name": "Nome" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        {
+          "field": "role",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Role",
+            "options": {
+              "choices": [
+                { "text": "Admin", "value": "admin" },
+                { "text": "Gestor", "value": "gestor" },
+                { "text": "Vendedor", "value": "vendedor" },
+                { "text": "Visualizador", "value": "visualizador" }
+              ]
+            }
+          }
+        },
+        { "field": "is_active", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Ativo" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } }
+      ]
+    },
+    {
+      "collection": "manufacturers",
+      "meta": {
+        "icon": "factory",
+        "note": "Fornecedores/fabricantes.",
+        "display_template": "{{name}}"
+      },
+      "schema": { "name": "manufacturers" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "name", "type": "string", "meta": { "required": true, "interface": "input", "display_name": "Nome" } },
+        { "field": "sku_prefix", "type": "string", "meta": { "interface": "input", "display_name": "Prefixo SKU" } },
+        { "field": "contact_email", "type": "string", "meta": { "interface": "input", "display_name": "Email Geral" } },
+        { "field": "portal_url", "type": "string", "meta": { "interface": "input", "display_name": "Portal URL" } },
+        { "field": "order_method", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Método" } },
+        { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas Internas" } },
+
+        { "field": "address", "type": "string", "meta": { "interface": "input", "display_name": "Morada" } },
+        { "field": "postal_code", "type": "string", "meta": { "interface": "input", "display_name": "Código Postal" } },
+        { "field": "city", "type": "string", "meta": { "interface": "input", "display_name": "Localidade" } },
+        { "field": "phone_main", "type": "string", "meta": { "interface": "input", "display_name": "Telefone Principal" } },
+        { "field": "phone_secondary", "type": "string", "meta": { "interface": "input", "display_name": "Telefone Secundário" } },
+        { "field": "sales_rep_name", "type": "string", "meta": { "interface": "input", "display_name": "Vendedor" } },
+        { "field": "discount_info", "type": "text", "meta": { "interface": "textarea", "display_name": "Descontos" } },
+        { "field": "catalog_url", "type": "string", "meta": { "interface": "input", "display_name": "Catálogo URL" } },
+        { "field": "email_invoicing", "type": "string", "meta": { "interface": "input", "display_name": "Email Faturação" } },
+        { "field": "email_logistics", "type": "string", "meta": { "interface": "input", "display_name": "Email Logística" } },
+        { "field": "custom_field_1_name", "type": "string", "meta": { "interface": "input", "display_name": "Campo 1 Nome" } },
+        { "field": "custom_field_1_value", "type": "string", "meta": { "interface": "input", "display_name": "Campo 1 Valor" } },
+        { "field": "custom_field_2_name", "type": "string", "meta": { "interface": "input", "display_name": "Campo 2 Nome" } },
+        { "field": "custom_field_2_value", "type": "string", "meta": { "interface": "input", "display_name": "Campo 2 Valor" } }
+      ]
+    },
+    {
+      "collection": "company_settings",
+      "meta": {
+        "icon": "settings",
+        "note": "Definições gerais do CRM (pode ser singleton).",
+        "display_template": "{{name}}"
+      },
+      "schema": { "name": "company_settings" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "name", "type": "string", "meta": { "interface": "input", "display_name": "Empresa" } },
+        { "field": "vat_number", "type": "string", "meta": { "interface": "input", "display_name": "NIF" } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "logo_url", "type": "string", "meta": { "interface": "input", "display_name": "Logo URL" } },
+
+        { "field": "chatwoot_url", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot URL" } },
+        { "field": "chatwoot_token", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot Token" } },
+        { "field": "whatsapp_api_url", "type": "string", "meta": { "interface": "input", "display_name": "WhatsApp API URL" } },
+        { "field": "typebot_url", "type": "string", "meta": { "interface": "input", "display_name": "Typebot URL" } },
+        { "field": "typebot_token", "type": "string", "meta": { "interface": "input", "display_name": "Typebot Token" } },
+
+        { "field": "moloni_client_id", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client ID" } },
+        { "field": "moloni_client_secret", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client Secret" } },
+        { "field": "moloni_api_key", "type": "string", "meta": { "interface": "input", "display_name": "Moloni API Key" } },
+
+        { "field": "woo_url", "type": "string", "meta": { "interface": "input", "display_name": "Woo URL" } },
+        { "field": "woo_consumer_key", "type": "string", "meta": { "interface": "input", "display_name": "Woo Consumer Key" } },
+        { "field": "woo_consumer_secret", "type": "string", "meta": { "interface": "input", "display_name": "Woo Consumer Secret" } }
+      ]
+    },
+    {
+      "collection": "deals",
+      "meta": {
+        "icon": "work",
+        "note": "Negócios/pipeline.",
+        "display_template": "{{title}}"
+      },
+      "schema": { "name": "deals" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "title", "type": "string", "meta": { "interface": "input", "display_name": "Título" } },
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
+        { "field": "total_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Total" } },
+
+        {
+          "field": "customer_id",
+          "type": "uuid",
+          "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" },
+          "schema": { "foreign_key_table": "contacts" }
+        },
+        {
+          "field": "manufacturer_id",
+          "type": "uuid",
+          "meta": { "interface": "select-dropdown-m2o", "display_name": "Fornecedor" },
+          "schema": { "foreign_key_table": "manufacturers" }
+        }
+      ]
+    },
+    {
+      "collection": "deal_items",
+      "meta": {
+        "icon": "inventory_2",
+        "note": "Itens do negócio (produtos/linhas)."
+      },
+      "schema": { "name": "deal_items" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        {
+          "field": "deal_id",
+          "type": "uuid",
+          "meta": { "interface": "select-dropdown-m2o", "display_name": "Negócio" },
+          "schema": { "foreign_key_table": "deals" }
+        },
+        { "field": "product_id", "type": "string", "meta": { "interface": "input", "display_name": "Product ID" } },
+        { "field": "product_name", "type": "string", "meta": { "interface": "input", "display_name": "Produto" } },
+        { "field": "sku", "type": "string", "meta": { "interface": "input", "display_name": "SKU" } },
+        { "field": "unit_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Preço" } },
+        { "field": "cost_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Custo" } },
+        { "field": "quantity", "type": "integer", "meta": { "interface": "input", "display_name": "Quantidade" } }
+      ]
+    }
+  ],
+  "notes": [
+    "Este ficheiro é para importar no Directus (Settings > Data Model > Import).",
+    "Se já tiveres coleções com estes nomes, ajusta para evitar conflitos.",
+    "Para roles: o frontend usa a coleção employees.role; depois podemos ligar isto às roles nativas do Directus."
+  ]
+}
+

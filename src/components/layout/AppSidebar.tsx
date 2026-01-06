@@ -1,12 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
+  LayoutDashboard,
+  Kanban,
+  Factory,
+  Settings,
+  Plug,
   Users,
   ChevronLeft,
   ChevronRight,
   Building2,
   IdCard,
   PhoneCall,
+  UserCog,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,9 +24,15 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
-  { icon: Users, label: "Contactos", path: "/contactos" },
+  { icon: LayoutDashboard, label: "Painel", path: "/" },
   { icon: IdCard, label: "Card 360", path: "/dashboard360" },
   { icon: PhoneCall, label: "Leads não atendidas", path: "/leads360" },
+  { icon: Users, label: "Contactos", path: "/contactos" },
+  { icon: Kanban, label: "Pipeline", path: "/pipeline" },
+  { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
+  { icon: Plug, label: "Integrações", path: "/integracoes" },
+  { icon: Settings, label: "Definições", path: "/definicoes" },
+  { icon: UserCog, label: "Utilizadores", path: "/utilizadores" },
 ];
 
 export function AppSidebar() {

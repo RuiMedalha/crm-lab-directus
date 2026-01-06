@@ -103,6 +103,19 @@ export async function fetchMissedLeads(): Promise<LeadItem[]> {
   return res?.data || [];
 }
 
+export async function fetchRecentLeads(limit = 200): Promise<LeadItem[]> {
+  const res = await directusRequest<{ data: LeadItem[] }>(
+    `/items/${DIRECTUS_LEADS_COLLECTION}${qs({
+      limit,
+      sort: "-date_created",
+      fields: "id,date_created,status,source,phone,email,display_name,last_attempt_at,attempt_count,attempt_log",
+      // ignore discarded/spam by default
+      "filter[status][_nin]": "discarded,spam",
+    })}`
+  );
+  return res?.data || [];
+}
+
 export async function createLead(payload: Partial<LeadItem>): Promise<LeadItem> {
   const res = await directusRequest<{ data: LeadItem }>(`/items/${DIRECTUS_LEADS_COLLECTION}`, {
     method: "POST",

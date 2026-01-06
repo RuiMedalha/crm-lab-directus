@@ -3,17 +3,18 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Kanban,
-  Inbox,
+  Menu,
+  PhoneCall,
+  IdCard,
   Users,
-  Plug,
 } from "lucide-react";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
-  { icon: Kanban, label: "Pipeline", path: "/pipeline" },
-  { icon: Inbox, label: "Leads", path: "/inbox" },
+  { icon: IdCard, label: "Card 360", path: "/dashboard360" },
+  { icon: PhoneCall, label: "Leads", path: "/leads360" },
   { icon: Users, label: "Contactos", path: "/contactos" },
-  { icon: Plug, label: "Integrações", path: "/integracoes" },
+  { icon: Menu, label: "Mais", path: "/menu" },
 ];
 
 export function BottomNav() {

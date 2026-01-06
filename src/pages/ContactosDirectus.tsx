@@ -17,6 +17,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listContacts } from "@/integrations/directus/contacts";
 import { toast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function ContactosDirectus() {
   const navigate = useNavigate();
@@ -81,7 +82,77 @@ export default function ContactosDirectus() {
           </div>
         )}
 
-        <div className="border rounded-lg overflow-hidden">
+        {/* Mobile: cards */}
+        <div className="grid gap-3 md:hidden">
+          {isLoading ? (
+            [...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+          ) : contacts.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Nenhum contacto encontrado
+              </CardContent>
+            </Card>
+          ) : (
+            contacts.map((c: any) => (
+              <Card key={String(c.id)}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {c.company_name || c.contact_name || c.email || c.phone || "-"}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                        {c.nif && <div>NIF: {c.nif}</div>}
+                        {c.phone && <div className="font-mono">{c.phone}</div>}
+                        {c.email && <div className="truncate">{c.email}</div>}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to={`/dashboard360/${encodeURIComponent(String(c.id))}`}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Abrir
+                      </Link>
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {c.phone && (
+                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                        <a href={`tel:${c.phone}`}>
+                          <Phone className="h-4 w-4 mr-2" />
+                          Ligar
+                        </a>
+                      </Button>
+                    )}
+                    {c.whatsapp_number && (
+                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                        <a
+                          href={`https://wa.me/${String(c.whatsapp_number).replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          WhatsApp
+                        </a>
+                      </Button>
+                    )}
+                    {c.email && (
+                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                        <a href={`mailto:${c.email}`}>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Email
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden md:block border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

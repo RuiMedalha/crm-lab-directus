@@ -3,12 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useDeals } from "@/hooks/useDeals";
 import { useContacts } from "@/hooks/useContacts";
-import { usePendingLeads, useCalls } from "@/hooks/useCalls";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Kanban, Inbox, TrendingUp, Euro, Phone, MessageCircle, Mail, Globe, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useMemo } from "react";
-import { DashboardActionCenter } from "@/components/dashboard/DashboardActionCenter";
+import { useQuery } from "@tanstack/react-query";
+import { fetchMissedLeads, fetchRecentLeads } from "@/integrations/directus/leads";
 import {
   BarChart,
   Bar,
@@ -35,8 +35,16 @@ const SOURCE_CONFIG: Record<string, { label: string; color: string; icon: typeof
 export default function Dashboard() {
   const { data: deals, isLoading: dealsLoading } = useDeals();
   const { data: contacts, isLoading: contactsLoading } = useContacts();
-  const { data: pendingLeads, isLoading: leadsLoading } = usePendingLeads();
-  const { data: allCalls, isLoading: callsLoading } = useCalls();
+  const missedLeadsQuery = useQuery({
+    queryKey: ["leads-missed-dashboard"],
+    queryFn: async () => await fetchMissedLeads(),
+    refetchInterval: 8000,
+  });
+  const recentLeadsQuery = useQuery({
+    queryKey: ["leads-recent-dashboard"],
+    queryFn: async () => await fetchRecentLeads(300),
+    refetchInterval: 12000,
+  });
 
   const totalDealsValue = deals?.reduce((sum, deal) => sum + (deal.total_amount || 0), 0) || 0;
   const activeDeals = deals?.filter((d) => !["ganho", "perdido"].includes(d.status || "")).length || 0;
@@ -44,11 +52,12 @@ export default function Dashboard() {
 
   // Calculate leads by source
   const leadsBySource = useMemo(() => {
-    if (!allCalls) return [];
+    const all = recentLeadsQuery.data || [];
+    if (!all.length) return [];
     
     const sourceCount: Record<string, number> = {};
-    allCalls.forEach((call) => {
-      const source = call.source || "phone";
+    all.forEach((lead) => {
+      const source = lead.source || "phone";
       sourceCount[source] = (sourceCount[source] || 0) + 1;
     });
 
@@ -60,11 +69,12 @@ export default function Dashboard() {
         color: SOURCE_CONFIG[source]?.color || "hsl(var(--muted-foreground))",
       }))
       .sort((a, b) => b.count - a.count);
-  }, [allCalls]);
+  }, [recentLeadsQuery.data]);
 
   // Calculate leads by day (last 7 days)
   const leadsByDay = useMemo(() => {
-    if (!allCalls) return [];
+    const all = recentLeadsQuery.data || [];
+    if (!all.length) return [];
     
     const days: Record<string, Record<string, number>> = {};
     const now = new Date();
@@ -77,13 +87,13 @@ export default function Dashboard() {
       days[key] = {};
     }
 
-    allCalls.forEach((call) => {
-      const date = new Date(call.created_at || "");
+    all.forEach((lead) => {
+      const date = new Date(lead.date_created || "");
       const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
       
       if (diffDays <= 6) {
         const key = date.toLocaleDateString("pt-PT", { weekday: "short", day: "numeric" });
-        const source = call.source || "phone";
+        const source = lead.source || "phone";
         if (days[key]) {
           days[key][source] = (days[key][source] || 0) + 1;
         }
@@ -95,7 +105,7 @@ export default function Dashboard() {
       ...sources,
       total: Object.values(sources).reduce((a, b) => a + b, 0),
     }));
-  }, [allCalls]);
+  }, [recentLeadsQuery.data]);
 
   const stats = [
     {
@@ -114,9 +124,9 @@ export default function Dashboard() {
     },
     {
       title: "Leads Pendentes",
-      value: pendingLeads?.length || 0,
+      value: missedLeadsQuery.data?.length || 0,
       icon: Inbox,
-      href: "/inbox",
+      href: "/leads360",
       color: "text-destructive",
     },
     {
@@ -128,7 +138,7 @@ export default function Dashboard() {
     },
   ];
 
-  const isLoading = dealsLoading || contactsLoading || leadsLoading || callsLoading;
+  const isLoading = dealsLoading || contactsLoading || missedLeadsQuery.isLoading || recentLeadsQuery.isLoading;
 
   return (
     <AppLayout>
@@ -245,7 +255,7 @@ export default function Dashboard() {
               <CardTitle className="text-lg">Leads por Fonte</CardTitle>
             </CardHeader>
             <CardContent>
-              {callsLoading ? (
+              {recentLeadsQuery.isLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : leadsBySource.length === 0 ? (
                 <div className="h-64 flex items-center justify-center">
@@ -287,7 +297,7 @@ export default function Dashboard() {
               )}
               
               {/* Source Legend */}
-              {!callsLoading && leadsBySource.length > 0 && (
+              {!recentLeadsQuery.isLoading && leadsBySource.length > 0 && (
                 <div className="flex flex-wrap gap-3 mt-4 justify-center">
                   {leadsBySource.map((source) => (
                     <div key={source.source} className="flex items-center gap-2">
@@ -311,7 +321,7 @@ export default function Dashboard() {
               <CardTitle className="text-lg">Leads Últimos 7 Dias</CardTitle>
             </CardHeader>
             <CardContent>
-              {callsLoading ? (
+              {recentLeadsQuery.isLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : leadsByDay.every((d) => d.total === 0) ? (
                 <div className="h-64 flex items-center justify-center">
@@ -357,9 +367,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Action Center - Chamadas Perdidas e Orçamentos */}
-        <DashboardActionCenter />
 
         {/* Recent Activity */}
         <div className="grid gap-4 lg:grid-cols-2">
@@ -413,22 +420,22 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {leadsLoading ? (
+              {missedLeadsQuery.isLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-12 w-full" />
                   ))}
                 </div>
-              ) : pendingLeads?.length === 0 ? (
+              ) : (missedLeadsQuery.data?.length || 0) === 0 ? (
                 <p className="text-muted-foreground text-sm">Sem leads pendentes</p>
               ) : (
                 <div className="space-y-3">
-                  {pendingLeads?.slice(0, 5).map((lead) => {
+                  {(missedLeadsQuery.data || []).slice(0, 5).map((lead: any) => {
                     const sourceConfig = SOURCE_CONFIG[lead.source || "phone"];
                     return (
                       <Link
                         key={lead.id}
-                        to="/inbox"
+                        to="/leads360"
                         className="flex items-center justify-between p-2 rounded-lg hover:bg-muted transition-colors"
                       >
                         <div className="flex items-center gap-2">
@@ -438,13 +445,13 @@ export default function Dashboard() {
                           />
                           <div>
                             <p className="font-medium text-sm">
-                              {lead.customer_name || "Desconhecido"}
+                              {lead.display_name || "Desconhecido"}
                             </p>
-                            <p className="text-xs text-muted-foreground">{lead.phone_number}</p>
+                            <p className="text-xs text-muted-foreground">{lead.phone || lead.email || ""}</p>
                           </div>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(lead.created_at || "").toLocaleDateString("pt-PT")}
+                          {new Date(lead.last_attempt_at || lead.date_created || "").toLocaleDateString("pt-PT")}
                         </span>
                       </Link>
                     );

@@ -1,13 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import {
+  createDeal,
+  createDealItem,
+  deleteDealItem,
+  getDealById,
+  listDealItems,
+  listDeals,
+  patchDeal,
+  type DealItemRow,
+  type DealRow,
+} from "@/integrations/directus/deals";
 
-export type Deal = Tables<"deals">;
-export type DealInsert = TablesInsert<"deals">;
-export type DealUpdate = TablesUpdate<"deals">;
+export type Deal = DealRow & {
+  customer?: { id: string; company_name?: string | null } | null;
+  manufacturer?: { id: string; name?: string | null } | null;
+  customer_id?: string | null;
+  manufacturer_id?: string | null;
+  items?: DealItemRow[];
+};
 
-export type DealItem = Tables<"deal_items">;
-export type DealItemInsert = TablesInsert<"deal_items">;
+export type DealInsert = Partial<Deal>;
+export type DealUpdate = Partial<Deal>;
+
+export type DealItem = DealItemRow;
+export type DealItemInsert = Partial<DealItemRow>;
 
 export const DEAL_STATUSES = [
   { value: "lead", label: "Lead" },
@@ -22,17 +38,18 @@ export function useDeals() {
   return useQuery({
     queryKey: ["deals"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deals")
-        .select(`
-          *,
-          customer:contacts(id, company_name, contact_name),
-          manufacturer:manufacturers(id, name),
-          quotations:quotations(id, pdf_link, status)
-        `)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const rows = await listDeals({ limit: 500, page: 1 });
+      return rows.map((d: any) => {
+        const customerObj = d.customer_id && typeof d.customer_id === "object" ? d.customer_id : null;
+        const manufacturerObj = d.manufacturer_id && typeof d.manufacturer_id === "object" ? d.manufacturer_id : null;
+        return {
+          ...d,
+          customer: customerObj,
+          manufacturer: manufacturerObj,
+          customer_id: customerObj?.id ?? (typeof d.customer_id === "string" ? d.customer_id : null),
+          manufacturer_id: manufacturerObj?.id ?? (typeof d.manufacturer_id === "string" ? d.manufacturer_id : null),
+        } as Deal;
+      });
     },
   });
 }
@@ -42,18 +59,25 @@ export function useDeal(id: string | undefined) {
     queryKey: ["deal", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase
-        .from("deals")
-        .select(`
-          *,
-          customer:contacts(*),
-          manufacturer:manufacturers(*),
-          items:deal_items(*)
-        `)
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const base = await getDealById(id);
+      if (!base) return null;
+      const items = await listDealItems(id).catch(() => []);
+      const customerObj = (base as any).customer_id && typeof (base as any).customer_id === "object" ? (base as any).customer_id : null;
+      const manufacturerObj =
+        (base as any).manufacturer_id && typeof (base as any).manufacturer_id === "object"
+          ? (base as any).manufacturer_id
+          : null;
+
+      return {
+        ...(base as any),
+        items,
+        customer: customerObj,
+        manufacturer: manufacturerObj,
+        customer_id: customerObj?.id ?? (typeof (base as any).customer_id === "string" ? (base as any).customer_id : null),
+        manufacturer_id:
+          manufacturerObj?.id ??
+          (typeof (base as any).manufacturer_id === "string" ? (base as any).manufacturer_id : null),
+      } as Deal;
     },
     enabled: !!id,
   });
@@ -64,13 +88,8 @@ export function useCreateDeal() {
 
   return useMutation({
     mutationFn: async (deal: DealInsert) => {
-      const { data, error } = await supabase
-        .from("deals")
-        .insert(deal)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      const { customer, manufacturer, items, ...payload } = deal as any;
+      return await createDeal(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deals"] });
@@ -83,14 +102,8 @@ export function useUpdateDeal() {
 
   return useMutation({
     mutationFn: async ({ id, ...deal }: DealUpdate & { id: string }) => {
-      const { data, error } = await supabase
-        .from("deals")
-        .update(deal)
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      const { customer, manufacturer, items, ...patch } = deal as any;
+      return await patchDeal(id, patch);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["deals"] });
@@ -104,16 +117,10 @@ export function useAddDealItem() {
 
   return useMutation({
     mutationFn: async (item: DealItemInsert) => {
-      const { data, error } = await supabase
-        .from("deal_items")
-        .insert(item)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return await createDealItem(item);
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["deal", data.deal_id] });
+      if (data?.deal_id) queryClient.invalidateQueries({ queryKey: ["deal", data.deal_id] });
       queryClient.invalidateQueries({ queryKey: ["deals"] });
     },
   });
@@ -124,8 +131,7 @@ export function useRemoveDealItem() {
 
   return useMutation({
     mutationFn: async ({ id, dealId }: { id: string; dealId: string }) => {
-      const { error } = await supabase.from("deal_items").delete().eq("id", id);
-      if (error) throw error;
+      await deleteDealItem(id);
       return dealId;
     },
     onSuccess: (dealId) => {

@@ -10,7 +10,7 @@ import {
   saveMeilisearchSettings,
   MeilisearchSettings,
 } from "@/hooks/useSettings";
-import { supabase } from "@/integrations/supabase/client";
+import { DIRECTUS_TOKEN, DIRECTUS_URL } from "@/integrations/directus/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,25 +95,39 @@ export default function Definicoes() {
     setUploading(true);
 
     try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `logo-${Date.now()}.${fileExt}`;
+      if (!DIRECTUS_TOKEN) {
+        throw new Error("Missing Directus token (VITE_DIRECTUS_TOKEN).");
+      }
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('company-assets')
-        .upload(fileName, file, { upsert: true });
+      const fd = new FormData();
+      fd.append("file", file, file.name);
 
-      if (uploadError) throw uploadError;
+      const res = await fetch(`${DIRECTUS_URL.replace(/\/+$/, "")}/files`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+        },
+        body: fd,
+      });
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-assets')
-        .getPublicUrl(fileName);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg =
+          json?.errors?.[0]?.message ||
+          json?.message ||
+          json?.error ||
+          `Upload failed (${res.status})`;
+        throw new Error(msg);
+      }
+
+      const fileId = json?.data?.id;
+      if (!fileId) throw new Error("Upload completed but file id missing.");
+
+      const assetUrl = `${DIRECTUS_URL.replace(/\/+$/, "")}/assets/${encodeURIComponent(String(fileId))}`;
 
       // Update company settings with new logo URL
-      await updateSettings.mutateAsync({ logo_url: publicUrl });
-      setCompanyData(prev => ({ ...prev, logo_url: publicUrl }));
+      await updateSettings.mutateAsync({ logo_url: assetUrl });
+      setCompanyData(prev => ({ ...prev, logo_url: assetUrl }));
 
       toast({ title: "Logótipo carregado com sucesso" });
     } catch (error) {
@@ -506,14 +520,14 @@ export default function Definicoes() {
               <div className="flex gap-2">
                 <Input
                   readOnly
-                  value="https://hzzaoxtgyazdjvrnycux.supabase.co/functions/v1/receive-lead"
+                  value={`${DIRECTUS_URL.replace(/\/+$/, "")}/items/leads`}
                   className="font-mono text-xs"
                 />
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => {
-                    navigator.clipboard.writeText("https://hzzaoxtgyazdjvrnycux.supabase.co/functions/v1/receive-lead");
+                    navigator.clipboard.writeText(`${DIRECTUS_URL.replace(/\/+$/, "")}/items/leads`);
                     toast({ title: "URL copiado" });
                   }}
                 >
@@ -521,7 +535,7 @@ export default function Definicoes() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Use este URL no n8n, Typebot ou WhatsApp para enviar leads automaticamente
+                Use este URL no n8n/Typebot/Chatwoot com header <code>Authorization: Bearer TOKEN</code> para criar leads.
               </p>
             </div>
 

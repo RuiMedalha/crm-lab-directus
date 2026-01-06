@@ -7,9 +7,16 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LeadPopup360 } from "@/components/LeadPopup360";
 import { useLeadListener360 } from "@/hooks/useLeadListener360";
+import Dashboard from "./pages/Dashboard";
 import Dashboard360 from "./pages/Dashboard360";
 import Leads360 from "./pages/Leads360";
 import ContactosDirectus from "./pages/ContactosDirectus";
+import Pipeline from "./pages/Pipeline";
+import Fornecedores from "./pages/Fornecedores";
+import Integracoes from "./pages/Integracoes";
+import Definicoes from "./pages/Definicoes";
+import UtilizadoresDirectus from "./pages/UtilizadoresDirectus";
+import MenuMobile from "./pages/MenuMobile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,13 +27,19 @@ const AppContent = () => {
   return (
     <>
       <Routes>
-        <Route path="/" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/contactos" element={<ProtectedRoute><ContactosDirectus /></ProtectedRoute>} />
         {/* Directus Card360 is now the default “Novo contacto” flow */}
         <Route path="/contactos/novo" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
         <Route path="/dashboard360/:id" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
         <Route path="/dashboard360" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
         <Route path="/leads360" element={<ProtectedRoute><Leads360 /></ProtectedRoute>} />
+        <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
+        <Route path="/fornecedores" element={<ProtectedRoute><Fornecedores /></ProtectedRoute>} />
+        <Route path="/integracoes" element={<ProtectedRoute><Integracoes /></ProtectedRoute>} />
+        <Route path="/definicoes" element={<ProtectedRoute><Definicoes /></ProtectedRoute>} />
+        <Route path="/utilizadores" element={<ProtectedRoute><UtilizadoresDirectus /></ProtectedRoute>} />
+        <Route path="/menu" element={<ProtectedRoute><MenuMobile /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
 

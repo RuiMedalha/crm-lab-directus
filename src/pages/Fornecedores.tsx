@@ -61,6 +61,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Card as UICard, CardContent as UICardContent } from "@/components/ui/card";
 
 const ORDER_METHODS = [
   { value: "email", label: "Email" },
@@ -220,8 +221,80 @@ export default function Fornecedores() {
           />
         </div>
 
-        {/* Table */}
-        <div className="border rounded-lg overflow-hidden">
+        {/* Mobile: cards */}
+        <div className="grid gap-3 md:hidden">
+          {isLoading ? (
+            [...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+          ) : manufacturers?.length === 0 ? (
+            <UICard>
+              <UICardContent className="py-10 text-center text-sm text-muted-foreground">
+                Nenhum fornecedor encontrado
+              </UICardContent>
+            </UICard>
+          ) : (
+            manufacturers?.map((m: any) => (
+              <UICard key={m.id}>
+                <UICardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{m.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                        {m.sku_prefix && (
+                          <div>
+                            <Badge variant="secondary">{m.sku_prefix}</Badge>
+                          </div>
+                        )}
+                        {m.sales_rep_name && <div>Vendedor: {m.sales_rep_name}</div>}
+                        {m.phone_main && <div className="font-mono">{m.phone_main}</div>}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleOpenDialog(m)}>
+                      Editar
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {m.catalog_url && (
+                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                        <a href={m.catalog_url} target="_blank" rel="noopener noreferrer">
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Catálogo
+                        </a>
+                      </Button>
+                    )}
+                    {m.portal_url && (
+                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                        <a href={m.portal_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Portal
+                        </a>
+                      </Button>
+                    )}
+                    {m.contact_email && (
+                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                        <a href={`mailto:${m.contact_email}`}>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Email
+                        </a>
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteId(m.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </UICardContent>
+              </UICard>
+            ))
+          )}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden md:block border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

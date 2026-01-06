@@ -262,6 +262,10 @@ export async function createContact(payload: Record<string, unknown>): Promise<C
   return mapFromDirectusItem(res?.data)!;
 }
 
+export async function deleteContact(id: string): Promise<void> {
+  await directusRequest(`/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export async function listContacts(params?: {
   search?: string;
   limit?: number;

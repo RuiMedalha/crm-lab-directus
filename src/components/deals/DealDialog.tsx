@@ -34,7 +34,7 @@ import { getWebhookSettings } from "@/hooks/useSettings";
 import { useMeilisearch, MeilisearchProduct } from "@/hooks/useMeilisearch";
 import { QuotationsSection } from "./QuotationsSection";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { getContactById, patchContact } from "@/integrations/directus/contacts";
 import {
   Save,
   FileText,
@@ -53,6 +53,8 @@ interface DealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const ENABLE_QUOTATIONS = String(import.meta.env.VITE_ENABLE_QUOTATIONS || "").toLowerCase() === "true";
 
 export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
   const isNew = !dealId;
@@ -158,33 +160,15 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
       // REGRA 1: Auto-adicionar SKU ao sku_history do contacto
       if (formData.customer_id && product.sku) {
         try {
-          const { data: contact, error: fetchError } = await supabase
-            .from('contacts')
-            .select('sku_history')
-            .eq('id', formData.customer_id)
-            .maybeSingle();
-          
-          if (fetchError) {
-            console.error('Erro ao buscar histórico SKU:', fetchError);
-          } else {
-            const currentHistory: string[] = Array.isArray(contact?.sku_history) 
-              ? contact.sku_history 
-              : [];
-            
-            if (!currentHistory.includes(product.sku)) {
-              const newHistory = [...currentHistory, product.sku];
-              const { error: updateError } = await supabase
-                .from('contacts')
-                .update({ sku_history: newHistory })
-                .eq('id', formData.customer_id);
-              
-              if (updateError) {
-                console.error('Erro ao atualizar histórico SKU:', updateError);
-              } else {
-                console.log('SKU adicionado ao histórico:', product.sku);
-                toast({ title: `SKU ${product.sku} adicionado ao histórico do cliente` });
-              }
-            }
+          const contact = await getContactById(formData.customer_id).catch(() => null);
+          const currentHistory: string[] = Array.isArray((contact as any)?.sku_history)
+            ? ((contact as any).sku_history as string[])
+            : [];
+
+          if (!currentHistory.includes(product.sku)) {
+            const newHistory = [...currentHistory, product.sku];
+            await patchContact(formData.customer_id, { sku_history: newHistory }).catch(() => undefined);
+            toast({ title: `SKU ${product.sku} adicionado ao histórico do cliente` });
           }
         } catch (skuError) {
           console.error('Erro ao adicionar SKU ao histórico:', skuError);
@@ -537,8 +521,12 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
                 </div>
 
                 {/* Quotations Section */}
-                <Separator />
-                <QuotationsSection dealId={dealId} customerId={formData.customer_id} />
+                {ENABLE_QUOTATIONS && (
+                  <>
+                    <Separator />
+                    <QuotationsSection dealId={dealId} customerId={formData.customer_id} />
+                  </>
+                )}
               </>
             )}
 
