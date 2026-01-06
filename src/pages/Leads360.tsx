@@ -14,7 +14,7 @@ import {
   type LeadItem,
 } from "@/integrations/directus/leads";
 import { findDuplicateContact } from "@/integrations/directus/contacts";
-import { Clock, Mail, MessageCircle, Phone, Trash2 } from "lucide-react";
+import { Clock, Mail, MessageCircle, Phone, Trash2, Smartphone } from "lucide-react";
 
 const SOURCE_BADGE: Record<string, { label: string; icon: any }> = {
   phone: { label: "Chamada", icon: Phone },
@@ -34,6 +34,18 @@ function fmtDate(iso?: string | null) {
     return iso;
   }
 }
+
+const WHATSAPP_TEMPLATE =
+  import.meta.env.VITE_OUTREACH_TEMPLATE_WHATSAPP ||
+  "Olá! Pedimos desculpa por não termos atendido. Pode dizer-nos o que pretende e deixar mais dados (nome/empresa)?";
+const SMS_TEMPLATE =
+  import.meta.env.VITE_OUTREACH_TEMPLATE_SMS ||
+  "Olá! Pedimos desculpa por não termos atendido. Pode indicar o que pretende e o seu nome/empresa? Obrigado.";
+const EMAIL_SUBJECT =
+  import.meta.env.VITE_OUTREACH_TEMPLATE_EMAIL_SUBJECT || "Re: Contacto CRM Hotelequip";
+const EMAIL_BODY =
+  import.meta.env.VITE_OUTREACH_TEMPLATE_EMAIL_BODY ||
+  "Olá! Pedimos desculpa por não termos respondido de imediato.\n\nPode indicar-nos o que pretende e os seus dados (nome/empresa/telefone)?\n\nObrigado.";
 
 export default function Leads360() {
   const navigate = useNavigate();
@@ -111,24 +123,35 @@ export default function Leads360() {
     window.location.href = `tel:${lead.phone}`;
   };
 
-  const handleMessage = (lead: LeadItem) => {
+  const handleWhatsApp = (lead: LeadItem) => {
     if (lead.phone) {
       const phone = lead.phone.replace(/\D/g, "");
-      const text = encodeURIComponent(
-        "Olá! Pedimos desculpa por não termos atendido. Pode dizer-nos o que pretende e deixar mais dados (nome/empresa)?"
-      );
+      const text = encodeURIComponent(WHATSAPP_TEMPLATE);
       window.open(`https://wa.me/${phone}?text=${text}`, "_blank", "noopener,noreferrer");
       return;
     }
-    if (lead.email) {
-      const subject = encodeURIComponent("Re: Contacto CRM Lab");
-      const body = encodeURIComponent(
-        "Olá! Pedimos desculpa por não termos respondido de imediato.\n\nPode indicar-nos o que pretende e os seus dados (nome/empresa/telefone)?\n\nObrigado."
-      );
-      window.location.href = `mailto:${lead.email}?subject=${subject}&body=${body}`;
+    toast({ title: "Sem telefone para WhatsApp", variant: "destructive" });
+  };
+
+  const handleSms = (lead: LeadItem) => {
+    if (!lead.phone) {
+      toast({ title: "Sem telefone para SMS", variant: "destructive" });
       return;
     }
-    toast({ title: "Sem telefone/email", variant: "destructive" });
+    const phone = lead.phone.replace(/\D/g, "");
+    const body = encodeURIComponent(SMS_TEMPLATE);
+    // Works on mobile and some desktop handlers
+    window.location.href = `sms:${phone}?&body=${body}`;
+  };
+
+  const handleEmail = (lead: LeadItem) => {
+    if (!lead.email) {
+      toast({ title: "Sem email", variant: "destructive" });
+      return;
+    }
+    const subject = encodeURIComponent(EMAIL_SUBJECT);
+    const body = encodeURIComponent(EMAIL_BODY);
+    window.location.href = `mailto:${lead.email}?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -206,9 +229,35 @@ export default function Leads360() {
                         <Phone className="h-4 w-4 mr-2" />
                         Ligar
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleMessage(lead)} className="flex-1 min-w-32">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleWhatsApp(lead)}
+                        className="flex-1 min-w-32"
+                        disabled={!lead.phone}
+                      >
                         <MessageCircle className="h-4 w-4 mr-2" />
-                        Mensagem
+                        WhatsApp
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSms(lead)}
+                        className="flex-1 min-w-32"
+                        disabled={!lead.phone}
+                      >
+                        <Smartphone className="h-4 w-4 mr-2" />
+                        SMS
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEmail(lead)}
+                        className="flex-1 min-w-32"
+                        disabled={!lead.email}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        Email
                       </Button>
                       <Button size="sm" onClick={() => handleOpenCard(lead)} className="flex-1 min-w-32">
                         Abrir Card
