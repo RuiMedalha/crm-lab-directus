@@ -1,20 +1,14 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Kanban,
-  Inbox,
   Users,
-  Factory,
-  Settings,
   ChevronLeft,
   ChevronRight,
-  Plug,
-  Shield,
-  LogOut,
   Building2,
+  IdCard,
+  PhoneCall,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -22,48 +16,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { User } from "@supabase/supabase-js";
-import { useCompanySettings } from "@/hooks/useSettings";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Painel", path: "/" },
-  { icon: Kanban, label: "Pipeline", path: "/pipeline" },
-  { icon: Inbox, label: "Entrada de Leads", path: "/inbox" },
-  // Single ficha: Card360 (Directus)
-  { icon: Users, label: "Card 360", path: "/dashboard360" },
-  { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
-  { icon: Shield, label: "Utilizadores", path: "/utilizadores" },
-  { icon: Plug, label: "Integrações", path: "/integracoes" },
-  { icon: Settings, label: "Definições", path: "/definicoes" },
+  { icon: Users, label: "Contactos", path: "/contactos" },
+  { icon: IdCard, label: "Card 360", path: "/dashboard360" },
+  { icon: PhoneCall, label: "Leads não atendidas", path: "/leads360" },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const { toast } = useToast();
-  const { data: settings } = useCompanySettings();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-    });
-  }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Sessão terminada",
-      description: "Até breve!",
-    });
-    navigate("/auth");
-  };
-
-  const logoUrl = settings?.logo_url;
-  const companyName = settings?.name || "CRM";
+  const logoUrl = "/logo-hotelequip-light.svg";
+  const companyName = "CRM Hotelequip";
 
   return (
     <aside
@@ -79,42 +43,11 @@ export function AppSidebar() {
       )}>
         {!collapsed ? (
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt={companyName}
-                className="h-8 w-auto max-w-[180px] object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-            ) : null}
-            {!logoUrl && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Building2 className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <span className="font-bold text-sidebar-foreground">{companyName}</span>
-              </div>
-            )}
+            <img src={logoUrl} alt={companyName} className="h-8 w-auto max-w-[180px] object-contain" />
           </Link>
         ) : (
           <Link to="/" className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center hover:opacity-80 transition-opacity overflow-hidden">
-            {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt={companyName}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            ) : (
-              <span className="font-bold text-sidebar-primary-foreground">
-                {companyName.charAt(0).toUpperCase()}
-              </span>
-            )}
+            <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
           </Link>
         )}
       </div>
@@ -158,42 +91,6 @@ export function AppSidebar() {
 
       {/* User Info, Theme Toggle and Collapse */}
       <div className="p-2 border-t border-sidebar-border space-y-1">
-        {/* User email */}
-        {user && !collapsed && (
-          <div className="px-3 py-2 text-xs text-sidebar-muted truncate">
-            {user.email}
-          </div>
-        )}
-        
-        {/* Logout */}
-        {collapsed ? (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="w-full justify-center text-sidebar-muted hover:text-destructive hover:bg-destructive/10"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="font-medium">
-              Terminar Sessão
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="w-full justify-start text-sidebar-muted hover:text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            <span className="text-sm">Terminar Sessão</span>
-          </Button>
-        )}
-
         <ThemeToggle collapsed={collapsed} />
         <Button
           variant="ghost"

@@ -245,3 +245,35 @@ export async function createContact(payload: Record<string, unknown>): Promise<C
   return mapFromDirectusItem(res?.data)!;
 }
 
+export async function listContacts(params?: {
+  search?: string;
+  limit?: number;
+  page?: number;
+}): Promise<ContactItem[]> {
+  const limit = params?.limit ?? 200;
+  const page = params?.page ?? 1;
+  const search = (params?.search || "").trim();
+
+  const nameKey = DIRECTUS_CONTACT_FIELD_MAP.company_name || "company_name";
+  const nifKey = DIRECTUS_CONTACT_FIELD_MAP.nif || "nif";
+  const phoneKey = DIRECTUS_CONTACT_FIELD_MAP.phone || "phone";
+  const emailKey = DIRECTUS_CONTACT_FIELD_MAP.email || "email";
+
+  const q: Record<string, string | number | undefined | null> = {
+    limit,
+    page,
+    sort: "-date_created",
+    fields: "*",
+  };
+
+  if (search) {
+    q[`filter[_or][0][${nameKey}][_icontains]`] = search;
+    q[`filter[_or][1][${nifKey}][_icontains]`] = search;
+    q[`filter[_or][2][${phoneKey}][_icontains]`] = search;
+    q[`filter[_or][3][${emailKey}][_icontains]`] = search;
+  }
+
+  const res = await directusRequest<{ data: any[] }>(`/items/${DIRECTUS_CONTACTS_COLLECTION}${qs(q)}`);
+  return (res?.data || []).map((i) => mapFromDirectusItem(i)!).filter(Boolean);
+}
+

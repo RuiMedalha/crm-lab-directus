@@ -7,19 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LeadPopup360 } from "@/components/LeadPopup360";
 import { useLeadListener360 } from "@/hooks/useLeadListener360";
-import Dashboard from "./pages/Dashboard";
-import Pipeline from "./pages/Pipeline";
-import Inbox from "./pages/Inbox";
-import Contactos from "./pages/Contactos";
-import ContactoDetalhe from "./pages/ContactoDetalhe";
-import ContactoNovo from "./pages/ContactoNovo";
-import Fornecedores from "./pages/Fornecedores";
-import Utilizadores from "./pages/Utilizadores";
-import Definicoes from "./pages/Definicoes";
-import Integracoes from "./pages/Integracoes";
 import Dashboard360 from "./pages/Dashboard360";
 import Leads360 from "./pages/Leads360";
-import Auth from "./pages/Auth";
+import ContactosDirectus from "./pages/ContactosDirectus";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,23 +20,13 @@ const AppContent = () => {
   return (
     <>
       <Routes>
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
-        <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
-        <Route path="/contactos" element={<ProtectedRoute><Contactos /></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
+        <Route path="/contactos" element={<ProtectedRoute><ContactosDirectus /></ProtectedRoute>} />
         {/* Directus Card360 is now the default “Novo contacto” flow */}
         <Route path="/contactos/novo" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
-        {/* Keep legacy Supabase form without breaking existing work */}
-        <Route path="/contactos/novo-legacy" element={<ProtectedRoute><ContactoNovo /></ProtectedRoute>} />
-        <Route path="/contactos/:id" element={<ProtectedRoute><ContactoDetalhe /></ProtectedRoute>} />
         <Route path="/dashboard360/:id" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
         <Route path="/dashboard360" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
         <Route path="/leads360" element={<ProtectedRoute><Leads360 /></ProtectedRoute>} />
-        <Route path="/fornecedores" element={<ProtectedRoute><Fornecedores /></ProtectedRoute>} />
-        <Route path="/utilizadores" element={<ProtectedRoute><Utilizadores /></ProtectedRoute>} />
-        <Route path="/definicoes" element={<ProtectedRoute><Definicoes /></ProtectedRoute>} />
-        <Route path="/integracoes" element={<ProtectedRoute><Integracoes /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
 
