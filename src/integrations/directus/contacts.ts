@@ -1,0 +1,247 @@
+import { directusRequest } from "@/integrations/directus/client";
+
+/**
+ * Contacts access layer for Directus.
+ *
+ * Goals:
+ * - Keep existing frontend keys (company_name, nif, phone, etc.)
+ * - Avoid “Payload Invalid” by:
+ *   - optional env field-map
+ *   - filtering payload to existing Directus fields (schema discovery)
+ */
+
+type FieldMap = Record<string, string>;
+
+export interface ContactItem {
+  id: string;
+  // Common fields (may vary by field map)
+  company_name?: string | null;
+  contact_name?: string | null;
+  nif?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  whatsapp_number?: string | null;
+  contact_person?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  website?: string | null;
+  tags?: unknown;
+  quick_notes?: unknown;
+  sku_history?: unknown;
+  notes?: string | null;
+  internal_notes?: string | null;
+  source?: string | null;
+  source_call_id?: string | null;
+  moloni_client_id?: string | null;
+
+  // Allow future fields without breaking types
+  [k: string]: unknown;
+}
+
+function safeJsonParse<T>(raw: unknown, fallback: T): T {
+  if (typeof raw !== "string" || !raw.trim()) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export const DIRECTUS_CONTACTS_COLLECTION =
+  import.meta.env.VITE_DIRECTUS_CONTACTS_COLLECTION || "contacts";
+
+export const DIRECTUS_CONTACT_FIELD_MAP: FieldMap = safeJsonParse<FieldMap>(
+  import.meta.env.VITE_DIRECTUS_CONTACT_FIELD_MAP,
+  {}
+);
+
+function qs(params: Record<string, string | number | undefined | null>) {
+  const sp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === "") return;
+    sp.set(k, String(v));
+  });
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+function invertMap(map: FieldMap) {
+  return Object.entries(map).reduce<Record<string, string>>((acc, [frontendKey, directusKey]) => {
+    acc[directusKey] = frontendKey;
+    return acc;
+  }, {});
+}
+
+export function mapToDirectusPayload(frontendPatch: Record<string, unknown>, allowedFields?: Set<string>) {
+  const payload: Record<string, unknown> = {};
+  Object.entries(frontendPatch || {}).forEach(([k, v]) => {
+    const directusKey = DIRECTUS_CONTACT_FIELD_MAP[k] || k;
+    if (allowedFields && !allowedFields.has(directusKey)) return;
+    payload[directusKey] = v;
+  });
+  return payload;
+}
+
+export function mapFromDirectusItem(item: any): ContactItem | null {
+  if (!item) return null;
+  const inverse = invertMap(DIRECTUS_CONTACT_FIELD_MAP);
+  const out: any = { ...item };
+  Object.keys(inverse).forEach((directusKey) => {
+    if (directusKey in out) {
+      const feKey = inverse[directusKey];
+      out[feKey] = out[directusKey];
+      if (feKey !== directusKey) delete out[directusKey];
+    }
+  });
+  return out as ContactItem;
+}
+
+let fieldsCache: Record<string, { at: number; fields: Set<string> }> = {};
+const FIELDS_CACHE_TTL_MS = 60_000;
+
+const DEFAULT_CONTACT_FIELDS = new Set<string>([
+  "id",
+  "company_name",
+  "contact_name",
+  "nif",
+  "phone",
+  "email",
+  "whatsapp_number",
+  "address",
+  "postal_code",
+  "city",
+  "website",
+  "accept_newsletter",
+  "newsletter_welcome_sent",
+  "tags",
+  "quick_notes",
+  "sku_history",
+  "contact_person",
+  "contact_phone",
+  "contact_email",
+  "internal_notes",
+  "notes",
+  "moloni_client_id",
+  "source",
+  "source_call_id",
+]);
+
+export async function getCollectionFields(collection = DIRECTUS_CONTACTS_COLLECTION): Promise<Set<string>> {
+  const key = collection;
+  const now = Date.now();
+  const cached = fieldsCache[key];
+  if (cached && now - cached.at < FIELDS_CACHE_TTL_MS) return cached.fields;
+
+  try {
+    // Directus endpoint: GET /fields/{collection}
+    const res = await directusRequest<{ data: Array<{ field: string }> }>(`/fields/${encodeURIComponent(collection)}`);
+    const set = new Set<string>((res?.data || []).map((f) => f.field).filter(Boolean));
+    fieldsCache[key] = { at: now, fields: set };
+    return set;
+  } catch {
+    // Fallback: still allow saving the known CRM fields (works even if /fields is restricted).
+    fieldsCache[key] = { at: now, fields: DEFAULT_CONTACT_FIELDS };
+    return DEFAULT_CONTACT_FIELDS;
+  }
+}
+
+export async function getContactById(id: string): Promise<ContactItem | null> {
+  const res = await directusRequest<{ data: ContactItem }>(
+    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: "*" })}`
+  );
+  return mapFromDirectusItem(res?.data);
+}
+
+function normalizePhone(phone: string) {
+  return phone.replace(/\D/g, "").slice(-9);
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+export async function findDuplicateContact(input: {
+  nif?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}): Promise<ContactItem | null> {
+  const cleanNif = (input.nif || "").trim();
+  const cleanPhone = (input.phone || "").trim();
+  const cleanEmail = (input.email || "").trim();
+
+  // Prefer NIF (more reliable)
+  if (cleanNif && cleanNif.length >= 9) {
+    const nifKey = DIRECTUS_CONTACT_FIELD_MAP.nif || "nif";
+    const res = await directusRequest<{ data: ContactItem[] }>(
+      `/items/${DIRECTUS_CONTACTS_COLLECTION}${qs({
+        limit: 1,
+        fields: "*",
+        [`filter[${nifKey}][_eq]`]: cleanNif,
+      })}`
+    );
+    const item = res?.data?.[0];
+    return item ? mapFromDirectusItem(item) : null;
+  }
+
+  // Then phone across keys
+  if (cleanPhone && cleanPhone.length >= 6) {
+    const phoneKey = DIRECTUS_CONTACT_FIELD_MAP.phone || "phone";
+    const waKey = DIRECTUS_CONTACT_FIELD_MAP.whatsapp_number || "whatsapp_number";
+    const contactPhoneKey = DIRECTUS_CONTACT_FIELD_MAP.contact_phone || "contact_phone";
+    const normalized = normalizePhone(cleanPhone);
+    const res = await directusRequest<{ data: ContactItem[] }>(
+      `/items/${DIRECTUS_CONTACTS_COLLECTION}${qs({
+        limit: 1,
+        fields: "*",
+        [`filter[_or][0][${phoneKey}][_ends_with]`]: normalized,
+        [`filter[_or][1][${waKey}][_ends_with]`]: normalized,
+        [`filter[_or][2][${contactPhoneKey}][_ends_with]`]: normalized,
+      })}`
+    );
+    const item = res?.data?.[0];
+    return item ? mapFromDirectusItem(item) : null;
+  }
+
+  // Then email
+  if (cleanEmail) {
+    const emailKey = DIRECTUS_CONTACT_FIELD_MAP.email || "email";
+    const res = await directusRequest<{ data: ContactItem[] }>(
+      `/items/${DIRECTUS_CONTACTS_COLLECTION}${qs({
+        limit: 1,
+        fields: "*",
+        [`filter[${emailKey}][_eq]`]: normalizeEmail(cleanEmail),
+      })}`
+    );
+    const item = res?.data?.[0];
+    return item ? mapFromDirectusItem(item) : null;
+  }
+
+  return null;
+}
+
+export async function patchContact(id: string, patch: Record<string, unknown>): Promise<ContactItem> {
+  const allowed = await getCollectionFields(DIRECTUS_CONTACTS_COLLECTION);
+  const payload = mapToDirectusPayload(patch, allowed);
+  const res = await directusRequest<{ data: ContactItem }>(
+    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
+  return mapFromDirectusItem(res?.data)!;
+}
+
+export async function createContact(payload: Record<string, unknown>): Promise<ContactItem> {
+  const allowed = await getCollectionFields(DIRECTUS_CONTACTS_COLLECTION);
+  const directusPayload = mapToDirectusPayload(payload, allowed);
+  const res = await directusRequest<{ data: ContactItem }>(`/items/${DIRECTUS_CONTACTS_COLLECTION}`, {
+    method: "POST",
+    body: JSON.stringify(directusPayload),
+  });
+  return mapFromDirectusItem(res?.data)!;
+}
+

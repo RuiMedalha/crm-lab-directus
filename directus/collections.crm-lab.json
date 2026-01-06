@@ -41,6 +41,10 @@
         { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas internas" } },
         { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
 
+        { "field": "delivery_addresses", "type": "json", "meta": { "interface": "json", "display_name": "Moradas alternativas (entrega)" } },
+        { "field": "logistics_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Logística (notas)" } },
+        { "field": "commercial_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Comercial (campo livre)" } },
+
         { "field": "moloni_client_id", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client ID" } },
         { "field": "source", "type": "string", "meta": { "interface": "input", "display_name": "Origem" } },
         { "field": "source_call_id", "type": "string", "meta": { "interface": "input", "display_name": "Source Call ID" } }
