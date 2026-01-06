@@ -48,7 +48,10 @@ const AppContent = () => {
         <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
         <Route path="/contactos" element={<ProtectedRoute><Contactos /></ProtectedRoute>} />
-        <Route path="/contactos/novo" element={<ProtectedRoute><ContactoNovo /></ProtectedRoute>} />
+        {/* Directus Card360 is now the default “Novo contacto” flow */}
+        <Route path="/contactos/novo" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
+        {/* Keep legacy Supabase form without breaking existing work */}
+        <Route path="/contactos/novo-legacy" element={<ProtectedRoute><ContactoNovo /></ProtectedRoute>} />
         <Route path="/contactos/:id" element={<ProtectedRoute><ContactoDetalhe /></ProtectedRoute>} />
         <Route path="/dashboard360/:id" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
         <Route path="/dashboard360" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
