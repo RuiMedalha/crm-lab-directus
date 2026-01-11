@@ -12,7 +12,8 @@
       },
       "fields": [
         { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
-        { "field": "created_at", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
 
         { "field": "company_name", "type": "string", "meta": { "required": true, "interface": "input", "display": "raw", "display_name": "Nome da Empresa" } },
         { "field": "contact_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome do Contacto" } },
@@ -62,7 +63,8 @@
       },
       "fields": [
         { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
-        { "field": "created_at", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
 
         { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
         { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Origem (canal)" } },
@@ -80,7 +82,7 @@
         { "field": "first_attempt_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Primeira tentativa" } },
         { "field": "last_attempt_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Última tentativa" } },
 
-        { "field": "contact_id", "type": "string", "meta": { "interface": "input", "display_name": "Contacto (id)" } },
+        { "field": "contact_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Contacto" }, "schema": { "foreign_key_table": "contacts" } },
         { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
 
         { "field": "claimed_by", "type": "string", "meta": { "interface": "input", "display_name": "Atendido por" } },
