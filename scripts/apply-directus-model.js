@@ -33,7 +33,8 @@ function joinUrl(base, p) {
 }
 
 async function api(method, p, body) {
-  const res = await fetch(joinUrl(DIRECTUS_URL, p), {
+  const url = joinUrl(DIRECTUS_URL, p);
+  const res = await fetch(url, {
     method,
     headers: {
       Authorization: `Bearer ${DIRECTUS_TOKEN}`,
@@ -57,33 +58,28 @@ async function api(method, p, body) {
       (data && typeof data === "object" && typeof data.message === "string" && data.message) ||
       (typeof data === "string" && data) ||
       `HTTP ${res.status}`;
-    const err = new Error(msg);
+    const err = new Error(`${method} ${p} -> ${msg}`);
     err.status = res.status;
     err.payload = data;
+    err.url = url;
     throw err;
   }
 
   return data;
 }
 
-async function existsCollection(collection) {
-  try {
-    await api("GET", `/collections/${encodeURIComponent(collection)}`);
-    return true;
-  } catch (e) {
-    if (e?.status === 404) return false;
-    throw e;
-  }
+async function listAllCollections() {
+  // Avoid /collections/{collection} (some policies allow list but forbid detail)
+  const res = await api("GET", "/collections?limit=1000");
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return new Set(data.map((c) => c?.collection).filter(Boolean));
 }
 
-async function existsField(collection, field) {
-  try {
-    await api("GET", `/fields/${encodeURIComponent(collection)}/${encodeURIComponent(field)}`);
-    return true;
-  } catch (e) {
-    if (e?.status === 404) return false;
-    throw e;
-  }
+async function listCollectionFields(collection) {
+  // Avoid /fields/{collection}/{field} (some policies forbid detail endpoint)
+  const res = await api("GET", `/fields/${encodeURIComponent(collection)}`);
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return new Set(data.map((f) => f?.field).filter(Boolean));
 }
 
 function normalizeFieldForDirectus(input) {
@@ -114,11 +110,16 @@ async function main() {
   console.log(`Directus URL: ${DIRECTUS_URL}`);
   console.log(`Applying model from: ${modelPath}`);
 
+  const existingCollections = await listAllCollections().catch((e) => {
+    console.error("Failed to list collections:", e?.message || e);
+    throw e;
+  });
+
   for (const c of collections) {
     const name = c?.collection;
     if (!name) continue;
 
-    const has = await existsCollection(name);
+    const has = existingCollections.has(name);
     if (!has) {
       console.log(`+ create collection: ${name}`);
       await api("POST", "/collections", {
@@ -126,17 +127,17 @@ async function main() {
         meta: c?.meta || {},
         schema: c?.schema || { name },
       });
+      existingCollections.add(name);
     } else {
       console.log(`= collection exists: ${name}`);
-      // Keep meta/schema in sync (best effort)
-      try {
-        await api("PATCH", `/collections/${encodeURIComponent(name)}`, {
-          meta: c?.meta || {},
-          schema: c?.schema || { name },
-        });
-      } catch {
-        // ignore
-      }
+    }
+
+    let existingFields = new Set();
+    try {
+      existingFields = await listCollectionFields(name);
+    } catch (e) {
+      // If we can't list fields due to policies, we'll try to create them blindly.
+      console.warn(`! could not list fields for ${name}: ${e?.message || e}`);
     }
 
     const fields = Array.isArray(c?.fields) ? c.fields : [];
@@ -145,27 +146,31 @@ async function main() {
       if (!field) continue;
 
       const f = normalizeFieldForDirectus(f0);
-      const fExists = await existsField(name, field);
+      const fExists = existingFields.size ? existingFields.has(field) : false;
 
       if (!fExists) {
         console.log(`  + field: ${name}.${field}`);
-        await api("POST", `/fields/${encodeURIComponent(name)}`, {
-          field: f.field,
-          type: f.type,
-          meta: f.meta || {},
-          schema: f.schema || {},
-        });
-      } else {
-        // Patch meta/schema only; avoid fighting Directus' internal system fields.
-        console.log(`  = field exists: ${name}.${field}`);
         try {
-          await api("PATCH", `/fields/${encodeURIComponent(name)}/${encodeURIComponent(field)}`, {
+          await api("POST", `/fields/${encodeURIComponent(name)}`, {
+            field: f.field,
+            type: f.type,
             meta: f.meta || {},
             schema: f.schema || {},
           });
-        } catch {
-          // ignore
+          existingFields.add(field);
+        } catch (e) {
+          // If we couldn't list fields, POST might fail because it already exists.
+          // Don't fail the whole run on "already exists" scenarios.
+          const msg = String(e?.message || "");
+          if (msg.includes("already exists") || msg.includes("ALREADY_EXISTS") || e?.status === 409) {
+            console.log(`  = field already exists: ${name}.${field}`);
+          } else {
+            throw e;
+          }
         }
+      } else {
+        // Patch meta/schema only; avoid fighting Directus' internal system fields.
+        console.log(`  = field exists: ${name}.${field}`);
       }
     }
   }
