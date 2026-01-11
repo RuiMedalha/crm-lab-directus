@@ -44,10 +44,14 @@ function NewsletterBannerDirectus({
   contactPhone,
   acceptNewsletter,
   newsletterWelcomeSent,
+  newsletterConsentAt,
+  newsletterUnsubscribedAt,
   onUpdate,
 }) {
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+
+  const CONSENT_VERSION = import.meta.env.VITE_NEWSLETTER_CONSENT_VERSION || "v1";
 
   const handleSubscribe = async () => {
     if (!contactEmail && !contactPhone) {
@@ -61,8 +65,16 @@ function NewsletterBannerDirectus({
 
     setLoading(true);
     try {
-      await patchContact(contactId, { accept_newsletter: true });
-      onUpdate(true, false);
+      const now = new Date().toISOString();
+      await patchContact(contactId, {
+        accept_newsletter: true,
+        newsletter_unsubscribed_at: null,
+        newsletter_consent_at: now,
+        newsletter_consent_source: "card360_manual",
+        newsletter_consent_user_agent: navigator.userAgent || null,
+        newsletter_consent_version: CONSENT_VERSION,
+      });
+      onUpdate(true, false, now, null);
       toast({
         title: "Cliente subscrito!",
         description: "O email de boas-vindas pode ser enviado via automação (n8n).",
@@ -75,19 +87,58 @@ function NewsletterBannerDirectus({
     }
   };
 
+  const handleUnsubscribe = async () => {
+    setLoading(true);
+    try {
+      const now = new Date().toISOString();
+      await patchContact(contactId, {
+        accept_newsletter: false,
+        newsletter_unsubscribed_at: now,
+      });
+      onUpdate(false, newsletterWelcomeSent, newsletterConsentAt || null, now);
+      toast({ title: "Consentimento removido (RGPD)" });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro ao remover consentimento", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (acceptNewsletter) {
     return (
       <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
         <div className="flex items-center gap-2">
           <Mail className="h-4 w-4 text-primary" />
-          <span className="text-sm">Subscrito à Newsletter</span>
+          <div className="text-sm">
+            <div>Subscrito à Newsletter</div>
+            <div className="text-xs text-muted-foreground">
+              {newsletterUnsubscribedAt
+                ? `Revogado em ${new Date(newsletterUnsubscribedAt).toLocaleString("pt-PT")}`
+                : newsletterConsentAt
+                  ? `Consentimento em ${new Date(newsletterConsentAt).toLocaleString("pt-PT")}`
+                  : "Consentimento registado"}
+            </div>
+          </div>
         </div>
-        {newsletterWelcomeSent && (
-          <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-            <MailCheck className="h-3 w-3 mr-1" />
-            Email de Boas-Vindas Enviado
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {newsletterWelcomeSent && (
+            <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+              <MailCheck className="h-3 w-3 mr-1" />
+              Email de Boas-Vindas Enviado
+            </Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleUnsubscribe}
+            disabled={loading}
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            title="Remover consentimento (RGPD)"
+          >
+            Remover
+          </Button>
+        </div>
       </div>
     );
   }
@@ -454,9 +505,17 @@ export default function Dashboard360() {
                     contactPhone={contact?.phone || getValue("phone") || null}
                     acceptNewsletter={!!(contact?.accept_newsletter ?? getValue("accept_newsletter"))}
                     newsletterWelcomeSent={!!(contact?.newsletter_welcome_sent ?? getValue("newsletter_welcome_sent"))}
-                    onUpdate={(accept, sent) => {
+                    newsletterConsentAt={contact?.newsletter_consent_at ?? getValue("newsletter_consent_at") ?? null}
+                    newsletterUnsubscribedAt={contact?.newsletter_unsubscribed_at ?? getValue("newsletter_unsubscribed_at") ?? null}
+                    onUpdate={(accept, sent, consentAt, unsubAt) => {
                       // keep immediate UX feedback (and allow saving later if needed)
-                      setContact((prev) => ({ ...(prev || {}), accept_newsletter: accept, newsletter_welcome_sent: sent }));
+                      setContact((prev) => ({
+                        ...(prev || {}),
+                        accept_newsletter: accept,
+                        newsletter_welcome_sent: sent,
+                        newsletter_consent_at: consentAt ?? (prev || {}).newsletter_consent_at,
+                        newsletter_unsubscribed_at: unsubAt ?? (prev || {}).newsletter_unsubscribed_at,
+                      }));
                       handleChange("accept_newsletter", accept);
                     }}
                   />

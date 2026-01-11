@@ -28,6 +28,11 @@
 
         { "field": "accept_newsletter", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Aceita Newsletter" } },
         { "field": "newsletter_welcome_sent", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Welcome Sent" } },
+        { "field": "newsletter_consent_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Consentimento Newsletter (data)" } },
+        { "field": "newsletter_consent_source", "type": "string", "meta": { "interface": "input", "display_name": "Consentimento Newsletter (origem)" } },
+        { "field": "newsletter_consent_user_agent", "type": "text", "meta": { "interface": "textarea", "display_name": "Consentimento Newsletter (user-agent)" } },
+        { "field": "newsletter_consent_version", "type": "string", "meta": { "interface": "input", "display_name": "Consentimento Newsletter (versão RGPD)" } },
+        { "field": "newsletter_unsubscribed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (revogado em)" } },
 
         { "field": "tags", "type": "json", "meta": { "interface": "tags", "display_name": "Tags" } },
         { "field": "quick_notes", "type": "json", "meta": { "interface": "json", "display_name": "Notas (timeline)" } },

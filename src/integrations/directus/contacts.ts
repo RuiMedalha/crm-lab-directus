@@ -28,6 +28,7 @@ export interface ContactItem {
   postal_code?: string | null;
   city?: string | null;
   website?: string | null;
+  date_created?: string | null;
   tags?: unknown;
   quick_notes?: unknown;
   sku_history?: unknown;
@@ -36,6 +37,16 @@ export interface ContactItem {
   source?: string | null;
   source_call_id?: string | null;
   moloni_client_id?: string | null;
+  accept_newsletter?: boolean | null;
+  newsletter_welcome_sent?: boolean | null;
+  newsletter_consent_at?: string | null;
+  newsletter_consent_source?: string | null;
+  newsletter_consent_user_agent?: string | null;
+  newsletter_consent_version?: string | null;
+  newsletter_unsubscribed_at?: string | null;
+  delivery_addresses?: unknown;
+  logistics_notes?: string | null;
+  commercial_notes?: string | null;
 
   // Allow future fields without breaking types
   [k: string]: unknown;
@@ -117,6 +128,11 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "website",
   "accept_newsletter",
   "newsletter_welcome_sent",
+  "newsletter_consent_at",
+  "newsletter_consent_source",
+  "newsletter_consent_user_agent",
+  "newsletter_consent_version",
+  "newsletter_unsubscribed_at",
   "tags",
   "quick_notes",
   "sku_history",
