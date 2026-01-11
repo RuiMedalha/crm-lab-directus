@@ -10,7 +10,7 @@ import {
   saveMeilisearchSettings,
   MeilisearchSettings,
 } from "@/hooks/useSettings";
-import { DIRECTUS_TOKEN, DIRECTUS_URL } from "@/integrations/directus/client";
+import { DIRECTUS_URL, getDirectusTokenForRequest } from "@/integrations/directus/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,9 +95,8 @@ export default function Definicoes() {
     setUploading(true);
 
     try {
-      if (!DIRECTUS_TOKEN) {
-        throw new Error("Missing Directus token (VITE_DIRECTUS_TOKEN).");
-      }
+      const token = getDirectusTokenForRequest();
+      if (!token) throw new Error("Sem sessão. Faça login para continuar.");
 
       const fd = new FormData();
       fd.append("file", file, file.name);
@@ -105,7 +104,7 @@ export default function Definicoes() {
       const res = await fetch(`${DIRECTUS_URL.replace(/\/+$/, "")}/files`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+          Authorization: `Bearer ${token}`,
         },
         body: fd,
       });

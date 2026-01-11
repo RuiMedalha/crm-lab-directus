@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/table';
 import { Plus, Trash2, Calculator, FileText, Eye } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { QuotationPreview } from './QuotationPreview';
+import { createQuotation, createQuotationItems } from '@/integrations/directus/quotations';
 
 interface QuotationItem {
   id: string;
@@ -152,45 +152,32 @@ export function QuotationCreator({
     try {
       const { subtotal, total } = calculateTotals();
 
-      // Criar orçamento - quotation_number é gerado pelo trigger
-      const { data: quotation, error: quotationError } = await supabase
-        .from('quotations')
-        .insert([{
-          customer_id: contactId,
-          deal_id: dealId || null,
-          status: 'draft',
-          subtotal,
-          total_amount: total,
-          notes,
-          valid_until: validUntil || null,
-          quotation_number: '', // Será preenchido pelo trigger
-        }])
-        .select()
-        .single();
+      const quotation = await createQuotation({
+        customer_id: contactId,
+        deal_id: dealId || undefined,
+        status: 'draft',
+        subtotal,
+        total_amount: total,
+        notes: notes || undefined,
+        valid_until: validUntil || undefined,
+      });
 
-      if (quotationError) throw quotationError;
-
-      // Criar itens do orçamento
-      const quotationItems = validItems.map((item, index) => ({
-        quotation_id: quotation.id,
-        product_name: item.product_name,
-        sku: item.sku || null,
-        quantity: item.quantity,
-        cost_price: item.cost_price,
-        unit_price: item.unit_price,
-        discount_percent: 0,
-        line_total: item.line_total,
-        sort_order: index,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('quotation_items')
-        .insert(quotationItems);
-
-      if (itemsError) throw itemsError;
+      await createQuotationItems(
+        validItems.map((item, index) => ({
+          quotation_id: quotation.id,
+          product_name: item.product_name,
+          sku: item.sku || null,
+          quantity: item.quantity,
+          cost_price: item.cost_price,
+          unit_price: item.unit_price,
+          discount_percent: 0,
+          line_total: item.line_total,
+          sort_order: index,
+        }))
+      );
 
       setQuotationId(quotation.id);
-      toast({ title: `Orçamento ${quotation.quotation_number} criado com sucesso!` });
+      toast({ title: `Orçamento ${quotation.quotation_number || ''} criado com sucesso!` });
       setShowPreview(true);
     } catch (error) {
       console.error('Erro ao criar orçamento:', error);

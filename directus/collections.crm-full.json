@@ -210,6 +210,49 @@
       ]
     },
     {
+      "collection": "quotations",
+      "meta": { "icon": "request_quote", "note": "Orçamentos (migrado do Supabase).", "display_template": "{{quotation_number}}" },
+      "schema": { "name": "quotations" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "quotation_number", "type": "string", "meta": { "interface": "input", "display_name": "Número" } },
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
+        { "field": "valid_until", "type": "date", "meta": { "interface": "datetime", "display_name": "Válido até" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+        { "field": "terms_conditions", "type": "text", "meta": { "interface": "textarea", "display_name": "Termos/Condições" } },
+        { "field": "subtotal", "type": "decimal", "meta": { "interface": "input", "display_name": "Subtotal" } },
+        { "field": "discount_percent", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (%)" } },
+        { "field": "discount_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (€)" } },
+        { "field": "total_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Total" } },
+        { "field": "pdf_link", "type": "string", "meta": { "interface": "input", "display_name": "PDF (link)" } },
+        { "field": "deal_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Negócio" }, "schema": { "foreign_key_table": "deals" } },
+        { "field": "customer_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" }, "schema": { "foreign_key_table": "contacts" } }
+      ]
+    },
+    {
+      "collection": "quotation_items",
+      "meta": { "icon": "list_alt", "note": "Linhas do orçamento." },
+      "schema": { "name": "quotation_items" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "quotation_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Orçamento" }, "schema": { "foreign_key_table": "quotations" } },
+        { "field": "product_id", "type": "string", "meta": { "interface": "input", "display_name": "Product ID" } },
+        { "field": "product_name", "type": "string", "meta": { "interface": "input", "display_name": "Produto" } },
+        { "field": "sku", "type": "string", "meta": { "interface": "input", "display_name": "SKU" } },
+        { "field": "quantity", "type": "integer", "meta": { "interface": "input", "display_name": "Quantidade" } },
+        { "field": "unit_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Preço" } },
+        { "field": "cost_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Custo" } },
+        { "field": "discount_percent", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (%)" } },
+        { "field": "line_total", "type": "decimal", "meta": { "interface": "input", "display_name": "Total linha" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+        { "field": "sort_order", "type": "integer", "meta": { "interface": "input", "display_name": "Ordem" } }
+      ]
+    },
+    {
       "collection": "interactions",
       "meta": {
         "icon": "call",
@@ -239,7 +282,7 @@
   ],
   "notes": [
     "Importa este ficheiro no Directus em Settings > Data Model > Import.",
-    "Coleções incluídas (frontend Directus-only): contacts, leads, employees, manufacturers, company_settings, deals, deal_items, interactions.",
+    "Coleções incluídas (frontend Directus-only): contacts, leads, employees, manufacturers, company_settings, deals, deal_items, quotations, quotation_items, interactions.",
     "O frontend usa employees.role para roles (admin/gestor/vendedor/visualizador).",
     "Se já tens coleções com estes nomes, confirma se os campos batem certo antes de fazer overwrite."
   ]

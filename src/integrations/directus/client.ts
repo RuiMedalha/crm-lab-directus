@@ -12,8 +12,39 @@ const DEFAULT_DIRECTUS_URL = "http://localhost:8055";
 export const DIRECTUS_URL: string =
   import.meta.env.VITE_DIRECTUS_URL || DEFAULT_DIRECTUS_URL;
 
-// Requested token (can be overridden via env)
-export const DIRECTUS_TOKEN: string = import.meta.env.VITE_DIRECTUS_TOKEN || "";
+// Optional fallback token (service-token mode). Prefer user session token.
+const DIRECTUS_FALLBACK_TOKEN: string = import.meta.env.VITE_DIRECTUS_TOKEN || "";
+
+const DIRECTUS_ACCESS_TOKEN_STORAGE_KEY = "directus_access_token";
+
+export function getDirectusAccessToken(): string {
+  try {
+    const t = localStorage.getItem(DIRECTUS_ACCESS_TOKEN_STORAGE_KEY) || "";
+    return t.trim();
+  } catch {
+    return "";
+  }
+}
+
+export function setDirectusAccessToken(token: string) {
+  try {
+    localStorage.setItem(DIRECTUS_ACCESS_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDirectusAccessToken() {
+  try {
+    localStorage.removeItem(DIRECTUS_ACCESS_TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function getDirectusTokenForRequest(): string {
+  return getDirectusAccessToken() || DIRECTUS_FALLBACK_TOKEN || "";
+}
 
 function joinUrl(base: string, path: string) {
   const b = base.replace(/\/+$/, "");
@@ -31,16 +62,15 @@ export async function directusRequest<T>(
 ): Promise<T> {
   const { skipAuth, ...rest } = init;
 
-  if (!skipAuth && !DIRECTUS_TOKEN) {
-    throw new Error("Missing Directus token (VITE_DIRECTUS_TOKEN).");
-  }
+  const token = skipAuth ? "" : getDirectusTokenForRequest();
+  if (!skipAuth && !token) throw new Error("Sem sessão. Faça login para continuar.");
 
   const res = await fetch(directusApiUrl(path), {
     ...rest,
     headers: (() => {
       const h = new Headers(rest.headers);
       h.set("Content-Type", h.get("Content-Type") || "application/json");
-      if (!skipAuth) h.set("Authorization", `Bearer ${DIRECTUS_TOKEN}`);
+      if (!skipAuth) h.set("Authorization", `Bearer ${token}`);
       return h;
     })(),
   });

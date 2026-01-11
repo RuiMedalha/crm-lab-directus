@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LeadPopup360 } from "@/components/LeadPopup360";
 import { useLeadListener360 } from "@/hooks/useLeadListener360";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Dashboard360 from "./pages/Dashboard360";
 import Leads360 from "./pages/Leads360";
@@ -27,6 +28,7 @@ const AppContent = () => {
   return (
     <>
       <Routes>
+        <Route path="/auth" element={<Auth />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/contactos" element={<ProtectedRoute><ContactosDirectus /></ProtectedRoute>} />
         {/* Directus Card360 is now the default “Novo contacto” flow */}

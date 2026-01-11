@@ -10,8 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FileText, Download, Send, Loader2, Printer } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useCompanySettings } from '@/hooks/useSettings';
+import { getQuotationById } from '@/integrations/directus/quotations';
 
 interface QuotationPreviewProps {
   open: boolean;
@@ -62,29 +62,38 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
   const fetchQuotation = async () => {
     setLoading(true);
     try {
-      const { data: quotationData, error: quotationError } = await supabase
-        .from('quotations')
-        .select(`
-          *,
-          customer:contacts(company_name, contact_name, address, postal_code, city, nif, email, phone)
-        `)
-        .eq('id', quotationId)
-        .single();
-
-      if (quotationError) throw quotationError;
-
-      const { data: items, error: itemsError } = await supabase
-        .from('quotation_items')
-        .select('*')
-        .eq('quotation_id', quotationId)
-        .order('sort_order');
-
-      if (itemsError) throw itemsError;
+      const { quotation: q, items } = await getQuotationById(quotationId);
+      if (!q) throw new Error("Orçamento não encontrado");
 
       setQuotation({
-        ...quotationData,
-        customer: quotationData.customer,
-        items: items || [],
+        id: q.id,
+        quotation_number: String(q.quotation_number || ""),
+        status: String(q.status || "draft"),
+        subtotal: Number(q.subtotal || 0),
+        total_amount: Number(q.total_amount || 0),
+        notes: (q.notes as any) ?? null,
+        valid_until: (q.valid_until as any) ?? null,
+        created_at: String(q.date_created || ""),
+        customer: (q as any).customer_id
+          ? {
+              company_name: (q as any).customer_id.company_name || "",
+              contact_name: (q as any).customer_id.contact_name || null,
+              address: (q as any).customer_id.address || null,
+              postal_code: (q as any).customer_id.postal_code || null,
+              city: (q as any).customer_id.city || null,
+              nif: (q as any).customer_id.nif || null,
+              email: (q as any).customer_id.email || null,
+              phone: (q as any).customer_id.phone || null,
+            }
+          : null,
+        items: (items || []).map((i: any) => ({
+          id: i.id,
+          product_name: i.product_name ?? null,
+          sku: i.sku ?? null,
+          quantity: i.quantity ?? null,
+          unit_price: i.unit_price ?? null,
+          line_total: i.line_total ?? null,
+        })),
       });
     } catch (error) {
       console.error('Erro ao carregar orçamento:', error);

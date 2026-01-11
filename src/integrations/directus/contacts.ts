@@ -104,6 +104,7 @@ const FIELDS_CACHE_TTL_MS = 60_000;
 
 const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "id",
+  "date_created",
   "company_name",
   "contact_name",
   "nif",
@@ -164,7 +165,9 @@ function directusFieldListForContacts(): string {
    * - mapped Directus field keys (values of VITE_DIRECTUS_CONTACT_FIELD_MAP)
    */
   const mapped = Object.values(DIRECTUS_CONTACT_FIELD_MAP || {}).filter(Boolean);
-  const fields = unique(["id", ...mapped]).filter(Boolean);
+  // If no mapping is provided, request a safe set of known CRM fields.
+  const base = mapped.length ? mapped : Array.from(DEFAULT_CONTACT_FIELDS);
+  const fields = unique(["id", "date_created", ...base]).filter(Boolean);
   return fields.join(",") || "id";
 }
 
