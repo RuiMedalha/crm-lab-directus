@@ -498,28 +498,85 @@ export default function Dashboard360() {
               </TabsList>
 
               <TabsContent value="geral" className="space-y-4 mt-4">
-                {contactId && (
-                  <NewsletterBannerDirectus
-                    contactId={contactId}
-                    contactEmail={contact?.email || getValue("email") || null}
-                    contactPhone={contact?.phone || getValue("phone") || null}
-                    acceptNewsletter={!!(contact?.accept_newsletter ?? getValue("accept_newsletter"))}
-                    newsletterWelcomeSent={!!(contact?.newsletter_welcome_sent ?? getValue("newsletter_welcome_sent"))}
-                    newsletterConsentAt={contact?.newsletter_consent_at ?? getValue("newsletter_consent_at") ?? null}
-                    newsletterUnsubscribedAt={contact?.newsletter_unsubscribed_at ?? getValue("newsletter_unsubscribed_at") ?? null}
-                    onUpdate={(accept, sent, consentAt, unsubAt) => {
-                      // keep immediate UX feedback (and allow saving later if needed)
-                      setContact((prev) => ({
-                        ...(prev || {}),
-                        accept_newsletter: accept,
-                        newsletter_welcome_sent: sent,
-                        newsletter_consent_at: consentAt ?? (prev || {}).newsletter_consent_at,
-                        newsletter_unsubscribed_at: unsubAt ?? (prev || {}).newsletter_unsubscribed_at,
-                      }));
-                      handleChange("accept_newsletter", accept);
-                    }}
-                  />
-                )}
+                {(() => {
+                  const accept = !!(contact?.accept_newsletter ?? getValue("accept_newsletter"));
+                  const consentAt = contact?.newsletter_consent_at ?? getValue("newsletter_consent_at") ?? null;
+                  const unsubAt = contact?.newsletter_unsubscribed_at ?? getValue("newsletter_unsubscribed_at") ?? null;
+                  const email = contact?.email || getValue("email") || null;
+                  const phone = contact?.phone || getValue("phone") || null;
+                  const CONSENT_VERSION = import.meta.env.VITE_NEWSLETTER_CONSENT_VERSION || "v1";
+
+                  // Existing contact → use the banner (patches immediately)
+                  if (contactId) {
+                    return (
+                      <NewsletterBannerDirectus
+                        contactId={contactId}
+                        contactEmail={email}
+                        contactPhone={phone}
+                        acceptNewsletter={accept}
+                        newsletterWelcomeSent={!!(contact?.newsletter_welcome_sent ?? getValue("newsletter_welcome_sent"))}
+                        newsletterConsentAt={consentAt}
+                        newsletterUnsubscribedAt={unsubAt}
+                        onUpdate={(nextAccept, sent, nextConsentAt, nextUnsubAt) => {
+                          // keep immediate UX feedback (and allow saving later if needed)
+                          setContact((prev) => ({
+                            ...(prev || {}),
+                            accept_newsletter: nextAccept,
+                            newsletter_welcome_sent: sent,
+                            newsletter_consent_at: nextConsentAt ?? (prev || {}).newsletter_consent_at,
+                            newsletter_unsubscribed_at: nextUnsubAt ?? (prev || {}).newsletter_unsubscribed_at,
+                          }));
+                          handleChange("accept_newsletter", nextAccept);
+                        }}
+                      />
+                    );
+                  }
+
+                  // New contact (no id yet) → allow choosing consent before save
+                  return (
+                    <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">Newsletter (RGPD)</div>
+                          <div className="text-xs text-muted-foreground">
+                            Define o consentimento antes de criar o contacto.
+                          </div>
+                        </div>
+                        <Button
+                          variant={accept ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            const next = !accept;
+                            handleChange("accept_newsletter", next);
+                            if (next) {
+                              const now = new Date().toISOString();
+                              handleChange("newsletter_unsubscribed_at", null);
+                              handleChange("newsletter_consent_at", now);
+                              handleChange("newsletter_consent_source", "card360_manual");
+                              handleChange("newsletter_consent_user_agent", navigator.userAgent || null);
+                              handleChange("newsletter_consent_version", CONSENT_VERSION);
+                            } else {
+                              // In create mode, if user toggles off, clear consent fields
+                              handleChange("newsletter_consent_at", null);
+                              handleChange("newsletter_consent_source", null);
+                              handleChange("newsletter_consent_user_agent", null);
+                              handleChange("newsletter_consent_version", null);
+                              handleChange("newsletter_unsubscribed_at", null);
+                            }
+                          }}
+                          title={accept ? "Remover consentimento" : "Dar consentimento"}
+                        >
+                          {accept ? "Aceita" : "Não aceita"}
+                        </Button>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {accept
+                          ? `Consentimento será guardado ao criar: ${consentAt ? new Date(consentAt).toLocaleString("pt-PT") : "agora"}`
+                          : "Sem consentimento."}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="grid lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2 space-y-4">
