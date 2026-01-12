@@ -19,6 +19,7 @@ import Definicoes from "./pages/Definicoes";
 import UtilizadoresDirectus from "./pages/UtilizadoresDirectus";
 import MenuMobile from "./pages/MenuMobile";
 import NotFound from "./pages/NotFound";
+import Orcamentos from "./pages/Orcamentos";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const AppContent = () => {
         <Route path="/dashboard360" element={<ProtectedRoute><Dashboard360 /></ProtectedRoute>} />
         <Route path="/leads360" element={<ProtectedRoute><Leads360 /></ProtectedRoute>} />
         <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
+        <Route path="/orcamentos" element={<ProtectedRoute><Orcamentos /></ProtectedRoute>} />
         <Route path="/fornecedores" element={<ProtectedRoute><Fornecedores /></ProtectedRoute>} />
         <Route path="/integracoes" element={<ProtectedRoute><Integracoes /></ProtectedRoute>} />
         <Route path="/definicoes" element={<ProtectedRoute><Definicoes /></ProtectedRoute>} />

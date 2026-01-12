@@ -61,6 +61,20 @@ export async function listQuotationsByDeal(dealId: string) {
   return res.data || [];
 }
 
+export async function listQuotations(params?: { search?: string; limit?: number; page?: number }) {
+  const search = params?.search?.trim() || "";
+  const res = await directusRequest<{ data: QuotationRow[] }>(
+    `/items/${DIRECTUS_QUOTATIONS_COLLECTION}${qs({
+      limit: params?.limit ?? 200,
+      page: params?.page ?? 1,
+      sort: "-date_created",
+      fields: "id,quotation_number,status,total_amount,valid_until,date_created,date_updated,deal_id,customer_id.company_name",
+      ...(search ? { search } : {}),
+    })}`
+  );
+  return res.data || [];
+}
+
 export async function getQuotationById(quotationId: string) {
   const res = await directusRequest<{ data: any }>(
     `/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(quotationId)}${qs({

@@ -14,6 +14,7 @@ import {
   PhoneCall,
   UserCog,
   LogOut,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ const navItems = [
   { icon: PhoneCall, label: "Leads não atendidas", path: "/leads360" },
   { icon: Users, label: "Contactos", path: "/contactos" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
+  { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
   { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
   { icon: Plug, label: "Integrações", path: "/integracoes" },
   { icon: Settings, label: "Definições", path: "/definicoes" },
