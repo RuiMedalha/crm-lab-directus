@@ -1,10 +1,10 @@
 import {
-  clearDirectusAccessToken,
+  clearDirectusSession,
   directusRequest,
+  getDirectusRefreshToken,
   setDirectusAccessToken,
+  setDirectusRefreshToken,
 } from "@/integrations/directus/client";
-
-const DIRECTUS_REFRESH_TOKEN_STORAGE_KEY = "directus_refresh_token";
 
 export interface DirectusLoginResponse {
   data: {
@@ -22,30 +22,6 @@ export interface DirectusMeResponse {
     last_name?: string | null;
     role?: string | null;
   };
-}
-
-export function getDirectusRefreshToken(): string {
-  try {
-    return (localStorage.getItem(DIRECTUS_REFRESH_TOKEN_STORAGE_KEY) || "").trim();
-  } catch {
-    return "";
-  }
-}
-
-export function setDirectusRefreshToken(token: string) {
-  try {
-    localStorage.setItem(DIRECTUS_REFRESH_TOKEN_STORAGE_KEY, token);
-  } catch {
-    // ignore
-  }
-}
-
-export function clearDirectusRefreshToken() {
-  try {
-    localStorage.removeItem(DIRECTUS_REFRESH_TOKEN_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
 }
 
 export async function directusLogin(email: string, password: string) {
@@ -73,8 +49,7 @@ export async function directusLogout() {
     body: JSON.stringify({ refresh_token }),
   }).catch(() => undefined);
 
-  clearDirectusAccessToken();
-  clearDirectusRefreshToken();
+  clearDirectusSession();
 }
 
 export async function directusMe() {

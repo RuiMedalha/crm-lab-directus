@@ -16,6 +16,7 @@ export const DIRECTUS_URL: string =
 const DIRECTUS_FALLBACK_TOKEN: string = import.meta.env.VITE_DIRECTUS_TOKEN || "";
 
 const DIRECTUS_ACCESS_TOKEN_STORAGE_KEY = "directus_access_token";
+const DIRECTUS_REFRESH_TOKEN_STORAGE_KEY = "directus_refresh_token";
 
 export function getDirectusAccessToken(): string {
   try {
@@ -40,6 +41,36 @@ export function clearDirectusAccessToken() {
   } catch {
     // ignore
   }
+}
+
+export function getDirectusRefreshToken(): string {
+  try {
+    const t = localStorage.getItem(DIRECTUS_REFRESH_TOKEN_STORAGE_KEY) || "";
+    return t.trim();
+  } catch {
+    return "";
+  }
+}
+
+export function setDirectusRefreshToken(token: string) {
+  try {
+    localStorage.setItem(DIRECTUS_REFRESH_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDirectusRefreshToken() {
+  try {
+    localStorage.removeItem(DIRECTUS_REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDirectusSession() {
+  clearDirectusAccessToken();
+  clearDirectusRefreshToken();
 }
 
 export function getDirectusTokenForRequest(): string {
@@ -80,6 +111,11 @@ export async function directusRequest<T>(
   const body: unknown = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null);
 
   if (!res.ok) {
+    // If the session is invalid, clear stored tokens to avoid endless 401 loops.
+    if (!skipAuth && (res.status === 401 || res.status === 403)) {
+      // 403 can also happen for invalid/expired sessions depending on policies.
+      clearDirectusSession();
+    }
     const payload = (body || {}) as DirectusErrorPayload;
     const message = (() => {
       if (typeof body === "string" && body.trim()) return body;
