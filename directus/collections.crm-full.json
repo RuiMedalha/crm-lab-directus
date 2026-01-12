@@ -34,6 +34,27 @@
         { "field": "newsletter_consent_version", "type": "string", "meta": { "interface": "input", "display_name": "Consentimento Newsletter (versão RGPD)" } },
         { "field": "newsletter_unsubscribed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (revogado em)" } },
 
+        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" }, "schema": { "is_unique": true } },
+        { "field": "coupon_used", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Cupão (usado)" }, "schema": { "default_value": false } },
+        { "field": "mautic_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Mautic Contact ID" } },
+        { "field": "chatwoot_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Chatwoot Contact ID" } },
+        {
+          "field": "newsletter_source",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Newsletter (source)",
+            "options": {
+              "choices": [
+                { "text": "Typebot Popup", "value": "typebot_popup" },
+                { "text": "Footer", "value": "footer" },
+                { "text": "Shortcode", "value": "shortcode" }
+              ]
+            }
+          }
+        },
+        { "field": "subscribed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (subscribed_at)" } },
+
         { "field": "tags", "type": "json", "meta": { "interface": "tags", "display_name": "Tags" } },
         { "field": "quick_notes", "type": "json", "meta": { "interface": "json", "display_name": "Notas (timeline)" } },
         { "field": "sku_history", "type": "json", "meta": { "interface": "json", "display_name": "Histórico de SKU" } },

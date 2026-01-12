@@ -44,6 +44,12 @@ export interface ContactItem {
   newsletter_consent_user_agent?: string | null;
   newsletter_consent_version?: string | null;
   newsletter_unsubscribed_at?: string | null;
+  coupon_code?: string | null;
+  coupon_used?: boolean | null;
+  mautic_contact_id?: number | null;
+  chatwoot_contact_id?: number | null;
+  newsletter_source?: string | null;
+  subscribed_at?: string | null;
   delivery_addresses?: unknown;
   logistics_notes?: string | null;
   commercial_notes?: string | null;
@@ -133,6 +139,12 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "newsletter_consent_user_agent",
   "newsletter_consent_version",
   "newsletter_unsubscribed_at",
+  "coupon_code",
+  "coupon_used",
+  "mautic_contact_id",
+  "chatwoot_contact_id",
+  "newsletter_source",
+  "subscribed_at",
   "tags",
   "quick_notes",
   "sku_history",
