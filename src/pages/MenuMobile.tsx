@@ -2,7 +2,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Kanban, Factory, Plug, Settings, UserCog, PhoneCall, IdCard, LayoutDashboard, Users } from "lucide-react";
+import { Kanban, Factory, Plug, Settings, UserCog, PhoneCall, IdCard, LayoutDashboard, Users, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const items = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
@@ -17,6 +18,7 @@ const items = [
 ];
 
 export default function MenuMobile() {
+  const { signOut } = useAuth();
   return (
     <AppLayout>
       <div className="space-y-4 md:hidden">
@@ -41,6 +43,21 @@ export default function MenuMobile() {
               </Card>
             );
           })}
+
+          <Card>
+            <CardContent className="p-3">
+              <Button
+                variant="ghost"
+                className="w-full justify-start h-auto py-3 text-destructive hover:text-destructive"
+                onClick={() => signOut()}
+              >
+                <span className="flex items-center gap-3">
+                  <LogOut className="h-5 w-5" />
+                  <span className="font-medium">Sair</span>
+                </span>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

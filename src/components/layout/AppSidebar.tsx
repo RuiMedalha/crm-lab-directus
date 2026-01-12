@@ -13,6 +13,7 @@ import {
   IdCard,
   PhoneCall,
   UserCog,
+  LogOut,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
@@ -40,6 +42,7 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const logoUrl = "/logo-hotelequip-light.svg";
   const companyName = "CRM Hotelequip";
+  const { signOut } = useAuth();
 
   return (
     <aside
@@ -104,6 +107,27 @@ export function AppSidebar() {
       {/* User Info, Theme Toggle and Collapse */}
       <div className="p-2 border-t border-sidebar-border space-y-1">
         <ThemeToggle collapsed={collapsed} />
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => signOut()}
+          className={cn(
+            "w-full text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent",
+            collapsed ? "justify-center" : "justify-start"
+          )}
+          title="Sair"
+        >
+          {collapsed ? (
+            <LogOut className="w-4 h-4" />
+          ) : (
+            <>
+              <LogOut className="w-4 h-4 mr-2" />
+              <span className="text-sm">Sair</span>
+            </>
+          )}
+        </Button>
+
         <Button
           variant="ghost"
           size="sm"
