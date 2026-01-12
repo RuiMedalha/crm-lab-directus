@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanySettings } from "@/hooks/useSettings";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
@@ -42,8 +43,9 @@ const navItems = [
 export function AppSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const logoUrl = "/logo-hotelequip-light.svg";
-  const companyName = "CRM Hotelequip";
+  const { data: settings } = useCompanySettings();
+  const logoUrl = (settings as any)?.logo_url || "/logo-hotelequip-light.svg";
+  const companyName = (settings as any)?.name || "CRM Hotelequip";
   const { signOut } = useAuth();
 
   return (
@@ -64,7 +66,11 @@ export function AppSidebar() {
           </Link>
         ) : (
           <Link to="/" className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center hover:opacity-80 transition-opacity overflow-hidden">
-            <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
+            {logoUrl ? (
+              <img src={logoUrl} alt={companyName} className="h-5 w-5 object-contain" />
+            ) : (
+              <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
+            )}
           </Link>
         )}
       </div>
