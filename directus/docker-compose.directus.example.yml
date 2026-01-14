@@ -1,0 +1,39 @@
+version: "3.8"
+services:
+  directus-hotelequip:
+    build:
+      context: ./directus
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8055:8055"
+    environment:
+      PUBLIC_URL: "https://api.hotelequip.pt"
+
+      # SMTP + allow-list (exemplo)
+      EMAIL_FROM: "noreply@hotelequip.pt"
+      EMAIL_FROM_NAME: "CRM Hotelequip"
+      EMAIL_TRANSPORT: smtp
+      EMAIL_SMTP_HOST: smtp-relay.gmail.com
+      EMAIL_SMTP_PORT: "587"
+      EMAIL_SMTP_SECURE: "false"
+      PASSWORD_RESET_URL_ALLOW_LIST: "https://crm.hotelequip.pt/auth"
+      INVITE_URL_ALLOW_LIST: "https://crm.hotelequip.pt/auth"
+
+      # n8n (exemplo)
+      N8N_WEBHOOK_QUOTATION_SENT: "https://n8n.example.com/webhook/quotation-sent"
+      N8N_WEBHOOK_QUOTATION_APPROVED: "https://n8n.example.com/webhook/quotation-approved"
+      N8N_WEBHOOK_SHARED_SECRET: ""
+
+      # Fast local merge for tech sheets (must match your uploads mount)
+      PDF_UPLOADS_ROOT: "/directus/uploads"
+
+    volumes:
+      # Persist extensions
+      - ./directus/extensions:/directus/extensions
+      # Persist uploads (required for fast local read of PDF tech sheets)
+      - directus_uploads:/directus/uploads
+
+volumes:
+  directus_uploads:
+
