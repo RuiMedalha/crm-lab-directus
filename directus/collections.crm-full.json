@@ -15,6 +15,9 @@
 
         { "field": "company_name", "type": "string", "meta": { "required": true, "interface": "input", "display": "raw", "display_name": "Nome da Empresa" } },
         { "field": "contact_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome do Contacto" } },
+        { "field": "firstname", "type": "string", "meta": { "interface": "input", "display_name": "Primeiro Nome (newsletter)" } },
+        { "field": "lastname", "type": "string", "meta": { "interface": "input", "display_name": "Apelido (newsletter)" } },
+        { "field": "full_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome completo (newsletter)" } },
 
         { "field": "nif", "type": "string", "meta": { "interface": "input", "display_name": "NIF" } },
         { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
@@ -34,13 +37,12 @@
         { "field": "newsletter_consent_version", "type": "string", "meta": { "interface": "input", "display_name": "Consentimento Newsletter (versão RGPD)" } },
         { "field": "newsletter_unsubscribed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (revogado em)" } },
 
-        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" }, "schema": { "is_unique": true } },
+        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" } },
         { "field": "coupon_used", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Cupão (usado)" }, "schema": { "default_value": false } },
         { "field": "coupon_wc_id", "type": "integer", "meta": { "interface": "input", "display_name": "Cupão (WooCommerce ID)" } },
         { "field": "coupon_expires_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Cupão (expira em)" } },
         { "field": "mautic_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Mautic Contact ID" } },
         { "field": "chatwoot_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Chatwoot Contact ID" } },
-        { "field": "full_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome completo (marketing)" } },
         { "field": "whatsapp_opt_in", "type": "boolean", "meta": { "interface": "boolean", "display_name": "WhatsApp (opt-in)" }, "schema": { "default_value": false } },
         {
           "field": "status",
@@ -51,13 +53,15 @@
             "options": {
               "choices": [
                 { "text": "Active", "value": "active" },
-                { "text": "Unsubscribed", "value": "unsubscribed" }
+                { "text": "Unsubscribed", "value": "unsubscribed" },
+                { "text": "Blocked", "value": "blocked" }
               ]
             }
           }
         },
         { "field": "created_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (created_at)" } },
         { "field": "last_seen_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (last_seen_at)" } },
+        { "field": "newsletter_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Newsletter (notas)" } },
         {
           "field": "newsletter_source",
           "type": "string",
@@ -66,9 +70,9 @@
             "display_name": "Newsletter (source)",
             "options": {
               "choices": [
-                { "text": "Typebot Popup", "value": "typebot_popup" },
-                { "text": "Footer", "value": "footer" },
-                { "text": "Shortcode", "value": "shortcode" }
+                { "text": "Typebot", "value": "typebot" },
+                { "text": "Site", "value": "site" },
+                { "text": "Manual", "value": "manual" }
               ]
             }
           }
@@ -99,7 +103,7 @@
       "collection": "newsletter_subscriptions",
       "meta": {
         "icon": "mail",
-        "note": "Base de subscrições/newsletter + cupões emitidos (sempre alimentada).",
+        "note": "Ledger de newsletter + cupões emitidos. Matching por email OU phone (sem unique condicional).",
         "display_template": "{{email}}"
       },
       "schema": { "name": "newsletter_subscriptions" },
@@ -108,37 +112,67 @@
         { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
         { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
 
-        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" }, "schema": { "is_unique": true } },
-        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" }, "schema": { "is_unique": true } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" }, "schema": { "is_indexed": true } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" }, "schema": { "is_indexed": true } },
+        { "field": "firstname", "type": "string", "meta": { "interface": "input", "display_name": "Primeiro Nome" } },
+        { "field": "lastname", "type": "string", "meta": { "interface": "input", "display_name": "Apelido" } },
         { "field": "full_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome completo" } },
 
         { "field": "whatsapp_opt_in", "type": "boolean", "meta": { "interface": "boolean", "display_name": "WhatsApp (opt-in)" }, "schema": { "default_value": false } },
 
-        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" }, "schema": { "is_unique": true } },
+        { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Source", "options": { "choices": [ { "text": "Typebot", "value": "typebot" }, { "text": "Site", "value": "site" }, { "text": "Manual", "value": "manual" } ] } } },
+
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado", "options": { "choices": [ { "text": "Active", "value": "active" }, { "text": "Unsubscribed", "value": "unsubscribed" }, { "text": "Blocked", "value": "blocked" } ] } } },
+
+        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" } },
         { "field": "coupon_wc_id", "type": "integer", "meta": { "interface": "input", "display_name": "Cupão (WooCommerce ID)" } },
         { "field": "coupon_expires_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Cupão (expira em)" } },
 
         { "field": "mautic_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Mautic Contact ID" } },
         { "field": "chatwoot_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Chatwoot Contact ID" } },
 
+        { "field": "created_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Created at" } },
+        { "field": "last_seen_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Last seen at" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notes" } }
+      ]
+    },
+    {
+      "collection": "newsletter_identity_map",
+      "meta": {
+        "icon": "link",
+        "note": "Mapa de identidade para resolver duplicados (contacts <-> newsletter_subscriptions).",
+        "display_template": "{{email_normalized}}"
+      },
+      "schema": { "name": "newsletter_identity_map" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "email_normalized", "type": "string", "meta": { "interface": "input", "display_name": "Email (normalized)" }, "schema": { "is_indexed": true } },
+        { "field": "phone_e164", "type": "string", "meta": { "interface": "input", "display_name": "Phone (E.164)" }, "schema": { "is_indexed": true } },
+
+        { "field": "directus_contact_id", "type": "string", "meta": { "interface": "input", "display_name": "Directus Contact ID" } },
+        { "field": "subscription_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Subscription" }, "schema": { "foreign_key_table": "newsletter_subscriptions" } },
+
+        { "field": "confidence", "type": "integer", "meta": { "interface": "input", "display_name": "Confidence (0-100)" } },
         {
-          "field": "status",
+          "field": "matched_by",
           "type": "string",
           "meta": {
             "interface": "select-dropdown",
-            "display_name": "Estado",
+            "display_name": "Matched by",
             "options": {
               "choices": [
-                { "text": "Active", "value": "active" },
-                { "text": "Unsubscribed", "value": "unsubscribed" }
+                { "text": "Email", "value": "email" },
+                { "text": "Phone", "value": "phone" },
+                { "text": "Both", "value": "both" },
+                { "text": "Manual", "value": "manual" }
               ]
             }
           }
         },
-
-        { "field": "created_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Created at" } },
-        { "field": "last_seen_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Last seen at" } },
-        { "field": "source", "type": "string", "meta": { "interface": "input", "display_name": "Source" } }
+        { "field": "last_verified_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Last verified at" } }
       ]
     },
     {
@@ -380,7 +414,7 @@
   ],
   "notes": [
     "Importa este ficheiro no Directus em Settings > Data Model > Import.",
-    "Coleções incluídas (frontend Directus-only): contacts, newsletter_subscriptions, leads, employees, manufacturers, company_settings, deals, deal_items, quotations, quotation_items, interactions.",
+    "Coleções incluídas (frontend Directus-only): contacts, newsletter_subscriptions, newsletter_identity_map, leads, employees, manufacturers, company_settings, deals, deal_items, quotations, quotation_items, interactions.",
     "O frontend usa employees.role para roles (admin/gestor/vendedor/visualizador).",
     "Se já tens coleções com estes nomes, confirma se os campos batem certo antes de fazer overwrite."
   ]

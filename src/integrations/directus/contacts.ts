@@ -17,6 +17,8 @@ export interface ContactItem {
   // Common fields (may vary by field map)
   company_name?: string | null;
   contact_name?: string | null;
+  firstname?: string | null;
+  lastname?: string | null;
   full_name?: string | null;
   nif?: string | null;
   phone?: string | null;
@@ -57,6 +59,7 @@ export interface ContactItem {
   status?: string | null;
   created_at?: string | null;
   last_seen_at?: string | null;
+  newsletter_notes?: string | null;
   delivery_addresses?: unknown;
   logistics_notes?: string | null;
   commercial_notes?: string | null;
@@ -131,6 +134,8 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "date_created",
   "company_name",
   "contact_name",
+  "firstname",
+  "lastname",
   "full_name",
   "nif",
   "phone",
@@ -159,6 +164,7 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "status",
   "created_at",
   "last_seen_at",
+  "newsletter_notes",
   "tags",
   "quick_notes",
   "sku_history",

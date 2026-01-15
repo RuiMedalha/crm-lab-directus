@@ -2,19 +2,22 @@ import { directusRequest } from "@/integrations/directus/client";
 
 export interface NewsletterSubscription {
   id: string;
-  email: string;
+  email?: string | null;
   phone?: string | null;
+  firstname?: string | null;
+  lastname?: string | null;
   full_name?: string | null;
   whatsapp_opt_in?: boolean | null;
+  source?: string | null;
   coupon_code?: string | null;
   coupon_wc_id?: number | null;
   coupon_expires_at?: string | null;
   mautic_contact_id?: number | null;
   chatwoot_contact_id?: number | null;
-  status?: "active" | "unsubscribed" | string | null;
+  status?: "active" | "unsubscribed" | "blocked" | string | null;
   created_at?: string | null;
   last_seen_at?: string | null;
-  source?: string | null;
+  notes?: string | null;
   date_created?: string | null;
   date_updated?: string | null;
 }
@@ -55,20 +58,26 @@ export async function listNewsletterSubscriptions(params?: { search?: string; li
 
 export async function upsertNewsletterSubscriptionByEmail(input: Partial<NewsletterSubscription> & { email: string }) {
   const email = String(input.email || "").trim().toLowerCase();
-  const existing = await directusRequest<{ data: NewsletterSubscription[] }>(
-    `/items/${COLLECTION}${qs({ limit: 1, fields: "*", ["filter[email][_eq]"]: email })}`
-  );
+  const phone = String(input.phone || "").trim();
+  if (!email && !phone) throw new Error("Precisa de email ou phone para upsert.");
+
+  const existing = await directusRequest<{ data: NewsletterSubscription[] }>(`/items/${COLLECTION}${qs({
+    limit: 1,
+    fields: "*",
+    ...(email ? { ["filter[_or][0][email][_eq]"]: email } : {}),
+    ...(phone ? { ["filter[_or][1][phone][_eq]"]: phone } : {}),
+  })}`);
   const row = existing?.data?.[0];
   if (row?.id) {
     const res = await directusRequest<{ data: NewsletterSubscription }>(`/items/${COLLECTION}/${encodeURIComponent(String(row.id))}`, {
       method: "PATCH",
-      body: JSON.stringify({ ...input, email }),
+      body: JSON.stringify({ ...input, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }),
     });
     return res.data;
   }
   const res = await directusRequest<{ data: NewsletterSubscription }>(`/items/${COLLECTION}`, {
     method: "POST",
-    body: JSON.stringify({ ...input, email }),
+    body: JSON.stringify({ ...input, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }),
   });
   return res.data;
 }

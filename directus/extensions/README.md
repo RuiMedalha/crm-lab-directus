@@ -40,11 +40,17 @@ Mantém os campos “base newsletter/cupões” sempre alinhados entre:
 
 - `contacts`
 - `newsletter_subscriptions`
+- `newsletter_identity_map` (opcional, mas recomendado)
 
 Regra simples:
 
-- Upsert por `email` (preferencial) ou `phone` (fallback).
+- Matching por `email` (preferencial) **OU** `phone` (fallback). (Sem “unique condicional” no Directus.)
 - Sempre que um lado é criado/atualizado, o outro lado é criado/atualizado com os mesmos campos.
+- Para reduzir loops, o hook só faz `update` quando deteta diferenças reais nos campos.
+
+### Nota sobre o n8n (importante)
+
+Se o n8n estiver a escrever apenas em `contacts` (ou apenas em `newsletter_subscriptions`), o hook garante que o outro lado é preenchido.
 
 ## Layout do PDF (Orçamentos)
 
