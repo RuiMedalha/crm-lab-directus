@@ -17,10 +17,12 @@ export interface ContactItem {
   // Common fields (may vary by field map)
   company_name?: string | null;
   contact_name?: string | null;
+  full_name?: string | null;
   nif?: string | null;
   phone?: string | null;
   email?: string | null;
   whatsapp_number?: string | null;
+  whatsapp_opt_in?: boolean | null;
   contact_person?: string | null;
   contact_phone?: string | null;
   contact_email?: string | null;
@@ -46,10 +48,15 @@ export interface ContactItem {
   newsletter_unsubscribed_at?: string | null;
   coupon_code?: string | null;
   coupon_used?: boolean | null;
+  coupon_wc_id?: number | null;
+  coupon_expires_at?: string | null;
   mautic_contact_id?: number | null;
   chatwoot_contact_id?: number | null;
   newsletter_source?: string | null;
   subscribed_at?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  last_seen_at?: string | null;
   delivery_addresses?: unknown;
   logistics_notes?: string | null;
   commercial_notes?: string | null;
@@ -124,10 +131,12 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "date_created",
   "company_name",
   "contact_name",
+  "full_name",
   "nif",
   "phone",
   "email",
   "whatsapp_number",
+  "whatsapp_opt_in",
   "address",
   "postal_code",
   "city",
@@ -141,10 +150,15 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "newsletter_unsubscribed_at",
   "coupon_code",
   "coupon_used",
+  "coupon_wc_id",
+  "coupon_expires_at",
   "mautic_contact_id",
   "chatwoot_contact_id",
   "newsletter_source",
   "subscribed_at",
+  "status",
+  "created_at",
+  "last_seen_at",
   "tags",
   "quick_notes",
   "sku_history",
@@ -201,7 +215,7 @@ function directusFieldListForContacts(): string {
 
 export async function getContactById(id: string): Promise<ContactItem | null> {
   const res = await directusRequest<{ data: ContactItem }>(
-    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: directusFieldListForContacts() })}`
+    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: "*" })}`
   );
   return mapFromDirectusItem(res?.data);
 }

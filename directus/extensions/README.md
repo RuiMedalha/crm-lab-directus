@@ -4,11 +4,13 @@ Esta pasta contém extensões do Directus para:
 
 - **Endpoint** `gerar-pdf`: gerar PDF de orçamento com Puppeteer e anexar fichas técnicas com pdf-lib.
 - **Hook** `orcamento-automation`: disparar webhooks para n8n quando o estado do orçamento muda.
+- **Hook** `newsletter-sync`: sincronizar campos de newsletter/cupões entre `contacts` e `newsletter_subscriptions`.
 
 ## Pastas
 
 - `endpoints/gerar-pdf/`
 - `hooks/orcamento-automation/`
+- `hooks/newsletter-sync/`
 
 ## Requisitos (container Directus)
 
@@ -31,6 +33,18 @@ Esta pasta contém extensões do Directus para:
 ## Notas
 
 - Para persistir extensões e uploads em Docker, monta volumes no serviço do Directus (ver instruções no final desta conversa).
+
+## Hook `newsletter-sync`
+
+Mantém os campos “base newsletter/cupões” sempre alinhados entre:
+
+- `contacts`
+- `newsletter_subscriptions`
+
+Regra simples:
+
+- Upsert por `email` (preferencial) ou `phone` (fallback).
+- Sempre que um lado é criado/atualizado, o outro lado é criado/atualizado com os mesmos campos.
 
 ## Layout do PDF (Orçamentos)
 

@@ -36,8 +36,28 @@
 
         { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" }, "schema": { "is_unique": true } },
         { "field": "coupon_used", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Cupão (usado)" }, "schema": { "default_value": false } },
+        { "field": "coupon_wc_id", "type": "integer", "meta": { "interface": "input", "display_name": "Cupão (WooCommerce ID)" } },
+        { "field": "coupon_expires_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Cupão (expira em)" } },
         { "field": "mautic_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Mautic Contact ID" } },
         { "field": "chatwoot_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Chatwoot Contact ID" } },
+        { "field": "full_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome completo (marketing)" } },
+        { "field": "whatsapp_opt_in", "type": "boolean", "meta": { "interface": "boolean", "display_name": "WhatsApp (opt-in)" }, "schema": { "default_value": false } },
+        {
+          "field": "status",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Newsletter (status)",
+            "options": {
+              "choices": [
+                { "text": "Active", "value": "active" },
+                { "text": "Unsubscribed", "value": "unsubscribed" }
+              ]
+            }
+          }
+        },
+        { "field": "created_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (created_at)" } },
+        { "field": "last_seen_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (last_seen_at)" } },
         {
           "field": "newsletter_source",
           "type": "string",
@@ -73,6 +93,52 @@
         { "field": "moloni_client_id", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client ID" } },
         { "field": "source", "type": "string", "meta": { "interface": "input", "display_name": "Origem" } },
         { "field": "source_call_id", "type": "string", "meta": { "interface": "input", "display_name": "Source Call ID" } }
+      ]
+    },
+    {
+      "collection": "newsletter_subscriptions",
+      "meta": {
+        "icon": "mail",
+        "note": "Base de subscrições/newsletter + cupões emitidos (sempre alimentada).",
+        "display_template": "{{email}}"
+      },
+      "schema": { "name": "newsletter_subscriptions" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" }, "schema": { "is_unique": true } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" }, "schema": { "is_unique": true } },
+        { "field": "full_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome completo" } },
+
+        { "field": "whatsapp_opt_in", "type": "boolean", "meta": { "interface": "boolean", "display_name": "WhatsApp (opt-in)" }, "schema": { "default_value": false } },
+
+        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" }, "schema": { "is_unique": true } },
+        { "field": "coupon_wc_id", "type": "integer", "meta": { "interface": "input", "display_name": "Cupão (WooCommerce ID)" } },
+        { "field": "coupon_expires_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Cupão (expira em)" } },
+
+        { "field": "mautic_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Mautic Contact ID" } },
+        { "field": "chatwoot_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Chatwoot Contact ID" } },
+
+        {
+          "field": "status",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Estado",
+            "options": {
+              "choices": [
+                { "text": "Active", "value": "active" },
+                { "text": "Unsubscribed", "value": "unsubscribed" }
+              ]
+            }
+          }
+        },
+
+        { "field": "created_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Created at" } },
+        { "field": "last_seen_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Last seen at" } },
+        { "field": "source", "type": "string", "meta": { "interface": "input", "display_name": "Source" } }
       ]
     },
     {
@@ -314,7 +380,7 @@
   ],
   "notes": [
     "Importa este ficheiro no Directus em Settings > Data Model > Import.",
-    "Coleções incluídas (frontend Directus-only): contacts, leads, employees, manufacturers, company_settings, deals, deal_items, quotations, quotation_items, interactions.",
+    "Coleções incluídas (frontend Directus-only): contacts, newsletter_subscriptions, leads, employees, manufacturers, company_settings, deals, deal_items, quotations, quotation_items, interactions.",
     "O frontend usa employees.role para roles (admin/gestor/vendedor/visualizador).",
     "Se já tens coleções com estes nomes, confirma se os campos batem certo antes de fazer overwrite."
   ]
