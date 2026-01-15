@@ -37,6 +37,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QuotationCreator } from "@/components/quotations/QuotationCreator";
+import { FileText } from "lucide-react";
 
 function NewsletterBannerDirectus({
   contactId,
@@ -198,6 +200,7 @@ export default function Dashboard360() {
   const [saving, setSaving] = useState(false);
   const [savingLead, setSavingLead] = useState(false);
   const [skuInput, setSkuInput] = useState("");
+  const [openQuotationCreator, setOpenQuotationCreator] = useState(false);
 
   const contactId = useMemo(() => (contact?.id ? String(contact.id) : id ? String(id) : null), [contact, id]);
   const resolvedExistingRef = useRef(false);
@@ -454,6 +457,22 @@ export default function Dashboard360() {
             )}
 
             <Separator orientation="vertical" className="h-6 hidden sm:block" />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!contactId}
+              onClick={() => {
+                if (!contactId) {
+                  toast({ title: "Guarda o contacto primeiro", description: "Para criares um orçamento, o contacto precisa de ID.", variant: "destructive" });
+                  return;
+                }
+                setOpenQuotationCreator(true);
+              }}
+              title={!contactId ? "Guarda o contacto primeiro" : "Criar um orçamento para este cliente"}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Novo Orçamento
+            </Button>
             <Button size="sm" variant="outline" onClick={handleSaveLead} disabled={!hasChanges || savingLead}>
               {savingLead ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               Guardar Lead
@@ -464,6 +483,17 @@ export default function Dashboard360() {
             </Button>
           </div>
         </div>
+
+        {/* Quotation creator dialog */}
+        {contactId ? (
+          <QuotationCreator
+            open={openQuotationCreator}
+            onOpenChange={setOpenQuotationCreator}
+            contactId={contactId}
+            contactName={String(contact?.company_name || getValue("company_name") || contact?.contact_name || "Cliente")}
+            onComplete={() => setOpenQuotationCreator(false)}
+          />
+        ) : null}
 
         {/* Main Card */}
         <Card>

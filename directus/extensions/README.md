@@ -32,3 +32,36 @@ Esta pasta contém extensões do Directus para:
 
 - Para persistir extensões e uploads em Docker, monta volumes no serviço do Directus (ver instruções no final desta conversa).
 
+## Layout do PDF (Orçamentos)
+
+O layout do PDF é gerado no endpoint `gerar-pdf` (Puppeteer) e está definido diretamente no ficheiro:
+
+- `directus/extensions/endpoints/gerar-pdf/index.js`
+  - bloco `css` (estilos)
+  - bloco `html` (estrutura do documento)
+
+### O que o PDF inclui
+
+- **Cabeçalho**: logo + dados da empresa (a partir de `company_settings`)
+- **Cliente**: `contacts` (empresa, morada, NIF, etc.)
+- **Linhas**: `quotation_items` (imagem, descrição, SKU, detalhes técnicos)
+- **Totais**: `subtotal` e `total_amount`
+- **Condições**: `terms_conditions` e `notes`
+- **Fichas técnicas**: se `quotation_items.ficha_tecnica_url` apontar para um PDF (asset ou URL), o endpoint tenta anexar ao final do PDF.
+
+### Teste rápido (gerar PDF)
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8055/gerar-pdf/QUOTATION_ID" \
+  -H "Authorization: Bearer TEU_TOKEN" \
+  -o /tmp/orcamento.pdf
+```
+
+### Logo
+
+O endpoint usa esta ordem:
+
+1) env `PDF_LOGO_URL`  
+2) `company_settings.logo_url`  
+3) fallback (texto “Hotelequip”)
+
