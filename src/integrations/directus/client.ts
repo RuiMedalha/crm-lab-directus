@@ -112,8 +112,9 @@ export async function directusRequest<T>(
 
   if (!res.ok) {
     // If the session is invalid, clear stored tokens to avoid endless 401 loops.
-    if (!skipAuth && (res.status === 401 || res.status === 403)) {
-      // 403 can also happen for invalid/expired sessions depending on policies.
+    if (!skipAuth && res.status === 401) {
+      // Only clear on 401 (invalid/expired session). 403 is commonly a permissions issue and
+      // clearing the session causes annoying "logout loops" on refresh.
       clearDirectusSession();
     }
     const payload = (body || {}) as DirectusErrorPayload;
