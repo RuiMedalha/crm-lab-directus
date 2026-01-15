@@ -319,8 +319,14 @@ export async function listContacts(params?: {
     page,
     // Avoid system fields permission issues; sort by id (works for int/uuid).
     sort: "-id",
-    // Avoid requesting "*" which can trigger 403 when some fields are restricted.
-    fields: directusFieldListForContacts(),
+    /**
+     * IMPORTANT:
+     * Use fields="*" to keep the URL short.
+     * Some setups (e.g. Cloudflare/WAF) can block very long query strings when we enumerate many fields.
+     *
+     * If your policies restrict fields, adjust Directus permissions to allow the required fields.
+     */
+    fields: "*",
   };
 
   if (search) {
