@@ -175,6 +175,37 @@ export default ({ action }, { services, getSchema }) => {
     const contacts = new ItemsService("contacts", { schema, accountability });
     const identityMap = new ItemsService("newsletter_identity_map", { schema, accountability });
 
+    // IMPORTANT:
+    // Newsletter leads should NOT auto-create contacts.
+    // Only sync into contacts if we already have a mapping with directus_contact_id.
+    const existingMap = await identityMap
+      .readByQuery({
+        limit: 1,
+        filter: {
+          _or: [
+            ...(email ? [{ email_normalized: { _eq: email } }] : []),
+            ...(phone ? [{ phone_e164: { _eq: phone } }] : []),
+          ],
+        },
+        fields: ["id", "directus_contact_id"],
+      })
+      .then((r) => (Array.isArray(r) ? r[0] : null))
+      .catch(() => null);
+
+    if (!existingMap?.directus_contact_id) {
+      // Still keep identity_map updated (subscription_id linkage), but do not create/patch contacts.
+      await upsertIdentityMap(identityMap, {
+        email_normalized: email || null,
+        phone_e164: phone || null,
+        directus_contact_id: null,
+        subscription_id: String(key || payload.id || ""),
+        matched_by: email && phone ? "both" : email ? "email" : "phone",
+        confidence: email && phone ? 90 : email ? 80 : 70,
+        last_verified_at: new Date().toISOString(),
+      }).catch(() => null);
+      return;
+    }
+
     const base = pick({ ...payload, email, phone }, SYNC_FIELDS);
     const toWrite = {
       ...base,

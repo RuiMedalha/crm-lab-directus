@@ -16,6 +16,7 @@ import { Plus, Search, Eye, Phone, Mail, MessageCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listContacts } from "@/integrations/directus/contacts";
+import { listNewsletterSubscriptions } from "@/integrations/directus/newsletter-subscriptions";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -30,8 +31,17 @@ export default function ContactosDirectus() {
     },
   });
 
+  const subsQuery = useQuery({
+    queryKey: ["newsletter-subscriptions", "search", searchTerm],
+    enabled: !!searchTerm.trim(),
+    queryFn: async () => {
+      return await listNewsletterSubscriptions({ search: searchTerm, limit: 50, page: 1 });
+    },
+  });
+
   const contacts = query.data || [];
   const isLoading = query.isLoading;
+  const subs = subsQuery.data || [];
 
   const count = useMemo(() => contacts.length, [contacts.length]);
 
@@ -94,7 +104,11 @@ export default function ContactosDirectus() {
             </Card>
           ) : (
             contacts.map((c: any) => (
-              <Card key={String(c.id)}>
+              <Card
+                key={String(c.id)}
+                className="cursor-pointer hover:bg-muted/30 transition-colors"
+                onClick={() => navigate(`/dashboard360/${encodeURIComponent(String(c.id))}`)}
+              >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -107,17 +121,18 @@ export default function ContactosDirectus() {
                         {c.email && <div className="truncate">{c.email}</div>}
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to={`/dashboard360/${encodeURIComponent(String(c.id))}`}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Abrir
-                      </Link>
-                    </Button>
+                    <Badge variant="secondary" className="shrink-0">Contacto</Badge>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     {c.phone && (
-                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-28"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <a href={`tel:${c.phone}`}>
                           <Phone className="h-4 w-4 mr-2" />
                           Ligar
@@ -125,7 +140,13 @@ export default function ContactosDirectus() {
                       </Button>
                     )}
                     {c.whatsapp_number && (
-                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-28"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <a
                           href={`https://wa.me/${String(c.whatsapp_number).replace(/\D/g, "")}`}
                           target="_blank"
@@ -137,7 +158,13 @@ export default function ContactosDirectus() {
                       </Button>
                     )}
                     {c.email && (
-                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-28"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <a href={`mailto:${c.email}`}>
                           <Mail className="h-4 w-4 mr-2" />
                           Email
@@ -150,6 +177,46 @@ export default function ContactosDirectus() {
             ))
           )}
         </div>
+
+        {/* Newsletter-only matches (when searching) */}
+        {searchTerm.trim() && subs.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Resultados na Newsletter (ainda não são contactos)
+            </div>
+            <div className="grid gap-3">
+              {subs.map((s: any) => {
+                const label = s.full_name || s.email || s.phone || String(s.id);
+                const qs = new URLSearchParams();
+                if (s.email) qs.set("email", String(s.email));
+                if (s.phone) qs.set("phone", String(s.phone));
+                qs.set("source", "newsletter");
+                // Abrir Card360 em modo "novo contacto" pré-preenchido. Só vira contacto quando guardares.
+                const to = `/dashboard360?${qs.toString()}`;
+                return (
+                  <Card
+                    key={String(s.id)}
+                    className="cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => navigate(to)}
+                  >
+                    <CardContent className="p-4 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{label}</div>
+                        <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
+                          {s.email ? <span>{String(s.email)}</span> : null}
+                          {s.phone ? <span className="font-mono">{String(s.phone)}</span> : null}
+                          {s.coupon_code ? <span>Cupão: {String(s.coupon_code)}</span> : <span>Sem cupão</span>}
+                          {s.status ? <span>Estado: {String(s.status)}</span> : null}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">Newsletter</Badge>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Desktop: table */}
         <div className="hidden md:block border rounded-lg overflow-hidden">
@@ -182,7 +249,11 @@ export default function ContactosDirectus() {
                 </TableRow>
               ) : (
                 contacts.map((c: any) => (
-                  <TableRow key={String(c.id)}>
+                  <TableRow
+                    key={String(c.id)}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() => navigate(`/dashboard360/${encodeURIComponent(String(c.id))}`)}
+                  >
                     <TableCell className="font-medium">
                       {c.company_name || c.contact_name || c.email || c.phone || "-"}
                     </TableCell>
@@ -192,21 +263,21 @@ export default function ContactosDirectus() {
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
                         {c.phone && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                             <a href={`tel:${c.phone}`}>
                               <Phone className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
                         {c.email && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                             <a href={`mailto:${c.email}`}>
                               <Mail className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
                         {c.whatsapp_number && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                             <a
                               href={`https://wa.me/${String(c.whatsapp_number).replace(/\D/g, "")}`}
                               target="_blank"
@@ -216,11 +287,7 @@ export default function ContactosDirectus() {
                             </a>
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                          <Link to={`/dashboard360/${encodeURIComponent(String(c.id))}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
+                        <Badge variant="secondary" className="mr-1">Contacto</Badge>
                       </div>
                     </TableCell>
                   </TableRow>
