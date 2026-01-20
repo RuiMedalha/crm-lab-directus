@@ -56,6 +56,27 @@ export async function listNewsletterSubscriptions(params?: { search?: string; li
   return res?.data || [];
 }
 
+export async function getNewsletterSubscriptionById(id: string) {
+  const res = await directusRequest<{ data: NewsletterSubscription }>(`/items/${COLLECTION}/${encodeURIComponent(id)}${qs({ fields: "*" })}`);
+  return res?.data || null;
+}
+
+export async function patchNewsletterSubscription(id: string, patch: Partial<NewsletterSubscription>) {
+  const res = await directusRequest<{ data: NewsletterSubscription }>(`/items/${COLLECTION}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return res?.data || null;
+}
+
+export async function createNewsletterSubscription(payload: Partial<NewsletterSubscription>) {
+  const res = await directusRequest<{ data: NewsletterSubscription }>(`/items/${COLLECTION}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return res?.data || null;
+}
+
 export async function upsertNewsletterSubscriptionByEmail(input: Partial<NewsletterSubscription> & { email: string }) {
   const email = String(input.email || "").trim().toLowerCase();
   const phone = String(input.phone || "").trim();

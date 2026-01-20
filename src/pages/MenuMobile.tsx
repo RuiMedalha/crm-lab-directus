@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Kanban, Factory, Plug, Settings, UserCog, PhoneCall, IdCard, LayoutDashboard, Users, LogOut, FileText } from "lucide-react";
+import { Kanban, Factory, Plug, Settings, UserCog, PhoneCall, IdCard, LayoutDashboard, Users, LogOut, FileText, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const items = [
@@ -10,6 +10,7 @@ const items = [
   { icon: IdCard, label: "Card 360", path: "/dashboard360" },
   { icon: PhoneCall, label: "Leads não atendidas", path: "/leads360" },
   { icon: Users, label: "Contactos", path: "/contactos" },
+  { icon: Mail, label: "Newsletter", path: "/newsletter" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
   { icon: Factory, label: "Fornecedores", path: "/fornecedores" },

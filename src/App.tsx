@@ -20,6 +20,8 @@ import UtilizadoresDirectus from "./pages/UtilizadoresDirectus";
 import MenuMobile from "./pages/MenuMobile";
 import NotFound from "./pages/NotFound";
 import Orcamentos from "./pages/Orcamentos";
+import Newsletter from "./pages/Newsletter";
+import Newsletter360 from "./pages/Newsletter360";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,8 @@ const AppContent = () => {
         <Route path="/leads360" element={<ProtectedRoute><Leads360 /></ProtectedRoute>} />
         <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
         <Route path="/orcamentos" element={<ProtectedRoute><Orcamentos /></ProtectedRoute>} />
+        <Route path="/newsletter" element={<ProtectedRoute><Newsletter /></ProtectedRoute>} />
+        <Route path="/newsletter/:id" element={<ProtectedRoute><Newsletter360 /></ProtectedRoute>} />
         <Route path="/fornecedores" element={<ProtectedRoute><Fornecedores /></ProtectedRoute>} />
         <Route path="/integracoes" element={<ProtectedRoute><Integracoes /></ProtectedRoute>} />
         <Route path="/definicoes" element={<ProtectedRoute><Definicoes /></ProtectedRoute>} />

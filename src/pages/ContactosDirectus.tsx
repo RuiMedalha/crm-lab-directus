@@ -187,12 +187,7 @@ export default function ContactosDirectus() {
             <div className="grid gap-3">
               {subs.map((s: any) => {
                 const label = s.full_name || s.email || s.phone || String(s.id);
-                const qs = new URLSearchParams();
-                if (s.email) qs.set("email", String(s.email));
-                if (s.phone) qs.set("phone", String(s.phone));
-                qs.set("source", "newsletter");
-                // Abrir Card360 em modo "novo contacto" pré-preenchido. Só vira contacto quando guardares.
-                const to = `/dashboard360?${qs.toString()}`;
+                const to = `/newsletter/${encodeURIComponent(String(s.id))}`;
                 return (
                   <Card
                     key={String(s.id)}

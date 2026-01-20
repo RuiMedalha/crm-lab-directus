@@ -15,6 +15,7 @@ import {
   UserCog,
   LogOut,
   FileText,
+  Mail,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const navItems = [
   { icon: IdCard, label: "Card 360", path: "/dashboard360" },
   { icon: PhoneCall, label: "Leads não atendidas", path: "/leads360" },
   { icon: Users, label: "Contactos", path: "/contactos" },
+  { icon: Mail, label: "Newsletter", path: "/newsletter" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
   { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
