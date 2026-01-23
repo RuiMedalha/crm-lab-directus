@@ -340,7 +340,7 @@
       "meta": { "icon": "request_quote", "note": "Orçamentos (migrado do Supabase).", "display_template": "{{quotation_number}}" },
       "schema": { "name": "quotations" },
       "fields": [
-        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "id", "type": "integer", "meta": { "hidden": true, "readonly": true, "interface": "numeric" }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
         { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
         { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
         { "field": "quotation_number", "type": "string", "meta": { "interface": "input", "display_name": "Número" } },
@@ -349,13 +349,18 @@
         { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
         { "field": "terms_conditions", "type": "text", "meta": { "interface": "textarea", "display_name": "Termos/Condições" } },
         { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas internas (não enviar)" } },
+        { "field": "sent_to_email", "type": "string", "meta": { "interface": "input", "display_name": "Enviado para (email)" } },
+        { "field": "sent_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Enviado em" } },
+        { "field": "follow_up_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Follow-up em" } },
+        { "field": "follow_up_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Follow-up (notas)" } },
         { "field": "subtotal", "type": "decimal", "meta": { "interface": "input", "display_name": "Subtotal" } },
         { "field": "discount_percent", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (%)" } },
         { "field": "discount_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (€)" } },
         { "field": "total_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Total" } },
         { "field": "pdf_link", "type": "string", "meta": { "interface": "input", "display_name": "PDF (link)" } },
+        { "field": "pdf_file", "type": "uuid", "meta": { "interface": "file", "display_name": "PDF (ficheiro)" }, "schema": { "foreign_key_table": "directus_files" } },
         { "field": "deal_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Negócio" }, "schema": { "foreign_key_table": "deals" } },
-        { "field": "customer_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" }, "schema": { "foreign_key_table": "contacts" } }
+        { "field": "customer_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" }, "schema": { "foreign_key_table": "contacts" } }
       ]
     },
     {
@@ -363,10 +368,10 @@
       "meta": { "icon": "list_alt", "note": "Linhas do orçamento." },
       "schema": { "name": "quotation_items" },
       "fields": [
-        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "id", "type": "integer", "meta": { "hidden": true, "readonly": true, "interface": "numeric" }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
         { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
         { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
-        { "field": "quotation_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Orçamento" }, "schema": { "foreign_key_table": "quotations" } },
+        { "field": "quotation_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Orçamento" }, "schema": { "foreign_key_table": "quotations" } },
         { "field": "product_id", "type": "string", "meta": { "interface": "input", "display_name": "Product ID" } },
         { "field": "product_name", "type": "string", "meta": { "interface": "input", "display_name": "Produto" } },
         { "field": "technical_details", "type": "text", "meta": { "interface": "textarea", "display_name": "Detalhes técnicos" } },

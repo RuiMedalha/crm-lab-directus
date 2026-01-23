@@ -19,7 +19,18 @@ export interface ProductSearchDialogProps {
 }
 
 function getProductImage(product: MeilisearchProduct) {
-  return (product as any).featured_media_url || product.image_url || (product as any).media_url || null;
+  const p: any = product as any;
+  return (
+    p.featured_media_url ||
+    p.image_url ||
+    p.media_url ||
+    p.thumbnail ||
+    p.thumb ||
+    (Array.isArray(p.images) ? p.images?.[0]?.src || p.images?.[0]?.url : null) ||
+    (p.image ? p.image.src || p.image.url : null) ||
+    (p.featured_media ? p.featured_media.src || p.featured_media.url : null) ||
+    null
+  );
 }
 
 function getProductName(product: MeilisearchProduct) {

@@ -42,7 +42,23 @@ export default ({ filter, action }, { services, exceptions, env, getSchema, logg
       for (const id of keys) {
         // Read latest quotation with status
         const q = await quotations.readOne(id, {
-          fields: ["id", "quotation_number", "status", "deal_id", "customer_id", "total_amount", "subtotal", "valid_until", "notes", "terms_conditions", "date_created", "date_updated"],
+          fields: [
+            "id",
+            "quotation_number",
+            "status",
+            "deal_id",
+            "customer_id",
+            "total_amount",
+            "subtotal",
+            "valid_until",
+            "notes",
+            "terms_conditions",
+            "sent_to_email",
+            "sent_at",
+            "pdf_link",
+            "date_created",
+            "date_updated",
+          ],
         });
         if (!q) continue;
 

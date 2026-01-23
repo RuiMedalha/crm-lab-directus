@@ -21,6 +21,11 @@ export interface MeilisearchProduct {
   featured_media_url?: string;
   media_url?: string;
   link?: string;
+  // Extra (depends on index schema) - helps resolve images
+  images?: any;
+  image?: any;
+  featured_media?: any;
+  featured_media_id?: any;
 }
 
 const MEILISEARCH_STORAGE_KEY = "hotelequip_meilisearch_settings";
@@ -95,7 +100,30 @@ export function useMeilisearch() {
         body: JSON.stringify({
           q: query,
           limit: 20,
-          attributesToRetrieve: ["id", "name", "title", "sku", "price", "cost", "description", "content", "category", "image_url", "featured_media_url", "media_url", "link"],
+          attributesToRetrieve: [
+            "id",
+            "name",
+            "title",
+            "sku",
+            "price",
+            "cost",
+            "description",
+            "content",
+            "category",
+            "image_url",
+            "featured_media_url",
+            "media_url",
+            "link",
+            // common variants used by Woo-based indexes
+            "images",
+            "image",
+            "featured_media",
+            "featured_media_id",
+            "thumbnail",
+            "thumb",
+            "imageId",
+            "mediaId",
+          ],
         }),
       });
 

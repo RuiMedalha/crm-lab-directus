@@ -17,11 +17,16 @@ export interface QuotationRow {
   notes?: string | null;
   terms_conditions?: string | null;
   internal_notes?: string | null;
+  sent_to_email?: string | null;
+  sent_at?: string | null;
+  follow_up_at?: string | null;
+  follow_up_notes?: string | null;
   subtotal?: number | null;
   discount_percent?: number | null;
   discount_amount?: number | null;
   total_amount?: number | null;
   pdf_link?: string | null;
+  pdf_file?: any;
   date_created?: string | null;
   date_updated?: string | null;
 }
@@ -97,7 +102,7 @@ export async function getQuotationById(quotationId: string) {
   const res = await directusRequest<{ data: any }>(
     `/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(quotationId)}${qs({
       fields:
-        "id,quotation_number,status,subtotal,total_amount,notes,terms_conditions,internal_notes,valid_until,date_created,customer_id.id,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone",
+        "id,quotation_number,status,deal_id,subtotal,total_amount,notes,terms_conditions,internal_notes,sent_to_email,sent_at,follow_up_at,follow_up_notes,pdf_link,pdf_file,valid_until,date_created,customer_id.id,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone",
     })}`
   );
 

@@ -11,8 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { FileText, Download, Send, Loader2, Printer, Pencil } from 'lucide-react';
 import { useCompanySettings } from '@/hooks/useSettings';
-import { fetchQuotationPdf, getQuotationById } from '@/integrations/directus/quotations';
+import { fetchQuotationPdf, getQuotationById, patchQuotation } from '@/integrations/directus/quotations';
 import { toast } from "@/hooks/use-toast";
+import { createDeal, listDeals, patchDeal } from "@/integrations/directus/deals";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface QuotationPreviewProps {
   open: boolean;
@@ -25,11 +28,14 @@ interface QuotationData {
   id: string;
   quotation_number: string;
   status: string;
+  deal_id?: any;
   subtotal: number;
   total_amount: number;
   notes: string | null;
   terms_conditions?: string | null;
   internal_notes?: string | null;
+  sent_to_email?: string | null;
+  sent_at?: string | null;
   valid_until: string | null;
   created_at: string;
   customer: {
@@ -57,6 +63,13 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
   const [quotation, setQuotation] = useState<QuotationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendEmail, setSendEmail] = useState<string>("");
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
+  const [dealSearch, setDealSearch] = useState("");
+  const [dealResults, setDealResults] = useState<any[]>([]);
+  const [dealLoading, setDealLoading] = useState(false);
   const { data: settings } = useCompanySettings();
 
   useEffect(() => {
@@ -75,11 +88,14 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
         id: q.id,
         quotation_number: String(q.quotation_number || ""),
         status: String(q.status || "draft"),
+        deal_id: (q as any).deal_id ?? null,
         subtotal: Number(q.subtotal || 0),
         total_amount: Number(q.total_amount || 0),
         notes: (q.notes as any) ?? null,
         terms_conditions: (q.terms_conditions as any) ?? null,
         internal_notes: (q.internal_notes as any) ?? null,
+        sent_to_email: (q.sent_to_email as any) ?? null,
+        sent_at: (q.sent_at as any) ?? null,
         valid_until: (q.valid_until as any) ?? null,
         created_at: String(q.date_created || ""),
         customer: (q as any).customer_id
@@ -104,6 +120,10 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           line_total: i.line_total ?? null,
         })),
       });
+
+      // default recipient for n8n send
+      const defaultEmail = (q as any)?.customer_id?.email || "";
+      setSendEmail(String(defaultEmail || (q.sent_to_email as any) || ""));
     } catch (error) {
       console.error('Erro ao carregar orçamento:', error);
     } finally {
@@ -154,6 +174,102 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
     }
   };
 
+  const normalizeCustomerId = (cid: any) => {
+    const s = String(cid ?? "");
+    return /^\d+$/.test(s) ? Number(s) : s;
+  };
+
+  const handleOpenSendDialog = () => {
+    setSendDialogOpen(true);
+  };
+
+  const handleSendViaN8n = async () => {
+    if (!quotation) return;
+    const email = String(sendEmail || "").trim();
+    if (!email) {
+      toast({ title: "Email em falta", description: "Indica o email do destinatário.", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const now = new Date().toISOString();
+      await patchQuotation(String(quotationId), {
+        status: "sent",
+        sent_to_email: email,
+        sent_at: now,
+      } as any);
+      toast({ title: "Marcado como enviado", description: "O n8n vai gerar o PDF e enviar o email." });
+      setSendDialogOpen(false);
+      await fetchQuotation();
+    } catch (e: any) {
+      toast({ title: "Erro ao marcar como enviado", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleOpenProposalDialog = async () => {
+    setProposalDialogOpen(true);
+    // preload some deals for linking
+    setDealLoading(true);
+    try {
+      const rows = await listDeals({ search: "", limit: 30, page: 1 });
+      setDealResults(rows || []);
+    } catch {
+      setDealResults([]);
+    } finally {
+      setDealLoading(false);
+    }
+  };
+
+  const handleSearchDeals = async (q: string) => {
+    setDealSearch(q);
+    setDealLoading(true);
+    try {
+      const rows = await listDeals({ search: q, limit: 50, page: 1 });
+      setDealResults(rows || []);
+    } catch {
+      setDealResults([]);
+    } finally {
+      setDealLoading(false);
+    }
+  };
+
+  const closeAsProposalCreateDeal = async () => {
+    if (!quotation?.customer?.id) {
+      toast({ title: "Sem cliente", variant: "destructive" });
+      return;
+    }
+    const customerId = normalizeCustomerId(quotation.customer.id);
+    const title = `Proposta - ${quotation.customer.company_name || "Cliente"} - ${quotation.quotation_number || quotationId}`;
+    try {
+      const deal = await createDeal({
+        title,
+        status: "proposta",
+        customer_id: customerId as any,
+        total_amount: Number(quotation.total_amount || 0),
+      } as any);
+      await patchQuotation(String(quotationId), { deal_id: (deal as any).id } as any);
+      toast({ title: "Proposta criada no pipeline" });
+      setProposalDialogOpen(false);
+      await fetchQuotation();
+    } catch (e: any) {
+      toast({ title: "Erro ao criar proposta", description: String(e?.message || e), variant: "destructive" });
+    }
+  };
+
+  const closeAsProposalLinkDeal = async (dealId: string) => {
+    try {
+      await patchDeal(String(dealId), { status: "proposta" } as any);
+      await patchQuotation(String(quotationId), { deal_id: String(dealId) } as any);
+      toast({ title: "Orçamento ligado ao negócio (proposta)" });
+      setProposalDialogOpen(false);
+      await fetchQuotation();
+    } catch (e: any) {
+      toast({ title: "Erro ao ligar proposta", description: String(e?.message || e), variant: "destructive" });
+    }
+  };
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -196,6 +312,27 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
                 <Pencil className="h-4 w-4 mr-1" />
                 Editar
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (quotation?.deal_id) {
+                    // if already linked, ensure deal is in proposta
+                    patchDeal(String(quotation.deal_id), { status: "proposta" } as any)
+                      .then(() => toast({ title: "Negócio atualizado para Proposta" }))
+                      .catch((e: any) =>
+                        toast({ title: "Erro ao atualizar negócio", description: String(e?.message || e), variant: "destructive" })
+                      );
+                  } else {
+                    handleOpenProposalDialog();
+                  }
+                }}
+                disabled={!quotation?.customer?.id}
+                title="Passar para pipeline (Proposta)"
+              >
+                <Badge variant="outline" className="mr-2">Proposta</Badge>
+                Fechar
+              </Button>
               <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfBusy}>
                 <Printer className="h-4 w-4 mr-1" />
                 Imprimir
@@ -204,13 +341,84 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
                 <Download className="h-4 w-4 mr-1" />
                 PDF
               </Button>
-              <Button size="sm">
+              <Button size="sm" onClick={handleOpenSendDialog} disabled={sending}>
                 <Send className="h-4 w-4 mr-1" />
                 Enviar por Email
               </Button>
             </div>
           </DialogTitle>
         </DialogHeader>
+
+        {/* Send via n8n dialog */}
+        <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Enviar (n8n)</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Vai marcar como <b>sent</b> e disparar a automação no n8n.
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email do destinatário</label>
+                <Input value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="cliente@..." />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSendViaN8n} disabled={sending}>
+                  {sending ? "A enviar…" : "Confirmar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Proposal dialog */}
+        <Dialog open={proposalDialogOpen} onOpenChange={setProposalDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Fechar como Proposta</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Recomendado: criar negócio quando passa a proposta real. Podes criar novo ou ligar a um existente.
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <Button onClick={closeAsProposalCreateDeal}>Criar novo negócio</Button>
+                <div className="flex-1" />
+                <Input
+                  value={dealSearch}
+                  onChange={(e) => handleSearchDeals(e.target.value)}
+                  placeholder="Pesquisar negócios existentes…"
+                />
+              </div>
+              <div className="max-h-[45vh] overflow-auto border rounded-md">
+                {dealLoading ? (
+                  <div className="p-4 text-sm text-muted-foreground">A carregar…</div>
+                ) : dealResults.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">Sem resultados</div>
+                ) : (
+                  <div className="divide-y">
+                    {dealResults.slice(0, 50).map((d: any) => (
+                      <div key={String(d.id)} className="p-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{String(d.title || d.id)}</div>
+                          <div className="text-xs text-muted-foreground flex gap-2">
+                            <span>{String(d.status || "")}</span>
+                            {d.customer_id?.company_name ? <span className="truncate">{String(d.customer_id.company_name)}</span> : null}
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => closeAsProposalLinkDeal(String(d.id))}>
+                          Ligar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <ScrollArea className="flex-1">
           {/* PDF Preview Container */}
