@@ -36,13 +36,16 @@ if (!DIRECTUS_URL || !DIRECTUS_TOKEN) {
   process.exit(2);
 }
 
-// Some VPS have broken IPv6/DNS; allow forcing IPv4-first DNS ordering.
-// Usage: DNS_IPV4FIRST=1 node scripts/setup-directus-crm.js --yes
-if (String(process.env.DNS_IPV4FIRST || "") === "1") {
+// Some VPS have flaky IPv4/IPv6 routing via Cloudflare; allow forcing DNS result order.
+// Usage:
+//   DNS_IPV6FIRST=1 node scripts/setup-directus-crm.js --yes
+//   DNS_IPV4FIRST=1 node scripts/setup-directus-crm.js --yes
+if (String(process.env.DNS_IPV6FIRST || "") === "1" || String(process.env.DNS_IPV4FIRST || "") === "1") {
+  const order = String(process.env.DNS_IPV4FIRST || "") === "1" ? "ipv4first" : "ipv6first";
   try {
-    // Node >=18 supports this.
-    const dns = require("node:dns");
-    if (typeof dns.setDefaultResultOrder === "function") dns.setDefaultResultOrder("ipv4first");
+    const dns = await import("node:dns");
+    if (typeof dns.setDefaultResultOrder === "function") dns.setDefaultResultOrder(order);
+    console.log(`DNS result order: ${order}`);
   } catch {
     // ignore
   }
