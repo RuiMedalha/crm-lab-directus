@@ -348,6 +348,7 @@
         { "field": "valid_until", "type": "date", "meta": { "interface": "datetime", "display_name": "Válido até" } },
         { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
         { "field": "terms_conditions", "type": "text", "meta": { "interface": "textarea", "display_name": "Termos/Condições" } },
+        { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas internas (não enviar)" } },
         { "field": "subtotal", "type": "decimal", "meta": { "interface": "input", "display_name": "Subtotal" } },
         { "field": "discount_percent", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (%)" } },
         { "field": "discount_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (€)" } },

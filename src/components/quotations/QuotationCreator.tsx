@@ -67,7 +67,12 @@ export function QuotationCreator({
 }: QuotationCreatorProps) {
   const isMobile = useIsMobile();
   const [items, setItems] = useState<QuotationItem[]>([]);
+  // Visível ao cliente (vai para PDF)
   const [notes, setNotes] = useState('');
+  // Condições visíveis ao cliente (pagamento/entrega/etc) -> terms_conditions
+  const [termsConditions, setTermsConditions] = useState('');
+  // Notas internas (não vai para PDF)
+  const [internalNotes, setInternalNotes] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -234,6 +239,8 @@ export function QuotationCreator({
         subtotal,
         total_amount: total,
         notes: notes || undefined,
+        terms_conditions: termsConditions || undefined,
+        internal_notes: internalNotes || undefined,
         valid_until: validUntil || undefined,
       });
 
@@ -277,6 +284,8 @@ export function QuotationCreator({
   const handleClose = () => {
     setItems([]);
     setNotes('');
+    setTermsConditions('');
+    setInternalNotes('');
     setValidUntil('');
     setQuotationId(null);
     setShowPreview(false);
@@ -307,7 +316,7 @@ export function QuotationCreator({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[96vw] max-w-6xl h-[94vh] max-h-[94vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -386,6 +395,23 @@ export function QuotationCreator({
                                     placeholder="Escreve 2+ letras para pesquisar…"
                                     className="h-9"
                                   />
+                                  <div className="mt-2">
+                                    <Label className="text-xs">SKU (opcional)</Label>
+                                    <Input
+                                      value={item.sku}
+                                      onFocus={() => {
+                                        setSearchItemId(item.id);
+                                        setSearchQuery(item.sku || "");
+                                      }}
+                                      onChange={(e) => {
+                                        updateItem(item.id, "sku", e.target.value);
+                                        setSearchItemId(item.id);
+                                        setSearchQuery(e.target.value);
+                                      }}
+                                      placeholder="Escreve SKU (2+ chars) para pesquisar…"
+                                      className="h-9"
+                                    />
+                                  </div>
                                 </div>
                               </PopoverTrigger>
                               <PopoverContent className="p-0 w-[90vw] max-w-[520px]" align="start">
@@ -624,7 +650,19 @@ export function QuotationCreator({
                           <TableCell className="align-top">
                             <Input
                               value={item.sku}
-                              onChange={(e) => updateItem(item.id, 'sku', e.target.value)}
+                              onFocus={() => {
+                                if (item.line_type !== "free") {
+                                  setSearchItemId(item.id);
+                                  setSearchQuery(item.sku || "");
+                                }
+                              }}
+                              onChange={(e) => {
+                                updateItem(item.id, 'sku', e.target.value);
+                                if (item.line_type !== "free") {
+                                  setSearchItemId(item.id);
+                                  setSearchQuery(e.target.value);
+                                }
+                              }}
                               placeholder="SKU"
                               className="h-8"
                               disabled={item.line_type === "free"}
@@ -741,27 +779,53 @@ export function QuotationCreator({
               </CardContent>
             </Card>
 
-            {/* Notas e Validade */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notas</Label>
-                <textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Notas ou condições especiais..."
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  rows={3}
-                />
+            {/* Condições / Notas / Validade */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="terms_conditions">Condições (pagamento, entrega, etc.) — visível no PDF</Label>
+                  <textarea
+                    id="terms_conditions"
+                    value={termsConditions}
+                    onChange={(e) => setTermsConditions(e.target.value)}
+                    placeholder={"• Pagamento: 50% encomenda, 50% antes entrega\n• Prazo entrega: …\n• Garantia: …"}
+                    className="flex min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notas para o cliente — visível no PDF</Label>
+                  <textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Notas que o cliente deve ver (ex.: materiais incluídos/excluídos, observações)…"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    rows={3}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="valid_until">Válido até</Label>
-                <Input
-                  id="valid_until"
-                  type="date"
-                  value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
-                />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="internal_notes">Notas internas — NÃO vai para o cliente</Label>
+                  <textarea
+                    id="internal_notes"
+                    value={internalNotes}
+                    onChange={(e) => setInternalNotes(e.target.value)}
+                    placeholder="Notas internas (ex.: margem alvo, histórico, o que falta validar)…"
+                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    rows={5}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="valid_until">Válido até</Label>
+                  <Input
+                    id="valid_until"
+                    type="date"
+                    value={validUntil}
+                    onChange={(e) => setValidUntil(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           </div>

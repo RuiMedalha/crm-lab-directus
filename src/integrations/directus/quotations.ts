@@ -16,6 +16,7 @@ export interface QuotationRow {
   valid_until?: string | null;
   notes?: string | null;
   terms_conditions?: string | null;
+  internal_notes?: string | null;
   subtotal?: number | null;
   discount_percent?: number | null;
   discount_amount?: number | null;
@@ -79,7 +80,7 @@ export async function getQuotationById(quotationId: string) {
   const res = await directusRequest<{ data: any }>(
     `/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(quotationId)}${qs({
       fields:
-        "id,quotation_number,status,subtotal,total_amount,notes,valid_until,date_created,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone",
+        "id,quotation_number,status,subtotal,total_amount,notes,terms_conditions,internal_notes,valid_until,date_created,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone",
     })}`
   );
 
@@ -87,7 +88,7 @@ export async function getQuotationById(quotationId: string) {
     `/items/${DIRECTUS_QUOTATION_ITEMS_COLLECTION}${qs({
       limit: 1000,
       sort: "sort_order,id",
-      fields: "id,product_name,sku,quantity,unit_price,line_total",
+      fields: "id,product_name,sku,quantity,unit_price,iva_percent,discount_percent,notes,line_total",
       "filter[quotation_id][_eq]": quotationId,
     })}`
   );

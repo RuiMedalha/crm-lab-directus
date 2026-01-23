@@ -9,6 +9,7 @@ Esta pasta contém extensões do Directus para:
 ## Pastas
 
 - `endpoints/gerar-pdf/`
+- `endpoints/product-search/` (proxy Meilisearch/WooCommerce para o CRM)
 - `hooks/orcamento-automation/`
 - `hooks/newsletter-sync/`
 
@@ -25,6 +26,12 @@ Esta pasta contém extensões do Directus para:
   - `N8N_WEBHOOK_QUOTATION_SENT` (ex: `https://n8n.../webhook/quotation-sent`)
   - `N8N_WEBHOOK_QUOTATION_APPROVED` (ex: `https://n8n.../webhook/quotation-approved`)
   - `N8N_WEBHOOK_SHARED_SECRET` (opcional; para assinar pedidos)
+
+- **Pesquisa Produtos (proxy)**
+  - `MEILISEARCH_HOST` (ex: `https://meili.exemplo.com`)
+  - `MEILISEARCH_API_KEY` (opcional, se o Meilisearch for privado)
+  - `MEILISEARCH_INDEX` (default: `products_stage`)
+  - Alternativa (se não houver Meilisearch): `WOO_URL`, `WOO_CONSUMER_KEY`, `WOO_CONSUMER_SECRET`
 
 - **PDF**
   - `PDF_UPLOADS_ROOT` (default: usa `STORAGE_LOCAL_ROOT` ou `/directus/uploads`)

@@ -69,6 +69,7 @@ export default (router, { services, exceptions, env, getSchema }) => {
         "valid_until",
         "notes",
         "terms_conditions",
+        "internal_notes",
         "subtotal",
         "total_amount",
         "date_created",
@@ -100,6 +101,8 @@ export default (router, { services, exceptions, env, getSchema }) => {
         "quantity",
         "unit_price",
         "iva_percent",
+        "discount_percent",
+        "notes",
         "line_total",
         "supplier_email",
         "manual_entry",
@@ -188,7 +191,12 @@ td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; vertical-ali
           ${(items || []).map((it) => {
             const img = it.image_url ? `<img class="product-img" src="${it.image_url}" />` : ``;
             const title = it.product_name || "—";
-            const details = [it.sku ? `SKU: ${it.sku}` : "", it.technical_details || ""].filter(Boolean).join("\n");
+            const parts = [];
+            if (it.sku) parts.push(`SKU: ${it.sku}`);
+            if (it.discount_percent && Number(it.discount_percent) > 0) parts.push(`Desc: ${Number(it.discount_percent)}%`);
+            if (it.technical_details) parts.push(String(it.technical_details));
+            if (it.notes) parts.push(`Notas: ${String(it.notes)}`);
+            const details = parts.filter(Boolean).join("\n");
             return `
               <tr>
                 <td>${img}</td>

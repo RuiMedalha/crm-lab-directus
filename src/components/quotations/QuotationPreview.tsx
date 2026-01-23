@@ -26,6 +26,8 @@ interface QuotationData {
   subtotal: number;
   total_amount: number;
   notes: string | null;
+  terms_conditions?: string | null;
+  internal_notes?: string | null;
   valid_until: string | null;
   created_at: string;
   customer: {
@@ -72,6 +74,8 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
         subtotal: Number(q.subtotal || 0),
         total_amount: Number(q.total_amount || 0),
         notes: (q.notes as any) ?? null,
+        terms_conditions: (q.terms_conditions as any) ?? null,
+        internal_notes: (q.internal_notes as any) ?? null,
         valid_until: (q.valid_until as any) ?? null,
         created_at: String(q.date_created || ""),
         customer: (q as any).customer_id
@@ -260,10 +264,10 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
 
             {/* Rodapé */}
             <div className="border-t-2 border-gray-200 pt-6 text-xs text-gray-500 space-y-2">
-              <p className="font-semibold">Condições de Pagamento:</p>
-              <p>• Orçamento válido por 30 dias a partir da data de emissão</p>
-              <p>• Pagamento: 50% no ato da encomenda, 50% antes da entrega</p>
-              <p>• Prazo de entrega: A combinar conforme disponibilidade de stock</p>
+              <p className="font-semibold">Condições</p>
+              <p className="whitespace-pre-wrap">
+                {quotation.terms_conditions || "• Orçamento válido por 30 dias • Pagamento/Entrega: a definir"}
+              </p>
               
               <Separator className="my-4" />
               
