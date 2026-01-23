@@ -17,7 +17,7 @@ import {
   patchNewsletterSubscription,
   type NewsletterSubscription,
 } from "@/integrations/directus/newsletter-subscriptions";
-import { createContact, findDuplicateContact } from "@/integrations/directus/contacts";
+import { createContact, findDuplicateContact, patchContact } from "@/integrations/directus/contacts";
 import { upsertIdentityMap } from "@/integrations/directus/newsletter-identity-map";
 
 export default function Newsletter360() {
@@ -68,10 +68,35 @@ export default function Newsletter360() {
       const email = sub.email ? String(sub.email) : null;
       const phone = sub.phone ? String(sub.phone) : null;
       const full_name = sub.full_name ? String(sub.full_name) : sub.firstname || sub.lastname ? `${sub.firstname || ""} ${sub.lastname || ""}`.trim() : null;
+      const now = new Date().toISOString();
 
       // If a contact already exists, do not create duplicates (email/phone matching).
       const dup = await findDuplicateContact({ email, phone, nif: null }).catch(() => null);
       if (dup?.id) {
+        // Ensure newsletter fields are mirrored into the existing contact
+        await patchContact(String(dup.id), {
+          source: "newsletter",
+          accept_newsletter: true,
+          newsletter_consent_at: sub.created_at || now,
+          newsletter_consent_source: sub.source || "newsletter",
+          subscribed_at: sub.created_at || null,
+          firstname: sub.firstname || null,
+          lastname: sub.lastname || null,
+          full_name: full_name || null,
+          whatsapp_opt_in: !!sub.whatsapp_opt_in,
+          status: sub.status || "active",
+          created_at: sub.created_at || null,
+          last_seen_at: sub.last_seen_at || null,
+          coupon_code: sub.coupon_code || null,
+          coupon_wc_id: sub.coupon_wc_id ?? null,
+          coupon_expires_at: sub.coupon_expires_at || null,
+          newsletter_notes: [
+            sub.notes || "",
+            `Ligado via Newsletter (subscription #${String(sub.id)}) em ${now}`,
+          ].filter(Boolean).join("\n"),
+        }).catch(() => undefined);
+
+        // Best-effort: link identity_map (do not block conversion if it fails)
         await upsertIdentityMap({
           email: email || undefined,
           phone: phone || undefined,
@@ -79,8 +104,17 @@ export default function Newsletter360() {
           subscription_id: String(sub.id),
           matched_by: email && phone ? "both" : email ? "email" : "phone",
           confidence: email && phone ? 90 : email ? 80 : 70,
-          last_verified_at: new Date().toISOString(),
-        });
+          last_verified_at: now,
+        }).catch(() => undefined);
+
+        // Also stamp the ledger note (best-effort)
+        await patchNewsletterSubscription(String(sub.id), {
+          notes: [
+            sub.notes || "",
+            `Ligado ao contacto ${String(dup.id)} em ${now}`,
+          ].filter(Boolean).join("\n"),
+        }).catch(() => undefined);
+
         return { contactId: String(dup.id), existed: true };
       }
 
@@ -93,16 +127,26 @@ export default function Newsletter360() {
         email,
         phone,
         whatsapp_opt_in: !!sub.whatsapp_opt_in,
-        newsletter_source: sub.source || "typebot",
+        // Mark origin clearly
+        source: "newsletter",
+        newsletter_source: sub.source || "newsletter",
+        accept_newsletter: true,
+        newsletter_consent_at: sub.created_at || now,
+        newsletter_consent_source: sub.source || "newsletter",
         status: sub.status || "active",
         created_at: sub.created_at || null,
         last_seen_at: sub.last_seen_at || null,
         coupon_code: sub.coupon_code || null,
         coupon_wc_id: sub.coupon_wc_id ?? null,
         coupon_expires_at: sub.coupon_expires_at || null,
-        newsletter_notes: sub.notes || null,
+        subscribed_at: sub.created_at || null,
+        newsletter_notes: [
+          sub.notes || "",
+          `Criado a partir da Newsletter (subscription #${String(sub.id)}) em ${now}`,
+        ].filter(Boolean).join("\n"),
       });
 
+      // Best-effort mapping (do not block conversion if identity_map schema is wrong)
       await upsertIdentityMap({
         email: email || undefined,
         phone: phone || undefined,
@@ -110,8 +154,15 @@ export default function Newsletter360() {
         subscription_id: String(sub.id),
         matched_by: email && phone ? "both" : email ? "email" : "phone",
         confidence: email && phone ? 90 : email ? 80 : 70,
-        last_verified_at: new Date().toISOString(),
-      });
+        last_verified_at: now,
+      }).catch(() => undefined);
+
+      await patchNewsletterSubscription(String(sub.id), {
+        notes: [
+          sub.notes || "",
+          `Convertido para contacto ${String(created.id)} em ${now}`,
+        ].filter(Boolean).join("\n"),
+      }).catch(() => undefined);
 
       return { contactId: String(created.id), existed: false };
     },
