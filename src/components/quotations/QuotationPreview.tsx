@@ -16,6 +16,9 @@ import { toast } from "@/hooks/use-toast";
 import { createDeal, listDeals, patchDeal } from "@/integrations/directus/deals";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { getEmployeeByEmail } from "@/integrations/directus/employees";
+import { useAuth } from "@/contexts/AuthContext";
+import { createFollowUp } from "@/integrations/directus/follow-ups";
 
 interface QuotationPreviewProps {
   open: boolean;
@@ -70,7 +73,24 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
   const [dealSearch, setDealSearch] = useState("");
   const [dealResults, setDealResults] = useState<any[]>([]);
   const [dealLoading, setDealLoading] = useState(false);
+  const [followUpAt, setFollowUpAt] = useState<string>("");
+  const [followUpType, setFollowUpType] = useState<string>("call");
   const { data: settings } = useCompanySettings();
+  const { user } = useAuth();
+  const [meEmpId, setMeEmpId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!user?.email) return;
+      const emp = await getEmployeeByEmail(String(user.email)).catch(() => null);
+      if (!active) return;
+      setMeEmpId(emp?.id ? String(emp.id) : null);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.email]);
 
   useEffect(() => {
     if (open && quotationId) {
@@ -124,6 +144,11 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
       // default recipient for n8n send
       const defaultEmail = (q as any)?.customer_id?.email || "";
       setSendEmail(String(defaultEmail || (q.sent_to_email as any) || ""));
+
+      // default follow-up (2 dias)
+      const d = new Date();
+      d.setDate(d.getDate() + 2);
+      setFollowUpAt(d.toISOString().slice(0, 16)); // datetime-local
     } catch (error) {
       console.error('Erro ao carregar orçamento:', error);
     } finally {
@@ -198,6 +223,23 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
         sent_to_email: email,
         sent_at: now,
       } as any);
+
+      // criar follow-up (agenda) opcional
+      if (meEmpId && followUpAt) {
+        await createFollowUp({
+          status: "open",
+          type: followUpType,
+          due_at: new Date(followUpAt).toISOString(),
+          title: `Follow-up ${quotation.quotation_number || quotationId}`,
+          contact_id: quotation.customer?.id ? (typeof quotation.customer.id === "number" ? quotation.customer.id : Number(quotation.customer.id)) : null,
+          quotation_id: /^\d+$/.test(String(quotationId)) ? Number(quotationId) : quotationId,
+          deal_id: quotation.deal_id ? String(quotation.deal_id) : null,
+          assigned_employee_id: meEmpId,
+          created_by_employee_id: meEmpId,
+          notes: `Enviar: ${email}`,
+        } as any);
+      }
+
       toast({ title: "Marcado como enviado", description: "O n8n vai gerar o PDF e enviar o email." });
       setSendDialogOpen(false);
       await fetchQuotation();
@@ -248,6 +290,10 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
         status: "proposta",
         customer_id: customerId as any,
         total_amount: Number(quotation.total_amount || 0),
+        owner_employee_id: meEmpId || undefined,
+        assigned_employee_id: meEmpId || undefined,
+        assigned_by_employee_id: meEmpId || undefined,
+        assigned_at: new Date().toISOString(),
       } as any);
       await patchQuotation(String(quotationId), { deal_id: (deal as any).id } as any);
       toast({ title: "Proposta criada no pipeline" });
@@ -362,6 +408,16 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
               <div className="space-y-2">
                 <label className="text-sm font-medium">Email do destinatário</label>
                 <Input value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="cliente@..." />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Follow-up (quando)</label>
+                  <Input type="datetime-local" value={followUpAt} onChange={(e) => setFollowUpAt(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tipo</label>
+                  <Input value={followUpType} onChange={(e) => setFollowUpType(e.target.value)} placeholder="call/email/whatsapp" />
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Cancelar</Button>

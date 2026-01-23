@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Kanban, Factory, Plug, Settings, UserCog, PhoneCall, IdCard, LayoutDashboard, Users, LogOut, FileText, Mail } from "lucide-react";
+import { Kanban, Factory, Plug, Settings, UserCog, PhoneCall, IdCard, LayoutDashboard, Users, LogOut, FileText, Mail, CalendarClock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const items = [
@@ -13,6 +13,7 @@ const items = [
   { icon: Mail, label: "Newsletter", path: "/newsletter" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
+  { icon: CalendarClock, label: "Agenda", path: "/agenda" },
   { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
   { icon: Plug, label: "Integrações", path: "/integracoes" },
   { icon: Settings, label: "Definições", path: "/definicoes" },

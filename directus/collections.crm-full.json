@@ -314,8 +314,37 @@
         { "field": "title", "type": "string", "meta": { "interface": "input", "display_name": "Título" } },
         { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
         { "field": "total_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Total" } },
-        { "field": "customer_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" }, "schema": { "foreign_key_table": "contacts" } },
+        { "field": "customer_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" }, "schema": { "foreign_key_table": "contacts" } },
         { "field": "manufacturer_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Fornecedor" }, "schema": { "foreign_key_table": "manufacturers" } }
+        ,
+        { "field": "owner_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Dono (início)" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Responsável atual" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_by_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Atribuído por" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Atribuído em" } }
+      ]
+    },
+    {
+      "collection": "follow_ups",
+      "meta": { "icon": "event", "note": "Agenda de follow-ups (chamadas/email/whatsapp) atribuídos a funcionários.", "display_template": "{{title}}" },
+      "schema": { "name": "follow_ups" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado", "options": { "choices": [ { "text": "Open", "value": "open" }, { "text": "Done", "value": "done" }, { "text": "Cancelled", "value": "cancelled" } ] } } },
+        { "field": "type", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Tipo", "options": { "choices": [ { "text": "Call", "value": "call" }, { "text": "Email", "value": "email" }, { "text": "WhatsApp", "value": "whatsapp" }, { "text": "Task", "value": "task" } ] } } },
+        { "field": "due_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Quando" } },
+        { "field": "completed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Concluído em" } },
+        { "field": "title", "type": "string", "meta": { "interface": "input", "display_name": "Título" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+
+        { "field": "contact_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Contacto" }, "schema": { "foreign_key_table": "contacts" } },
+        { "field": "quotation_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Orçamento" }, "schema": { "foreign_key_table": "quotations" } },
+        { "field": "deal_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Negócio" }, "schema": { "foreign_key_table": "deals" } },
+
+        { "field": "assigned_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Responsável" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "created_by_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Criado por" }, "schema": { "foreign_key_table": "employees" } }
       ]
     },
     {

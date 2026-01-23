@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import Orcamentos from "./pages/Orcamentos";
 import Newsletter from "./pages/Newsletter";
 import Newsletter360 from "./pages/Newsletter360";
+import Agenda from "./pages/Agenda";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const AppContent = () => {
         <Route path="/leads360" element={<ProtectedRoute><Leads360 /></ProtectedRoute>} />
         <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
         <Route path="/orcamentos" element={<ProtectedRoute><Orcamentos /></ProtectedRoute>} />
+        <Route path="/agenda" element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
         <Route path="/newsletter" element={<ProtectedRoute><Newsletter /></ProtectedRoute>} />
         <Route path="/newsletter/:id" element={<ProtectedRoute><Newsletter360 /></ProtectedRoute>} />
         <Route path="/fornecedores" element={<ProtectedRoute><Fornecedores /></ProtectedRoute>} />
