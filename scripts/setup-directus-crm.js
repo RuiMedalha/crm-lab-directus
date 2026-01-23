@@ -382,6 +382,10 @@ async function main() {
   // employees read needed to resolve assignments
   await upsertPermission({ subjectField, subjectId, collection: "employees", action: "read", fields: "*" });
 
+  // company settings (Definições) used across CRM + PDFs
+  await upsertPermission({ subjectField, subjectId, collection: "company_settings", action: "read", fields: "*" });
+  await upsertPermission({ subjectField, subjectId, collection: "company_settings", action: "update", fields: "*" });
+
   // deals: ensure the new fields are readable/updatable even if role uses a field allowlist
   const requiredDealFields = [
     "owner_employee_id",
