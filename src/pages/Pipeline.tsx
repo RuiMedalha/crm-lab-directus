@@ -286,6 +286,31 @@ export default function Pipeline() {
         </Collapsible>
 
         {/* Kanban Board with DnD */}
+        {/* Resumo por coluna */}
+        <div className="hidden md:flex gap-2 overflow-x-auto pb-1">
+          {DEAL_STATUSES.map((s) => {
+            const n = getDealsByStatus(s.value).length;
+            const total = getColumnTotal(s.value);
+            return (
+              <Button
+                key={s.value}
+                variant="outline"
+                className="h-9 px-3 text-xs flex items-center gap-2"
+                onClick={() => toggleColumn(s.value)}
+                title="Colapsar/expandir coluna"
+              >
+                <span className="font-medium">{s.label}</span>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {n}
+                </Badge>
+                <span className="text-muted-foreground">
+                  {total.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+                </span>
+              </Button>
+            );
+          })}
+        </div>
+
         {/* Mobile: lista (sem drag & drop, mais estável no touch) */}
         <div className="md:hidden space-y-3">
           {isLoading ? (
@@ -386,7 +411,7 @@ export default function Pipeline() {
                             {status.label}
                           </div>
                           <div className="text-xs font-medium text-primary mt-auto">
-                            {(columnTotal / 1000).toFixed(0)}k
+                            {columnTotal.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
                           </div>
                         </CardContent>
                       </Card>
@@ -420,7 +445,8 @@ export default function Pipeline() {
                           {columnTotal.toLocaleString("pt-PT", {
                             style: "currency",
                             currency: "EUR",
-                            maximumFractionDigits: 0,
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
                           })}
                         </div>
                       </CardHeader>
