@@ -193,6 +193,12 @@ export function QuotationCreator({
     }
   };
 
+  const round2 = (n: unknown) => {
+    const v = Number(n || 0);
+    if (!Number.isFinite(v)) return 0;
+    return Math.round((v + Number.EPSILON) * 100) / 100;
+  };
+
   const computeLineTotal = (item: QuotationItem) => {
     const qty = Number(item.quantity || 0);
     const unit = Number(item.unit_price || 0);
@@ -200,20 +206,25 @@ export function QuotationCreator({
     const discount = base * (Number(item.discount_percent || 0) / 100);
     const taxable = Math.max(0, base - discount);
     const ivaAmount = taxable * (Number(item.iva_percent || 0) / 100);
-    return taxable + ivaAmount;
+    return round2(taxable + ivaAmount);
   };
 
   const updateItem = (id: string, field: keyof QuotationItem, value: string | number) => {
     setItems(prev => prev.map(item => {
       if (item.id !== id) return item;
 
-      const updated = { ...item, [field]: value };
+      const updated: any = { ...item, [field]: value };
+
+      // Enforce 2 decimals on money fields
+      if (field === "cost_price" || field === "unit_price") {
+        updated[field] = round2(value);
+      }
 
       // Auto-calcular preço de venda com base em custo + margem
       if (field === 'cost_price' || field === 'margin_percent') {
         const cost = field === 'cost_price' ? Number(value) : item.cost_price;
         const margin = field === 'margin_percent' ? Number(value) : item.margin_percent;
-        updated.unit_price = cost * (1 + margin / 100);
+        updated.unit_price = round2(cost * (1 + margin / 100));
       }
 
       // Recalcular total da linha
@@ -229,8 +240,8 @@ export function QuotationCreator({
         if (item.id !== id) return item;
         const name = product.title || product.name || "";
         const sku = product.sku || "";
-        const unit_price = Number(product.price || 0);
-        const cost_price = Number(product.cost || 0);
+        const unit_price = round2(product.price || 0);
+        const cost_price = round2(product.cost || 0);
         const image_url =
           (product as any).featured_media_url ||
           (product as any).image_url ||
@@ -270,7 +281,7 @@ export function QuotationCreator({
     }, 0);
     const total = items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
 
-    return { subtotal, ivaTotal, total };
+    return { subtotal: round2(subtotal), ivaTotal: round2(ivaTotal), total: round2(total) };
   };
 
   const handleSave = async () => {
@@ -292,8 +303,8 @@ export function QuotationCreator({
         customer_id: customerIdForDirectus,
         deal_id: dealId || undefined,
         status: 'draft',
-        subtotal,
-        total_amount: total,
+        subtotal: round2(subtotal),
+        total_amount: round2(total),
         notes: notes || undefined,
         terms_conditions: termsConditions || undefined,
         internal_notes: internalNotes || undefined,
@@ -310,11 +321,11 @@ export function QuotationCreator({
         product_name: item.product_name,
         sku: item.sku || null,
         quantity: item.quantity,
-        cost_price: item.cost_price || 0,
-        unit_price: item.unit_price,
+        cost_price: round2(item.cost_price || 0),
+        unit_price: round2(item.unit_price),
         iva_percent: item.iva_percent,
         discount_percent: item.discount_percent || 0,
-        line_total: item.line_total,
+        line_total: round2(item.line_total),
         notes: item.notes || undefined,
         image_url: item.image_url || null,
         manual_entry: item.line_type === "free",
