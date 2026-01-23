@@ -32,6 +32,7 @@ interface QuotationItem {
   id: string;
   line_type: "product" | "free";
   product_id?: string | null;
+  image_url?: string | null;
   product_name: string;
   sku: string;
   quantity: number;
@@ -123,6 +124,7 @@ export function QuotationCreator({
       id: generateItemId(),
       line_type: "product",
       product_id: null,
+      image_url: null,
       product_name: '',
       sku: '',
       quantity: 1,
@@ -181,6 +183,11 @@ export function QuotationCreator({
         const sku = product.sku || "";
         const unit_price = Number(product.price || 0);
         const cost_price = Number(product.cost || 0);
+        const image_url =
+          (product as any).featured_media_url ||
+          (product as any).image_url ||
+          (product as any).media_url ||
+          null;
         const margin_percent =
           cost_price > 0 ? Math.max(0, ((unit_price / cost_price) - 1) * 100) : item.margin_percent;
 
@@ -188,6 +195,7 @@ export function QuotationCreator({
           ...item,
           line_type: "product",
           product_id: String(product.id || ""),
+          image_url: image_url ? String(image_url) : null,
           product_name: name,
           sku,
           unit_price,
@@ -253,9 +261,12 @@ export function QuotationCreator({
           quantity: item.quantity,
           cost_price: item.cost_price || 0,
           unit_price: item.unit_price,
+          iva_percent: item.iva_percent,
           discount_percent: item.discount_percent || 0,
           line_total: item.line_total,
           notes: item.notes || undefined,
+          image_url: item.image_url || null,
+          manual_entry: item.line_type === "free",
           sort_order: index,
         }))
       );
@@ -429,6 +440,7 @@ export function QuotationCreator({
                                         <CommandItem
                                           key={String(p.id)}
                                           value={`${p.title || p.name || ""} ${p.sku || ""}`}
+                                          onMouseDown={(e) => e.preventDefault()}
                                           onSelect={() => {
                                             applyProductToItem(item.id, p);
                                             setSearchItemId(null);
@@ -611,6 +623,7 @@ export function QuotationCreator({
                                           <CommandItem
                                             key={String(p.id)}
                                             value={`${p.title || p.name || ""} ${p.sku || ""}`}
+                                            onMouseDown={(e) => e.preventDefault()}
                                             onSelect={() => {
                                               applyProductToItem(item.id, p);
                                               setSearchItemId(null);
