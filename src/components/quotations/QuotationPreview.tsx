@@ -9,14 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { FileText, Download, Send, Loader2, Printer } from 'lucide-react';
+import { FileText, Download, Send, Loader2, Printer, Pencil } from 'lucide-react';
 import { useCompanySettings } from '@/hooks/useSettings';
-import { getQuotationById } from '@/integrations/directus/quotations';
+import { fetchQuotationPdf, getQuotationById } from '@/integrations/directus/quotations';
+import { toast } from "@/hooks/use-toast";
 
 interface QuotationPreviewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   quotationId: string;
+  onEdit?: (quotationId: string, customerId?: string | number | null) => void;
 }
 
 interface QuotationData {
@@ -31,6 +33,7 @@ interface QuotationData {
   valid_until: string | null;
   created_at: string;
   customer: {
+    id?: string | number | null;
     company_name: string;
     contact_name: string | null;
     address: string | null;
@@ -50,9 +53,10 @@ interface QuotationData {
   }[];
 }
 
-export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationPreviewProps) {
+export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: QuotationPreviewProps) {
   const [quotation, setQuotation] = useState<QuotationData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const { data: settings } = useCompanySettings();
 
   useEffect(() => {
@@ -80,6 +84,7 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
         created_at: String(q.date_created || ""),
         customer: (q as any).customer_id
           ? {
+              id: (q as any).customer_id.id ?? null,
               company_name: (q as any).customer_id.company_name || "",
               contact_name: (q as any).customer_id.contact_name || null,
               address: (q as any).customer_id.address || null,
@@ -107,7 +112,46 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
   };
 
   const handlePrint = () => {
-    window.print();
+    // Imprimir o PDF (mais fiável do que imprimir a página React)
+    handleOpenPdf(true).catch(() => undefined);
+  };
+
+  const handleOpenPdf = async (_forPrint?: boolean) => {
+    if (!quotationId) return;
+    setPdfBusy(true);
+    try {
+      const blob = await fetchQuotationPdf(String(quotationId));
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank");
+      if (!w) {
+        toast({ title: "Popup bloqueado", description: "Permite popups para abrir o PDF.", variant: "destructive" });
+        return;
+      }
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!quotationId) return;
+    setPdfBusy(true);
+    try {
+      const blob = await fetchQuotationPdf(String(quotationId));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${quotation?.quotation_number || quotationId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
   if (loading) {
@@ -139,9 +183,26 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
               Pré-visualização do Orçamento
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Edit is handled by parent (opens QuotationCreator in edit mode)
+                  onEdit?.(String(quotationId), quotation?.customer?.id ?? null);
+                }}
+                disabled={!quotation?.customer?.id}
+                title="Editar/retomar"
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Editar
+              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfBusy}>
                 <Printer className="h-4 w-4 mr-1" />
                 Imprimir
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={pdfBusy}>
+                <Download className="h-4 w-4 mr-1" />
+                PDF
               </Button>
               <Button size="sm">
                 <Send className="h-4 w-4 mr-1" />

@@ -19,9 +19,11 @@ import type { ContactItem } from "@/integrations/directus/contacts";
 export default function Orcamentos() {
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [openMeta, setOpenMeta] = useState<{ customerId?: string; customerName?: string } | null>(null);
   const [openCreateChooser, setOpenCreateChooser] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
   const [createFor, setCreateFor] = useState<{ id: string; name: string } | null>(null);
+  const [editFor, setEditFor] = useState<{ quotationId: string; customerId: string; customerName: string } | null>(null);
 
   const query = useQuery({
     queryKey: ["quotations", "all", search],
@@ -79,7 +81,16 @@ export default function Orcamentos() {
             </Card>
           ) : (
             items.map((q: any) => (
-              <Card key={q.id} className="border">
+              <Card
+                key={q.id}
+                className="border cursor-pointer hover:bg-muted/20 transition-colors"
+                onClick={() => {
+                  setOpenId(String(q.id));
+                  const cid = q.customer_id?.id ? String(q.customer_id.id) : undefined;
+                  const cname = q.customer_id?.company_name ? String(q.customer_id.company_name) : undefined;
+                  setOpenMeta({ customerId: cid, customerName: cname });
+                }}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -108,7 +119,17 @@ export default function Orcamentos() {
                         </span>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => setOpenId(String(q.id))}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenId(String(q.id));
+                        const cid = q.customer_id?.id ? String(q.customer_id.id) : undefined;
+                        const cname = q.customer_id?.company_name ? String(q.customer_id.company_name) : undefined;
+                        setOpenMeta({ customerId: cid, customerName: cname });
+                      }}
+                    >
                       <Eye className="h-4 w-4 mr-2" />
                       Abrir
                     </Button>
@@ -121,10 +142,35 @@ export default function Orcamentos() {
       </div>
 
       {/* Preview dialog */}
-      <Dialog open={!!openId} onOpenChange={(open) => !open && setOpenId(null)}>
+      <Dialog
+        open={!!openId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOpenId(null);
+            setOpenMeta(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden p-0">
           {openId ? (
-            <QuotationPreview open={true} onOpenChange={(open) => !open && setOpenId(null)} quotationId={openId} />
+            <QuotationPreview
+              open={true}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setOpenId(null);
+                  setOpenMeta(null);
+                }
+              }}
+              quotationId={openId}
+              onEdit={() => {
+                const cid = openMeta?.customerId;
+                const cname = openMeta?.customerName;
+                if (!cid || !cname) return;
+                setOpenId(null);
+                setOpenMeta(null);
+                setEditFor({ quotationId: String(openId), customerId: cid, customerName: cname });
+              }}
+            />
           ) : (
             <div className="p-6">
               <Skeleton className="h-64 w-full" />
@@ -209,6 +255,23 @@ export default function Orcamentos() {
           contactName={createFor.name}
           onComplete={() => {
             setCreateFor(null);
+            query.refetch().catch(() => undefined);
+          }}
+        />
+      ) : null}
+
+      {/* Edit existing quotation */}
+      {editFor ? (
+        <QuotationCreator
+          open={!!editFor}
+          onOpenChange={(open) => {
+            if (!open) setEditFor(null);
+          }}
+          quotationId={editFor.quotationId}
+          contactId={editFor.customerId}
+          contactName={editFor.customerName}
+          onComplete={() => {
+            setEditFor(null);
             query.refetch().catch(() => undefined);
           }}
         />

@@ -1,4 +1,4 @@
-import { directusRequest } from "@/integrations/directus/client";
+import { directusApiUrl, directusRequest, getDirectusTokenForRequest } from "@/integrations/directus/client";
 import { qs } from "@/integrations/directus/utils";
 import { listDealItems, type DealItemRow } from "@/integrations/directus/deals";
 
@@ -97,7 +97,7 @@ export async function getQuotationById(quotationId: string) {
   const res = await directusRequest<{ data: any }>(
     `/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(quotationId)}${qs({
       fields:
-        "id,quotation_number,status,subtotal,total_amount,notes,terms_conditions,internal_notes,valid_until,date_created,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone",
+        "id,quotation_number,status,subtotal,total_amount,notes,terms_conditions,internal_notes,valid_until,date_created,customer_id.id,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone",
     })}`
   );
 
@@ -164,6 +164,25 @@ export async function replaceQuotationItems(quotationId: string, items: Array<Pa
 
 export async function deleteQuotation(id: string) {
   await directusRequest(`/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function fetchQuotationPdf(quotationId: string): Promise<Blob> {
+  const token = getDirectusTokenForRequest();
+  if (!token) throw new Error("Sem sessão. Faça login para continuar.");
+
+  const res = await fetch(directusApiUrl(`/gerar-pdf/${encodeURIComponent(quotationId)}`), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || `Falha ao gerar PDF (${res.status})`);
+  }
+
+  return await res.blob();
 }
 
 export async function createQuotationFromDeal(dealId: string, customerId?: string | null) {
