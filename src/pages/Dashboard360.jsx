@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
 import {
   createContact,
   findDuplicateContact,
@@ -41,6 +42,8 @@ import { cn } from "@/lib/utils";
 import { QuotationCreator } from "@/components/quotations/QuotationCreator";
 import { FileText } from "lucide-react";
 import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
+import { listActiveDealsByCustomerIds } from "@/integrations/directus/deals";
+import { listActiveQuotationsByCustomerIds } from "@/integrations/directus/quotations";
 
 function NewsletterBannerDirectus({
   contactId,
@@ -207,6 +210,22 @@ export default function Dashboard360() {
 
   const contactId = useMemo(() => (contact?.id ? String(contact.id) : id ? String(id) : null), [contact, id]);
   const resolvedExistingRef = useRef(false);
+
+  const activity = useQuery({
+    queryKey: ["card360", "activity", contactId],
+    enabled: !!contactId,
+    queryFn: async () => {
+      const cid = String(contactId);
+      const [deals, quotations] = await Promise.all([
+        listActiveDealsByCustomerIds([cid]).catch(() => []),
+        listActiveQuotationsByCustomerIds([cid]).catch(() => []),
+      ]);
+      return {
+        activeDeals: (deals || []).length,
+        activeQuotations: (quotations || []).length,
+      };
+    },
+  });
 
   // If we arrive with identity params (phone/email/nif) and a contact already exists in Directus,
   // redirect to the existing Card360 instead of creating a duplicate.
@@ -426,6 +445,20 @@ export default function Dashboard360() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">{contact?.company_name || getValue("company_name") || "Dashboard 360"}</h1>
               <p className="text-muted-foreground">{contact?.contact_name || getValue("contact_name") || "Ficha de Cliente (Directus)"}</p>
+              {(activity.data?.activeDeals || 0) > 0 || (activity.data?.activeQuotations || 0) > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(activity.data?.activeDeals || 0) > 0 ? (
+                    <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-700">
+                      Negócios em curso: {activity.data.activeDeals}
+                    </Badge>
+                  ) : null}
+                  {(activity.data?.activeQuotations || 0) > 0 ? (
+                    <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-700">
+                      Orçamentos ativos: {activity.data.activeQuotations}
+                    </Badge>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 

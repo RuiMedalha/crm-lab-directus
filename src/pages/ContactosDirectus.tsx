@@ -25,6 +25,15 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function ContactosDirectus() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const renderTags = (raw: any) => {
+    const list: string[] = Array.isArray(raw)
+      ? raw.map((x) => String(x)).filter(Boolean)
+      : typeof raw === "string"
+        ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+    return list.slice(0, 3);
+  };
 
   const query = useQuery({
     queryKey: ["contacts-directus", searchTerm],
@@ -173,7 +182,17 @@ export default function ContactosDirectus() {
                         {c.nif && <div>NIF: {c.nif}</div>}
                         {c.phone && <div className="font-mono">{c.phone}</div>}
                         {c.email && <div className="truncate">{c.email}</div>}
+                        {c.city && <div className="truncate">{c.city}</div>}
                       </div>
+                      {renderTags(c.tags).length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {renderTags(c.tags).map((t) => (
+                            <Badge key={t} variant="secondary" className="text-[10px]">
+                              {t}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1">
                       {c.__hasActive ? (
@@ -332,6 +351,18 @@ export default function ContactosDirectus() {
                             Em curso • N:{c.__activeDeals?.count || 0} • O:{c.__activeQuotations?.count || 0}
                           </Badge>
                         </span>
+                      ) : null}
+                      {c.city ? (
+                        <div className="text-xs text-muted-foreground mt-1 truncate">{String(c.city)}</div>
+                      ) : null}
+                      {renderTags(c.tags).length ? (
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {renderTags(c.tags).map((t) => (
+                            <Badge key={t} variant="secondary" className="text-[10px]">
+                              {t}
+                            </Badge>
+                          ))}
+                        </div>
                       ) : null}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{c.nif || "-"}</TableCell>
