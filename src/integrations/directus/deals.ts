@@ -107,6 +107,23 @@ export async function patchDeal(id: string, patch: Partial<DealRow>) {
   return res.data;
 }
 
+export async function listActiveDealsByCustomerIds(customerIds: string[], params?: { limit?: number }) {
+  const ids = (customerIds || []).map((x) => String(x || "").trim()).filter(Boolean);
+  if (!ids.length) return [];
+  const res = await directusRequest<{ data: DealRow[] }>(
+    `/items/${DIRECTUS_DEALS_COLLECTION}${qs({
+      limit: params?.limit ?? 2000,
+      page: 1,
+      sort: "-id",
+      fields: "id,status,total_amount,customer_id.id,customer_id.company_name",
+      "filter[customer_id][_in]": ids.join(","),
+      // active = anything not closed
+      "filter[status][_nin]": "ganho,perdido",
+    })}`
+  );
+  return res.data || [];
+}
+
 export async function createDealItem(payload: Partial<DealItemRow>) {
   const res = await directusRequest<{ data: DealItemRow }>(`/items/${DIRECTUS_DEAL_ITEMS_COLLECTION}`, {
     method: "POST",

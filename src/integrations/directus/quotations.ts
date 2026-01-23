@@ -98,6 +98,25 @@ export async function listQuotationsByCustomer(customerId: string | number, para
   return res.data || [];
 }
 
+export async function listActiveQuotationsByCustomerIds(customerIds: Array<string | number>, params?: { limit?: number }) {
+  const ids = (customerIds || [])
+    .map((x) => (x === null || x === undefined ? "" : String(x)).trim())
+    .filter(Boolean);
+  if (!ids.length) return [];
+  const res = await directusRequest<{ data: QuotationRow[] }>(
+    `/items/${DIRECTUS_QUOTATIONS_COLLECTION}${qs({
+      limit: params?.limit ?? 3000,
+      page: 1,
+      sort: "-date_created",
+      fields: "id,quotation_number,status,total_amount,valid_until,date_created,customer_id.id,customer_id.company_name",
+      "filter[customer_id][_in]": ids.join(","),
+      // active = draft/sent (approved may be closed depending on your flow; keep it out for now)
+      "filter[status][_in]": "draft,sent",
+    })}`
+  );
+  return res.data || [];
+}
+
 export async function getQuotationById(quotationId: string) {
   const fullFields =
     "id,quotation_number,status,deal_id,subtotal,total_amount,notes,terms_conditions,internal_notes,sent_to_email,sent_at,follow_up_at,follow_up_notes,pdf_link,pdf_file,valid_until,date_created,customer_id.id,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone";

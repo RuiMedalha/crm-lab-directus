@@ -17,6 +17,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listContacts } from "@/integrations/directus/contacts";
 import { listNewsletterSubscriptions } from "@/integrations/directus/newsletter-subscriptions";
+import { listActiveDealsByCustomerIds } from "@/integrations/directus/deals";
+import { listActiveQuotationsByCustomerIds } from "@/integrations/directus/quotations";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -42,6 +44,55 @@ export default function ContactosDirectus() {
   const contacts = query.data || [];
   const isLoading = query.isLoading;
   const subs = subsQuery.data || [];
+
+  const activeSummary = useQuery({
+    queryKey: ["contacts-directus", "active-summary", contacts.map((c: any) => String(c?.id || "")).join(",")],
+    enabled: contacts.length > 0,
+    queryFn: async () => {
+      const ids = contacts.map((c: any) => String(c.id));
+      const [deals, quotations] = await Promise.all([
+        listActiveDealsByCustomerIds(ids).catch(() => []),
+        listActiveQuotationsByCustomerIds(ids).catch(() => []),
+      ]);
+
+      const dealsByCustomer: Record<string, { count: number; total: number }> = {};
+      for (const d of deals as any[]) {
+        const cid = d?.customer_id?.id ? String(d.customer_id.id) : d?.customer_id ? String(d.customer_id) : "";
+        if (!cid) continue;
+        const prev = dealsByCustomer[cid] || { count: 0, total: 0 };
+        dealsByCustomer[cid] = { count: prev.count + 1, total: prev.total + Number(d.total_amount || 0) };
+      }
+
+      const quotationsByCustomer: Record<string, { count: number; total: number }> = {};
+      for (const q of quotations as any[]) {
+        const cid = q?.customer_id?.id ? String(q.customer_id.id) : q?.customer_id ? String(q.customer_id) : "";
+        if (!cid) continue;
+        const prev = quotationsByCustomer[cid] || { count: 0, total: 0 };
+        quotationsByCustomer[cid] = { count: prev.count + 1, total: prev.total + Number(q.total_amount || 0) };
+      }
+
+      return { dealsByCustomer, quotationsByCustomer };
+    },
+  });
+
+  const enrichedContacts = useMemo(() => {
+    const dealsByCustomer = (activeSummary.data as any)?.dealsByCustomer || {};
+    const quotationsByCustomer = (activeSummary.data as any)?.quotationsByCustomer || {};
+    const withMeta = contacts.map((c: any) => {
+      const id = String(c?.id || "");
+      const d = dealsByCustomer[id] || { count: 0, total: 0 };
+      const q = quotationsByCustomer[id] || { count: 0, total: 0 };
+      const hasActive = (d.count || 0) > 0 || (q.count || 0) > 0;
+      const activeScore = (d.total || 0) + (q.total || 0);
+      return { ...c, __activeDeals: d, __activeQuotations: q, __hasActive: hasActive, __activeScore: activeScore };
+    });
+    // Prioridade: quem tem em curso aparece primeiro; depois por valor total em curso; depois por nome
+    return withMeta.sort((a: any, b: any) => {
+      if (!!a.__hasActive !== !!b.__hasActive) return a.__hasActive ? -1 : 1;
+      if ((b.__activeScore || 0) !== (a.__activeScore || 0)) return (b.__activeScore || 0) - (a.__activeScore || 0);
+      return String(a.company_name || a.contact_name || "").localeCompare(String(b.company_name || b.contact_name || ""), "pt");
+    });
+  }, [contacts, activeSummary.data]);
 
   const count = useMemo(() => contacts.length, [contacts.length]);
 
@@ -103,10 +154,13 @@ export default function ContactosDirectus() {
               </CardContent>
             </Card>
           ) : (
-            contacts.map((c: any) => (
+            enrichedContacts.map((c: any) => (
               <Card
                 key={String(c.id)}
-                className="cursor-pointer hover:bg-muted/30 transition-colors"
+                className={[
+                  "cursor-pointer hover:bg-muted/30 transition-colors",
+                  c.__hasActive ? "border-amber-500/40 bg-amber-500/5" : "",
+                ].join(" ")}
                 onClick={() => navigate(`/dashboard360/${encodeURIComponent(String(c.id))}`)}
               >
                 <CardContent className="p-4 space-y-3">
@@ -121,7 +175,25 @@ export default function ContactosDirectus() {
                         {c.email && <div className="truncate">{c.email}</div>}
                       </div>
                     </div>
-                    <Badge variant="secondary" className="shrink-0">Contacto</Badge>
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      {c.__hasActive ? (
+                        <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-700">
+                          Em curso
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Contacto</Badge>
+                      )}
+                      {(c.__activeDeals?.count || 0) > 0 ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          Negócios: {c.__activeDeals.count}
+                        </Badge>
+                      ) : null}
+                      {(c.__activeQuotations?.count || 0) > 0 ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          Orçamentos: {c.__activeQuotations.count}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -243,14 +315,24 @@ export default function ContactosDirectus() {
                   </TableCell>
                 </TableRow>
               ) : (
-                contacts.map((c: any) => (
+                enrichedContacts.map((c: any) => (
                   <TableRow
                     key={String(c.id)}
-                    className="cursor-pointer hover:bg-muted/30"
+                    className={[
+                      "cursor-pointer hover:bg-muted/30",
+                      c.__hasActive ? "bg-amber-500/5" : "",
+                    ].join(" ")}
                     onClick={() => navigate(`/dashboard360/${encodeURIComponent(String(c.id))}`)}
                   >
                     <TableCell className="font-medium">
                       {c.company_name || c.contact_name || c.email || c.phone || "-"}
+                      {c.__hasActive ? (
+                        <span className="ml-2 align-middle">
+                          <Badge variant="outline" className="text-[10px] bg-amber-500/10 border-amber-500/30 text-amber-700">
+                            Em curso • N:{c.__activeDeals?.count || 0} • O:{c.__activeQuotations?.count || 0}
+                          </Badge>
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{c.nif || "-"}</TableCell>
                     <TableCell className="hidden sm:table-cell">{c.phone || "-"}</TableCell>
