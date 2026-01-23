@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -193,6 +193,9 @@ export default function Agenda() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Novo follow-up</DialogTitle>
+            <DialogDescription className="sr-only">
+              Criar um novo follow-up atribuído a mim.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">

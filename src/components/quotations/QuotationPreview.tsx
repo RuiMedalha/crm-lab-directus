@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { FileText, Download, Send, Loader2, Printer, Pencil } from 'lucide-react';
 import { useCompanySettings } from '@/hooks/useSettings';
@@ -320,6 +321,10 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
+            <DialogDescription>A carregar dados do orçamento.</DialogDescription>
+          </DialogHeader>
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -393,6 +398,9 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
               </Button>
             </div>
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Pré-visualização e ações do orçamento (PDF, imprimir, enviar, e fechar como proposta).
+          </DialogDescription>
         </DialogHeader>
 
         {/* Send via n8n dialog */}
@@ -400,6 +408,9 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Enviar (n8n)</DialogTitle>
+              <DialogDescription className="sr-only">
+                Define destinatário e follow-up e marca o orçamento como enviado.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
@@ -434,6 +445,9 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Fechar como Proposta</DialogTitle>
+              <DialogDescription className="sr-only">
+                Cria ou liga um negócio existente e atualiza o estado para proposta.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
