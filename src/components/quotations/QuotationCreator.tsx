@@ -224,8 +224,11 @@ export function QuotationCreator({
     try {
       const { subtotal, total } = calculateTotals();
 
+      const customerIdForDirectus: string | number =
+        /^\d+$/.test(String(contactId || "")) ? Number(contactId) : contactId;
+
       const quotation = await createQuotation({
-        customer_id: contactId,
+        customer_id: customerIdForDirectus,
         deal_id: dealId || undefined,
         status: 'draft',
         subtotal,
@@ -255,7 +258,17 @@ export function QuotationCreator({
       setShowPreview(true);
     } catch (error) {
       console.error('Erro ao criar orçamento:', error);
-      toast({ title: 'Erro ao criar orçamento', variant: 'destructive' });
+      const msg = String((error as any)?.message || error || "");
+      if (msg.includes("invalid input syntax for type uuid") && (msg.includes("customer_id") || msg.includes("contacts"))) {
+        toast({
+          title: "Erro de modelo no Directus (ID do cliente)",
+          description:
+            "O teu Directus está a tentar gravar `customer_id` como UUID, mas o teu `contacts.id` é inteiro (ex: 40). Corrige o Data Model: recria `quotations.customer_id` como Integer (M2O) para `contacts.id`.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: 'Erro ao criar orçamento', description: msg || undefined, variant: 'destructive' });
+      }
     } finally {
       setSaving(false);
     }

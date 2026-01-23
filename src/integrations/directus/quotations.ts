@@ -121,9 +121,14 @@ export async function createQuotationFromDeal(dealId: string, customerId?: strin
   const subtotal = dealItems.reduce((sum, i) => sum + (Number(i.quantity || 0) * Number(i.unit_price || 0)), 0);
   const total_amount = subtotal;
 
+  const customerIdForDirectus: string | number | undefined = (() => {
+    if (customerId === undefined || customerId === null || customerId === "") return undefined;
+    return /^\d+$/.test(String(customerId)) ? Number(customerId) : customerId;
+  })();
+
   const quotation = await createQuotation({
     deal_id: dealId,
-    customer_id: customerId || undefined,
+    customer_id: customerIdForDirectus,
     status: "draft",
     subtotal,
     total_amount,
