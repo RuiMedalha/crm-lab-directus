@@ -1,0 +1,286 @@
+/**
+ * Setup Directus CRM schema + permissions (idempotent).
+ *
+ * What it does:
+ * - Ensures `follow_ups` collection exists (and creates its fields)
+ * - Ensures `deals` has: owner_employee_id, assigned_employee_id, assigned_by_employee_id, assigned_at
+ * - Ensures CRM role permissions:
+ *   - follow_ups: read/create/update/share (fields "*")
+ *   - employees: read (fields "*")
+ *   - deals: read/update include new assignment fields (merges if needed)
+ *   - quotations: read includes tracking/pdf fields that commonly 403
+ *
+ * Usage (run from VPS or anywhere with network access):
+ *   DIRECTUS_URL="https://api.hotelequip.pt" DIRECTUS_TOKEN="ADMIN_TOKEN" \
+ *   CRM_ROLE_NAME="CRM" node scripts/setup-directus-crm.js --yes
+ *
+ * Optional:
+ *   SNAPSHOT_FILE="directus/collections.crm-full.json"
+ *   CRM_ROLE_ID="xxxxxxxx-...."   # if you prefer role id instead of name
+ */
+
+const yes = process.argv.includes("--yes");
+if (!yes) {
+  console.error("Refusing to run without --yes (this changes Directus schema/permissions).");
+  process.exit(2);
+}
+
+const DIRECTUS_URL = (process.env.DIRECTUS_URL || process.env.VITE_DIRECTUS_URL || "").replace(/\/+$/, "");
+const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || process.env.VITE_DIRECTUS_TOKEN || "";
+const SNAPSHOT_FILE = process.env.SNAPSHOT_FILE || "directus/collections.crm-full.json";
+const CRM_ROLE_NAME = process.env.CRM_ROLE_NAME || "CRM";
+const CRM_ROLE_ID = process.env.CRM_ROLE_ID || "";
+
+if (!DIRECTUS_URL || !DIRECTUS_TOKEN) {
+  console.error("Missing DIRECTUS_URL/DIRECTUS_TOKEN (or VITE_* equivalents).");
+  process.exit(2);
+}
+
+function apiUrl(path) {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${DIRECTUS_URL}${p}`;
+}
+
+async function req(path, init = {}) {
+  const res = await fetch(apiUrl(path), {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+      ...(init.headers || {}),
+    },
+  });
+
+  const text = await res.text();
+  const json = (() => {
+    try {
+      return text ? JSON.parse(text) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!res.ok) {
+    const msg = json?.errors?.[0]?.message || json?.message || text || `HTTP ${res.status}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.payload = json;
+    throw err;
+  }
+
+  return json;
+}
+
+async function tryGet(path) {
+  try {
+    return await req(path);
+  } catch (e) {
+    if (e?.status === 404) return null;
+    throw e;
+  }
+}
+
+function pickCollection(snapshot, name) {
+  const col = (snapshot?.collections || []).find((c) => c?.collection === name);
+  if (!col) throw new Error(`Snapshot missing collection "${name}"`);
+  return col;
+}
+
+async function ensureCollection(collectionDef) {
+  const name = String(collectionDef.collection);
+  const existing = await tryGet(`/collections/${encodeURIComponent(name)}`);
+  if (existing) return existing;
+
+  console.log(`Creating collection: ${name}`);
+  return await req(`/collections`, {
+    method: "POST",
+    body: JSON.stringify({
+      collection: name,
+      meta: collectionDef.meta || {},
+      schema: collectionDef.schema || { name },
+    }),
+  });
+}
+
+async function ensureField(collection, fieldDef) {
+  const col = String(collection);
+  const field = String(fieldDef.field);
+  const existing = await tryGet(`/fields/${encodeURIComponent(col)}/${encodeURIComponent(field)}`);
+  if (existing) return existing;
+
+  console.log(`Creating field: ${col}.${field}`);
+  return await req(`/fields/${encodeURIComponent(col)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      field,
+      type: fieldDef.type,
+      meta: fieldDef.meta || {},
+      schema: fieldDef.schema || {},
+    }),
+  });
+}
+
+async function getOrCreateRoleId() {
+  if (CRM_ROLE_ID) return CRM_ROLE_ID;
+
+  const out = await req(
+    `/roles?${new URLSearchParams({
+      limit: "1",
+      fields: "id,name",
+      "filter[name][_eq]": CRM_ROLE_NAME,
+    }).toString()}`
+  );
+  const role = out?.data?.[0];
+  if (role?.id) return role.id;
+
+  console.log(`Creating role: ${CRM_ROLE_NAME}`);
+  const created = await req(`/roles`, {
+    method: "POST",
+    body: JSON.stringify({ name: CRM_ROLE_NAME }),
+  });
+  return created?.data?.id;
+}
+
+async function getPermission(roleId, collection, action) {
+  const out = await req(
+    `/permissions?${new URLSearchParams({
+      limit: "1",
+      fields: "id,role,collection,action,fields",
+      "filter[role][_eq]": roleId,
+      "filter[collection][_eq]": collection,
+      "filter[action][_eq]": action,
+    }).toString()}`
+  );
+  return out?.data?.[0] || null;
+}
+
+function mergeFields(existingFields, requiredFields) {
+  if (!existingFields) return requiredFields;
+  if (existingFields === "*" || (Array.isArray(existingFields) && existingFields.includes("*"))) return "*";
+  if (!Array.isArray(existingFields)) return requiredFields;
+  const set = new Set(existingFields);
+  for (const f of requiredFields) set.add(f);
+  return Array.from(set);
+}
+
+async function upsertPermission({ roleId, collection, action, fields, mergeWithExisting = false }) {
+  const existing = await getPermission(roleId, collection, action);
+  if (!existing) {
+    console.log(`Creating permission: ${collection}.${action}`);
+    return await req(`/permissions`, {
+      method: "POST",
+      body: JSON.stringify({
+        role: roleId,
+        collection,
+        action,
+        fields,
+        permissions: {},
+        validation: {},
+        presets: {},
+      }),
+    });
+  }
+
+  const nextFields = mergeWithExisting ? mergeFields(existing.fields, Array.isArray(fields) ? fields : [fields]) : fields;
+  const same = JSON.stringify(existing.fields) === JSON.stringify(nextFields);
+  if (same) return existing;
+
+  console.log(`Updating permission fields: ${collection}.${action}`);
+  return await req(`/permissions/${encodeURIComponent(existing.id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ fields: nextFields }),
+  });
+}
+
+async function main() {
+  console.log("Directus CRM setup starting.");
+  console.log(`URL: ${DIRECTUS_URL}`);
+  console.log(`Snapshot: ${SNAPSHOT_FILE}`);
+
+  const fs = await import("node:fs/promises");
+  const snapshot = JSON.parse(await fs.readFile(SNAPSHOT_FILE, "utf8"));
+
+  // 1) Schema
+  const deals = pickCollection(snapshot, "deals");
+  const followUps = pickCollection(snapshot, "follow_ups");
+
+  await ensureCollection(followUps);
+
+  // Create follow_ups fields
+  for (const f of followUps.fields || []) {
+    await ensureField("follow_ups", f);
+  }
+
+  // Ensure deals assignment fields
+  const dealAssignmentFields = new Set([
+    "owner_employee_id",
+    "assigned_employee_id",
+    "assigned_by_employee_id",
+    "assigned_at",
+  ]);
+  for (const f of deals.fields || []) {
+    if (dealAssignmentFields.has(String(f.field))) {
+      await ensureField("deals", f);
+    }
+  }
+
+  // 2) Permissions
+  const roleId = await getOrCreateRoleId();
+  if (!roleId) throw new Error("Could not resolve/create CRM role id");
+  console.log(`CRM role id: ${roleId}`);
+
+  // follow_ups full access needed by CRM app
+  for (const action of ["read", "create", "update", "share"]) {
+    await upsertPermission({ roleId, collection: "follow_ups", action, fields: "*" });
+  }
+
+  // employees read needed to resolve assignments
+  await upsertPermission({ roleId, collection: "employees", action: "read", fields: "*" });
+
+  // deals: ensure the new fields are readable/updatable even if role uses a field allowlist
+  const requiredDealFields = [
+    "owner_employee_id",
+    "assigned_employee_id",
+    "assigned_by_employee_id",
+    "assigned_at",
+  ];
+  await upsertPermission({
+    roleId,
+    collection: "deals",
+    action: "read",
+    fields: requiredDealFields,
+    mergeWithExisting: true,
+  });
+  await upsertPermission({
+    roleId,
+    collection: "deals",
+    action: "update",
+    fields: requiredDealFields,
+    mergeWithExisting: true,
+  });
+
+  // quotations: avoid 403 when requesting these fields (common)
+  const requiredQuotationFields = [
+    "sent_to_email",
+    "sent_at",
+    "follow_up_at",
+    "follow_up_notes",
+    "pdf_file",
+    "pdf_link",
+  ];
+  await upsertPermission({
+    roleId,
+    collection: "quotations",
+    action: "read",
+    fields: requiredQuotationFields,
+    mergeWithExisting: true,
+  });
+
+  console.log("\nDone.");
+}
+
+main().catch((e) => {
+  console.error("\nFAILED:", e?.message || e);
+  process.exit(1);
+});
+
