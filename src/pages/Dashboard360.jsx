@@ -35,10 +35,12 @@ import {
   ShoppingCart,
   Plus,
   Trash2,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuotationCreator } from "@/components/quotations/QuotationCreator";
 import { FileText } from "lucide-react";
+import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
 
 function NewsletterBannerDirectus({
   contactId,
@@ -201,6 +203,7 @@ export default function Dashboard360() {
   const [savingLead, setSavingLead] = useState(false);
   const [skuInput, setSkuInput] = useState("");
   const [openQuotationCreator, setOpenQuotationCreator] = useState(false);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
 
   const contactId = useMemo(() => (contact?.id ? String(contact.id) : id ? String(id) : null), [contact, id]);
   const resolvedExistingRef = useRef(false);
@@ -922,6 +925,21 @@ export default function Dashboard360() {
 
                     return (
                       <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setProductPickerOpen(true)}
+                            title="Pesquisar no Meilisearch e adicionar SKU ao histórico"
+                          >
+                            <Search className="h-4 w-4 mr-2" />
+                            Pesquisar produtos
+                          </Button>
+                          <div className="text-xs text-muted-foreground">
+                            Um clique adiciona o SKU ao histórico deste cliente.
+                          </div>
+                        </div>
+
                         <div className="flex gap-2">
                           <Input
                             value={skuInput}
@@ -956,7 +974,7 @@ export default function Dashboard360() {
                         )}
 
                         <p className="text-xs text-muted-foreground">
-                          Depois ligamos aqui a pesquisa (Meilisearch/WooCommerce) e o envio por email/WhatsApp.
+                          Sugestão: usa “Pesquisar produtos” para adicionar rápido e reduzir erros.
                         </p>
                       </div>
                     );
@@ -1003,6 +1021,26 @@ export default function Dashboard360() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Product picker (Meilisearch) */}
+        <ProductSearchDialog
+          open={productPickerOpen}
+          onOpenChange={setProductPickerOpen}
+          title="Pesquisar produtos (Meilisearch)"
+          onPick={(p) => {
+            const sku = String(p?.sku || "").trim();
+            if (!sku) {
+              toast({ title: "Produto sem SKU", description: "Este produto não tem SKU para adicionar ao histórico.", variant: "destructive" });
+              return;
+            }
+            const current = getValue("sku_history");
+            const list = Array.isArray(current) ? current : [];
+            const next = [sku, ...list].filter((x, i, a) => a.indexOf(x) === i);
+            handleChange("sku_history", next);
+            toast({ title: "SKU adicionado", description: sku });
+          }}
+          pickLabel="Adicionar SKU"
+        />
       </div>
     </AppLayout>
   );
