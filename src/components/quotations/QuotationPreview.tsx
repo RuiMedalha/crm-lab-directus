@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { FileText, Download, Send, Loader2, Printer, Pencil } from 'lucide-react';
+import { FileText, Download, Send, Loader2, Printer, Pencil, MessageCircle, Copy } from 'lucide-react';
 import { useCompanySettings } from '@/hooks/useSettings';
 import { fetchQuotationPdf, getQuotationById, patchQuotation } from '@/integrations/directus/quotations';
 import { toast } from "@/hooks/use-toast";
@@ -40,6 +40,7 @@ interface QuotationData {
   internal_notes?: string | null;
   sent_to_email?: string | null;
   sent_at?: string | null;
+  pdf_link?: string | null;
   valid_until: string | null;
   created_at: string;
   customer: {
@@ -117,6 +118,7 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
         internal_notes: (q.internal_notes as any) ?? null,
         sent_to_email: (q.sent_to_email as any) ?? null,
         sent_at: (q.sent_at as any) ?? null,
+        pdf_link: (q.pdf_link as any) ?? null,
         valid_until: (q.valid_until as any) ?? null,
         created_at: String(q.date_created || ""),
         customer: (q as any).customer_id
@@ -249,6 +251,43 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
     } finally {
       setSending(false);
     }
+  };
+
+  const getCustomerPhoneE164ish = () => {
+    const raw = String(quotation?.customer?.phone || "").trim();
+    const digits = raw.replace(/\D/g, "");
+    return digits || "";
+  };
+
+  const getPdfShareLink = () => {
+    const link = String(quotation?.pdf_link || "").trim();
+    return link || "";
+  };
+
+  const handleCopyPdfLink = async () => {
+    const link = getPdfShareLink();
+    if (!link) {
+      toast({ title: "Sem link do PDF", description: "Gera o PDF/automação e guarda um link público em `pdf_link`.", variant: "destructive" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      toast({ title: "Link copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const handleSendWhatsApp = () => {
+    const phone = getCustomerPhoneE164ish();
+    const link = getPdfShareLink();
+    if (!link) {
+      toast({ title: "Sem link do PDF", description: "Gera o PDF/automação e guarda um link público em `pdf_link`.", variant: "destructive" });
+      return;
+    }
+    const msg = encodeURIComponent(`Olá! Segue o orçamento ${quotation?.quotation_number || quotationId}:\n${link}`);
+    const url = phone ? `https://wa.me/${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleOpenProposalDialog = async () => {
@@ -432,6 +471,14 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Cancelar</Button>
+                <Button variant="outline" onClick={handleCopyPdfLink} title="Copiar link do PDF (pdf_link)">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar PDF
+                </Button>
+                <Button variant="outline" onClick={handleSendWhatsApp} title="Enviar link do PDF por WhatsApp">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  WhatsApp
+                </Button>
                 <Button onClick={handleSendViaN8n} disabled={sending}>
                   {sending ? "A enviar…" : "Confirmar"}
                 </Button>
