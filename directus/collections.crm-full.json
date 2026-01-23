@@ -108,7 +108,7 @@
       },
       "schema": { "name": "newsletter_subscriptions" },
       "fields": [
-        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "id", "type": "integer", "meta": { "hidden": true, "readonly": true, "interface": "numeric" }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
         { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
         { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
 
@@ -153,7 +153,7 @@
         { "field": "phone_e164", "type": "string", "meta": { "interface": "input", "display_name": "Phone (E.164)" }, "schema": { "is_indexed": true } },
 
         { "field": "directus_contact_id", "type": "string", "meta": { "interface": "input", "display_name": "Directus Contact ID" } },
-        { "field": "subscription_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Subscription" }, "schema": { "foreign_key_table": "newsletter_subscriptions" } },
+        { "field": "subscription_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Subscription" }, "schema": { "foreign_key_table": "newsletter_subscriptions" } },
 
         { "field": "confidence", "type": "integer", "meta": { "interface": "input", "display_name": "Confidence (0-100)" } },
         {
