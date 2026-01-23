@@ -22,7 +22,7 @@ import {
 import { Plus, Trash2, Calculator, FileText, Eye, Search, TextCursorInput } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { QuotationPreview } from './QuotationPreview';
-import { createQuotation, createQuotationItems } from '@/integrations/directus/quotations';
+import { createQuotation, createQuotationItems, getQuotationById, patchQuotation, replaceQuotationItems } from '@/integrations/directus/quotations';
 import { useMeilisearch, type MeilisearchProduct } from "@/hooks/useMeilisearch";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
@@ -49,6 +49,7 @@ interface QuotationCreatorProps {
   onOpenChange: (open: boolean) => void;
   contactId: string;
   contactName: string;
+  quotationId?: string; // if present, edit mode
   dealId?: string;
   initialItems?: QuotationItem[];
   onComplete?: () => void;
@@ -61,6 +62,7 @@ export function QuotationCreator({
   onOpenChange, 
   contactId, 
   contactName,
+  quotationId: editingQuotationId,
   dealId,
   initialItems,
   onComplete
@@ -77,6 +79,7 @@ export function QuotationCreator({
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [quotationId, setQuotationId] = useState<string | null>(null);
+  const isEditMode = !!editingQuotationId;
 
   const { search, results, isSearching, error: searchError, clearResults } = useMeilisearch();
   const [searchItemId, setSearchItemId] = useState<string | null>(null);
@@ -87,13 +90,50 @@ export function QuotationCreator({
   // Inicializar com itens passados ou linha vazia
   useEffect(() => {
     if (open) {
+      if (editingQuotationId) {
+        // Load draft for editing
+        (async () => {
+          try {
+            const { quotation: q, items: its } = await getQuotationById(String(editingQuotationId));
+            if (!q) return;
+            setQuotationId(String(q.id));
+            setNotes(String(q.notes || ""));
+            setTermsConditions(String(q.terms_conditions || ""));
+            setInternalNotes(String(q.internal_notes || ""));
+            setValidUntil(q.valid_until ? String(q.valid_until).slice(0, 10) : "");
+            const mapped = (its || []).map((it: any) => ({
+              id: `item-${it.id}`,
+              line_type: it.manual_entry ? "free" : "product",
+              product_id: it.product_id ?? null,
+              image_url: it.image_url ?? null,
+              product_name: it.product_name || "",
+              sku: it.sku || "",
+              quantity: Number(it.quantity || 1),
+              cost_price: Number(it.cost_price || 0),
+              margin_percent: 30,
+              unit_price: Number(it.unit_price || 0),
+              discount_percent: Number(it.discount_percent || 0),
+              iva_percent: Number(it.iva_percent || IVA_RATE),
+              notes: it.notes || "",
+              line_total: Number(it.line_total || 0),
+            })) as QuotationItem[];
+            setItems(mapped.length ? mapped : []);
+            if (!mapped.length) addNewItem();
+          } catch (e) {
+            console.error(e);
+            toast({ title: "Erro ao carregar orçamento", variant: "destructive" });
+          }
+        })();
+        return;
+      }
+
       if (initialItems && initialItems.length > 0) {
         setItems(initialItems);
       } else if (items.length === 0) {
         addNewItem();
       }
     }
-  }, [open, initialItems]);
+  }, [open, initialItems, editingQuotationId]);
 
   // Calcular validade padrão (30 dias)
   useEffect(() => {
@@ -248,7 +288,7 @@ export function QuotationCreator({
       const customerIdForDirectus: string | number =
         /^\d+$/.test(String(contactId || "")) ? Number(contactId) : contactId;
 
-      const quotation = await createQuotation({
+      const basePayload: any = {
         customer_id: customerIdForDirectus,
         deal_id: dealId || undefined,
         status: 'draft',
@@ -258,29 +298,37 @@ export function QuotationCreator({
         terms_conditions: termsConditions || undefined,
         internal_notes: internalNotes || undefined,
         valid_until: validUntil || undefined,
-      });
+      };
 
-      await createQuotationItems(
-        validItems.map((item, index) => ({
-          quotation_id: quotation.id,
-          product_id: item.product_id || null,
-          product_name: item.product_name,
-          sku: item.sku || null,
-          quantity: item.quantity,
-          cost_price: item.cost_price || 0,
-          unit_price: item.unit_price,
-          iva_percent: item.iva_percent,
-          discount_percent: item.discount_percent || 0,
-          line_total: item.line_total,
-          notes: item.notes || undefined,
-          image_url: item.image_url || null,
-          manual_entry: item.line_type === "free",
-          sort_order: index,
-        }))
-      );
+      const quotation = isEditMode && editingQuotationId
+        ? await patchQuotation(String(editingQuotationId), basePayload)
+        : await createQuotation(basePayload);
+
+      const itemsPayload = validItems.map((item, index) => ({
+        quotation_id: quotation.id,
+        product_id: item.product_id || null,
+        product_name: item.product_name,
+        sku: item.sku || null,
+        quantity: item.quantity,
+        cost_price: item.cost_price || 0,
+        unit_price: item.unit_price,
+        iva_percent: item.iva_percent,
+        discount_percent: item.discount_percent || 0,
+        line_total: item.line_total,
+        notes: item.notes || undefined,
+        image_url: item.image_url || null,
+        manual_entry: item.line_type === "free",
+        sort_order: index,
+      }));
+
+      if (isEditMode && editingQuotationId) {
+        await replaceQuotationItems(String(editingQuotationId), itemsPayload);
+      } else {
+        await createQuotationItems(itemsPayload);
+      }
 
       setQuotationId(quotation.id);
-      toast({ title: `Orçamento ${quotation.quotation_number || ''} criado com sucesso!` });
+      toast({ title: `Orçamento ${quotation.quotation_number || ''} guardado com sucesso!` });
       setShowPreview(true);
     } catch (error) {
       console.error('Erro ao criar orçamento:', error);

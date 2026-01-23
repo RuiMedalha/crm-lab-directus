@@ -34,10 +34,13 @@ export interface QuotationItemRow {
   sku?: string | null;
   quantity?: number | null;
   unit_price?: number | null;
+  iva_percent?: number | null;
   cost_price?: number | null;
   discount_percent?: number | null;
   line_total?: number | null;
   notes?: string | null;
+  image_url?: string | null;
+  manual_entry?: boolean | null;
   sort_order?: number | null;
 }
 
@@ -69,8 +72,22 @@ export async function listQuotations(params?: { search?: string; limit?: number;
       limit: params?.limit ?? 200,
       page: params?.page ?? 1,
       sort: "-date_created",
-      fields: "id,quotation_number,status,total_amount,valid_until,date_created,date_updated,deal_id,customer_id.company_name",
+      fields: "id,quotation_number,status,total_amount,valid_until,date_created,date_updated,deal_id,customer_id.id,customer_id.company_name",
       ...(search ? { search } : {}),
+    })}`
+  );
+  return res.data || [];
+}
+
+export async function listQuotationsByCustomer(customerId: string | number, params?: { limit?: number; page?: number }) {
+  const cid = /^\d+$/.test(String(customerId)) ? Number(customerId) : String(customerId);
+  const res = await directusRequest<{ data: QuotationRow[] }>(
+    `/items/${DIRECTUS_QUOTATIONS_COLLECTION}${qs({
+      limit: params?.limit ?? 100,
+      page: params?.page ?? 1,
+      sort: "-date_created",
+      fields: "id,quotation_number,status,total_amount,valid_until,date_created,date_updated,deal_id",
+      "filter[customer_id][_eq]": cid as any,
     })}`
   );
   return res.data || [];
@@ -88,7 +105,7 @@ export async function getQuotationById(quotationId: string) {
     `/items/${DIRECTUS_QUOTATION_ITEMS_COLLECTION}${qs({
       limit: 1000,
       sort: "sort_order,id",
-      fields: "id,product_name,sku,quantity,unit_price,iva_percent,discount_percent,notes,line_total",
+      fields: "id,quotation_id,product_id,product_name,sku,quantity,unit_price,iva_percent,cost_price,discount_percent,notes,image_url,manual_entry,line_total,sort_order",
       "filter[quotation_id][_eq]": quotationId,
     })}`
   );
@@ -111,6 +128,38 @@ export async function createQuotationItems(items: Array<Partial<QuotationItemRow
     body: JSON.stringify(items),
   });
   return res.data || [];
+}
+
+export async function patchQuotation(id: string, patch: Partial<QuotationRow>) {
+  const res = await directusRequest<{ data: QuotationRow }>(`/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return res.data;
+}
+
+export async function listQuotationItems(quotationId: string) {
+  const res = await directusRequest<{ data: QuotationItemRow[] }>(
+    `/items/${DIRECTUS_QUOTATION_ITEMS_COLLECTION}${qs({
+      limit: 2000,
+      sort: "sort_order,id",
+      fields: "id,quotation_id",
+      "filter[quotation_id][_eq]": quotationId,
+    })}`
+  );
+  return res.data || [];
+}
+
+export async function deleteQuotationItem(id: string) {
+  await directusRequest(`/items/${DIRECTUS_QUOTATION_ITEMS_COLLECTION}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function replaceQuotationItems(quotationId: string, items: Array<Partial<QuotationItemRow>>) {
+  const existing = await listQuotationItems(quotationId).catch(() => []);
+  for (const row of existing) {
+    if (row?.id) await deleteQuotationItem(String(row.id));
+  }
+  return await createQuotationItems(items);
 }
 
 export async function deleteQuotation(id: string) {
