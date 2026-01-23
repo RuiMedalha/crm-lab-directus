@@ -26,13 +26,16 @@ if (!yes) {
 }
 
 const DIRECTUS_URL = (process.env.DIRECTUS_URL || process.env.VITE_DIRECTUS_URL || "").replace(/\/+$/, "");
-const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || process.env.VITE_DIRECTUS_TOKEN || "";
+let DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || process.env.VITE_DIRECTUS_TOKEN || "";
 const SNAPSHOT_FILE = process.env.SNAPSHOT_FILE || "directus/collections.crm-full.json";
 const CRM_ROLE_NAME = process.env.CRM_ROLE_NAME || "CRM";
 const CRM_ROLE_ID = process.env.CRM_ROLE_ID || "";
+const DIRECTUS_EMAIL = process.env.DIRECTUS_EMAIL || "";
+const DIRECTUS_PASSWORD = process.env.DIRECTUS_PASSWORD || "";
+const FORCE_LOGIN = String(process.env.FORCE_LOGIN || "") === "1";
 
-if (!DIRECTUS_URL || !DIRECTUS_TOKEN) {
-  console.error("Missing DIRECTUS_URL/DIRECTUS_TOKEN (or VITE_* equivalents).");
+if (!DIRECTUS_URL) {
+  console.error("Missing DIRECTUS_URL (or VITE_DIRECTUS_URL).");
   process.exit(2);
 }
 
@@ -56,7 +59,31 @@ function apiUrl(path) {
   return `${DIRECTUS_URL}${p}`;
 }
 
+async function loginIfNeeded() {
+  if (!DIRECTUS_EMAIL || !DIRECTUS_PASSWORD) return;
+  if (DIRECTUS_TOKEN && !FORCE_LOGIN) return;
+
+  console.log(`Logging in as ${DIRECTUS_EMAIL}...`);
+  const res = await fetch(apiUrl("/auth/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: DIRECTUS_EMAIL, password: DIRECTUS_PASSWORD }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg = body?.errors?.[0]?.message || body?.message || `Login failed (${res.status})`;
+    throw new Error(msg);
+  }
+  const token = body?.data?.access_token;
+  if (!token) throw new Error("Login succeeded but access_token missing.");
+  DIRECTUS_TOKEN = String(token);
+}
+
 async function req(path, init = {}) {
+  await loginIfNeeded();
+  if (!DIRECTUS_TOKEN) {
+    throw new Error("Missing DIRECTUS_TOKEN (or VITE_DIRECTUS_TOKEN). If you have admin credentials, set DIRECTUS_EMAIL/DIRECTUS_PASSWORD.");
+  }
   const url = apiUrl(path);
   let res;
   try {
