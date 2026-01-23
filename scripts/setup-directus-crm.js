@@ -203,12 +203,89 @@ async function getOrCreateRoleId() {
   return created?.data?.id;
 }
 
-async function getPermission(roleId, collection, action) {
+async function detectPermissionsSubjectField() {
+  // Directus v11 uses policies (directus_permissions.policy). Older versions use roles (directus_permissions.role).
+  try {
+    await req(
+      `/permissions?${new URLSearchParams({
+        limit: "1",
+        fields: "id,role",
+      }).toString()}`
+    );
+    return "role";
+  } catch (e) {
+    const msg = String(e?.message || "");
+    // If "role" doesn't exist, try "policy"
+    if (msg.includes('field "role"') || msg.includes('field "role" in collection "directus_permissions"')) {
+      await req(
+        `/permissions?${new URLSearchParams({
+          limit: "1",
+          fields: "id,policy",
+        }).toString()}`
+      );
+      return "policy";
+    }
+    // Some instances will deny /permissions entirely unless truly admin.
+    throw e;
+  }
+}
+
+async function getOrCreatePolicyIdForRole(roleId) {
+  // Best-effort for Directus v11:
+  // - Find/create a policy called CRM_ROLE_NAME
+  // - Ensure it's linked to the role via /access (or /items/directus_access fallback)
+  const out = await req(
+    `/policies?${new URLSearchParams({
+      limit: "1",
+      fields: "id,name",
+      "filter[name][_eq]": CRM_ROLE_NAME,
+    }).toString()}`
+  );
+  let policyId = out?.data?.[0]?.id;
+
+  if (!policyId) {
+    console.log(`Creating policy: ${CRM_ROLE_NAME}`);
+    const created = await req(`/policies`, {
+      method: "POST",
+      body: JSON.stringify({ name: CRM_ROLE_NAME }),
+    });
+    policyId = created?.data?.id;
+  }
+  if (!policyId) throw new Error("Could not resolve/create policy id");
+
+  const ensureAccessLink = async (basePath) => {
+    const existing = await req(
+      `${basePath}?${new URLSearchParams({
+        limit: "1",
+        fields: "id",
+        "filter[role][_eq]": roleId,
+        "filter[policy][_eq]": policyId,
+      }).toString()}`
+    ).catch(() => null);
+    const has = existing?.data?.[0]?.id;
+    if (has) return;
+    await req(basePath, {
+      method: "POST",
+      body: JSON.stringify({ role: roleId, policy: policyId }),
+    });
+  };
+
+  // Prefer the dedicated endpoint; fallback to system collection route.
+  try {
+    await ensureAccessLink("/access");
+  } catch {
+    await ensureAccessLink("/items/directus_access");
+  }
+
+  return policyId;
+}
+
+async function getPermission(subjectField, subjectId, collection, action) {
   const out = await req(
     `/permissions?${new URLSearchParams({
       limit: "1",
-      fields: "id,role,collection,action,fields",
-      "filter[role][_eq]": roleId,
+      fields: `id,${subjectField},collection,action,fields`,
+      [`filter[${subjectField}][_eq]`]: subjectId,
       "filter[collection][_eq]": collection,
       "filter[action][_eq]": action,
     }).toString()}`
@@ -225,21 +302,22 @@ function mergeFields(existingFields, requiredFields) {
   return Array.from(set);
 }
 
-async function upsertPermission({ roleId, collection, action, fields, mergeWithExisting = false }) {
-  const existing = await getPermission(roleId, collection, action);
+async function upsertPermission({ subjectField, subjectId, collection, action, fields, mergeWithExisting = false }) {
+  const existing = await getPermission(subjectField, subjectId, collection, action);
   if (!existing) {
     console.log(`Creating permission: ${collection}.${action}`);
+    const payload = {
+      [subjectField]: subjectId,
+      collection,
+      action,
+      fields,
+      permissions: {},
+      validation: {},
+      presets: {},
+    };
     return await req(`/permissions`, {
       method: "POST",
-      body: JSON.stringify({
-        role: roleId,
-        collection,
-        action,
-        fields,
-        permissions: {},
-        validation: {},
-        presets: {},
-      }),
+      body: JSON.stringify(payload),
     });
   }
 
@@ -291,13 +369,18 @@ async function main() {
   if (!roleId) throw new Error("Could not resolve/create CRM role id");
   console.log(`CRM role id: ${roleId}`);
 
+  const subjectField = await detectPermissionsSubjectField();
+  const subjectId =
+    subjectField === "role" ? roleId : await getOrCreatePolicyIdForRole(roleId);
+  console.log(`Permissions subject: ${subjectField}=${subjectId}`);
+
   // follow_ups full access needed by CRM app
   for (const action of ["read", "create", "update", "share"]) {
-    await upsertPermission({ roleId, collection: "follow_ups", action, fields: "*" });
+    await upsertPermission({ subjectField, subjectId, collection: "follow_ups", action, fields: "*" });
   }
 
   // employees read needed to resolve assignments
-  await upsertPermission({ roleId, collection: "employees", action: "read", fields: "*" });
+  await upsertPermission({ subjectField, subjectId, collection: "employees", action: "read", fields: "*" });
 
   // deals: ensure the new fields are readable/updatable even if role uses a field allowlist
   const requiredDealFields = [
@@ -307,14 +390,16 @@ async function main() {
     "assigned_at",
   ];
   await upsertPermission({
-    roleId,
+    subjectField,
+    subjectId,
     collection: "deals",
     action: "read",
     fields: requiredDealFields,
     mergeWithExisting: true,
   });
   await upsertPermission({
-    roleId,
+    subjectField,
+    subjectId,
     collection: "deals",
     action: "update",
     fields: requiredDealFields,
@@ -331,7 +416,8 @@ async function main() {
     "pdf_link",
   ];
   await upsertPermission({
-    roleId,
+    subjectField,
+    subjectId,
     collection: "quotations",
     action: "read",
     fields: requiredQuotationFields,
