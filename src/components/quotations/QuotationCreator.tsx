@@ -5,8 +5,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +25,7 @@ import { QuotationPreview } from './QuotationPreview';
 import { createQuotation, createQuotationItems } from '@/integrations/directus/quotations';
 import { useMeilisearch, type MeilisearchProduct } from "@/hooks/useMeilisearch";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
 
 interface QuotationItem {
   id: string;
@@ -82,6 +81,8 @@ export function QuotationCreator({
   const { search, results, isSearching, error: searchError, clearResults } = useMeilisearch();
   const [searchItemId, setSearchItemId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTargetId, setPickerTargetId] = useState<string | null>(null);
 
   // Inicializar com itens passados ou linha vazia
   useEffect(() => {
@@ -116,6 +117,13 @@ export function QuotationCreator({
     }, 250);
     return () => clearTimeout(t);
   }, [items, searchItemId, searchQuery, search, clearResults]);
+
+  const openPickerForLine = (lineId: string, seed?: string) => {
+    setPickerTargetId(lineId);
+    setSearchItemId(lineId);
+    setSearchQuery(seed || "");
+    setPickerOpen(true);
+  };
 
   const generateItemId = () => `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -303,6 +311,8 @@ export function QuotationCreator({
     setSearchItemId(null);
     setSearchQuery("");
     clearResults();
+    setPickerOpen(false);
+    setPickerTargetId(null);
     onComplete?.();
     onOpenChange(false);
   };
@@ -312,6 +322,9 @@ export function QuotationCreator({
   const formatEUR = useMemo(() => {
     return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" });
   }, []);
+
+  // Product picker modal (search like the website)
+  const activePickerLine = items.find((i) => i.id === pickerTargetId) || null;
 
   if (showPreview && quotationId) {
     return (
@@ -342,10 +355,21 @@ export function QuotationCreator({
               <CardHeader className="py-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm">Produtos / Serviços</CardTitle>
-                  <Button size="sm" variant="outline" onClick={addNewItem}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Adicionar Linha
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openPickerForLine(items[items.length - 1]?.id || generateItemId(), "")}
+                      title="Abrir pesquisa de produtos"
+                    >
+                      <Search className="h-4 w-4 mr-2" />
+                      Pesquisar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={addNewItem}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar Linha
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -379,89 +403,37 @@ export function QuotationCreator({
                           </div>
 
                           {item.line_type === "product" ? (
-                            <Popover
-                              open={searchItemId === item.id && searchQuery.trim().length >= 2}
-                              onOpenChange={(v) => {
-                                if (!v) {
-                                  setSearchItemId(null);
-                                  setSearchQuery("");
-                                  clearResults();
-                                }
-                              }}
-                            >
-                              <PopoverTrigger asChild>
-                                <div>
-                                  <Label className="text-xs">Produto (nome ou SKU)</Label>
+                            <div className="space-y-2">
+                              <div className="flex items-end justify-between gap-2">
+                                <div className="flex-1 space-y-1">
+                                  <Label className="text-xs">Produto (nome)</Label>
                                   <Input
                                     value={item.product_name}
-                                    onFocus={() => {
-                                      setSearchItemId(item.id);
-                                      setSearchQuery(item.product_name || "");
-                                    }}
-                                    onChange={(e) => {
-                                      updateItem(item.id, "product_name", e.target.value);
-                                      setSearchItemId(item.id);
-                                      setSearchQuery(e.target.value);
-                                    }}
-                                    placeholder="Escreve 2+ letras para pesquisar…"
+                                    onChange={(e) => updateItem(item.id, "product_name", e.target.value)}
+                                    placeholder="Nome do produto…"
                                     className="h-9"
                                   />
-                                  <div className="mt-2">
-                                    <Label className="text-xs">SKU (opcional)</Label>
-                                    <Input
-                                      value={item.sku}
-                                      onFocus={() => {
-                                        setSearchItemId(item.id);
-                                        setSearchQuery(item.sku || "");
-                                      }}
-                                      onChange={(e) => {
-                                        updateItem(item.id, "sku", e.target.value);
-                                        setSearchItemId(item.id);
-                                        setSearchQuery(e.target.value);
-                                      }}
-                                      placeholder="Escreve SKU (2+ chars) para pesquisar…"
-                                      className="h-9"
-                                    />
-                                  </div>
                                 </div>
-                              </PopoverTrigger>
-                              <PopoverContent className="p-0 w-[90vw] max-w-[520px]" align="start">
-                                <Command>
-                                  <CommandList>
-                                    {searchError ? (
-                                      <div className="p-3 text-xs text-destructive">{searchError}</div>
-                                    ) : null}
-                                    {isSearching ? (
-                                      <div className="p-3 text-xs text-muted-foreground">A pesquisar…</div>
-                                    ) : null}
-                                    <CommandEmpty>Nenhum resultado</CommandEmpty>
-                                    <CommandGroup heading="Resultados">
-                                      {(results || []).map((p) => (
-                                        <CommandItem
-                                          key={String(p.id)}
-                                          value={`${p.title || p.name || ""} ${p.sku || ""}`}
-                                          onMouseDown={(e) => e.preventDefault()}
-                                          onSelect={() => {
-                                            applyProductToItem(item.id, p);
-                                            setSearchItemId(null);
-                                            setSearchQuery("");
-                                            clearResults();
-                                          }}
-                                        >
-                                          <div className="flex flex-col">
-                                            <div className="text-sm font-medium">{p.title || p.name}</div>
-                                            <div className="text-xs text-muted-foreground flex gap-2">
-                                              <span>SKU: {p.sku}</span>
-                                              <span>Preço: {formatEUR.format(Number(p.price || 0))}</span>
-                                            </div>
-                                          </div>
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-9"
+                                  onClick={() => openPickerForLine(item.id, item.product_name || item.sku || "")}
+                                >
+                                  <Search className="h-4 w-4 mr-2" />
+                                  Procurar
+                                </Button>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">SKU</Label>
+                                <Input
+                                  value={item.sku}
+                                  onChange={(e) => updateItem(item.id, "sku", e.target.value)}
+                                  placeholder="SKU (opcional)…"
+                                  className="h-9"
+                                />
+                              </div>
+                            </div>
                           ) : (
                             <div className="space-y-1">
                               <Label className="text-xs">Descrição (linha livre)</Label>
@@ -579,72 +551,24 @@ export function QuotationCreator({
                           </TableCell>
                           <TableCell className="align-top">
                             {item.line_type === "product" ? (
-                              <Popover
-                                open={searchItemId === item.id && searchQuery.trim().length >= 2}
-                                onOpenChange={(v) => {
-                                  if (!v) {
-                                    setSearchItemId(null);
-                                    setSearchQuery("");
-                                    clearResults();
-                                  }
-                                }}
-                              >
-                                <PopoverTrigger asChild>
-                                  <div className="relative">
-                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      value={item.product_name}
-                                      onFocus={() => {
-                                        setSearchItemId(item.id);
-                                        setSearchQuery(item.product_name || "");
-                                      }}
-                                      onChange={(e) => {
-                                        updateItem(item.id, 'product_name', e.target.value);
-                                        setSearchItemId(item.id);
-                                        setSearchQuery(e.target.value);
-                                      }}
-                                      placeholder="Nome ou SKU (2+ letras)…"
-                                      className="h-8 pl-8"
-                                    />
-                                  </div>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-[520px]" align="start">
-                                  <Command>
-                                    <CommandList>
-                                      {searchError ? (
-                                        <div className="p-3 text-xs text-destructive">{searchError}</div>
-                                      ) : null}
-                                      {isSearching ? (
-                                        <div className="p-3 text-xs text-muted-foreground">A pesquisar…</div>
-                                      ) : null}
-                                      <CommandEmpty>Nenhum resultado</CommandEmpty>
-                                      <CommandGroup heading="Resultados">
-                                        {(results || []).map((p) => (
-                                          <CommandItem
-                                            key={String(p.id)}
-                                            value={`${p.title || p.name || ""} ${p.sku || ""}`}
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onSelect={() => {
-                                              applyProductToItem(item.id, p);
-                                              setSearchItemId(null);
-                                              setSearchQuery("");
-                                              clearResults();
-                                            }}
-                                          >
-                                            <div className="flex items-center justify-between w-full gap-3">
-                                              <div className="min-w-0">
-                                                <div className="text-sm font-medium truncate">{p.title || p.name}</div>
-                                                <div className="text-xs text-muted-foreground truncate">SKU: {p.sku}</div>
-                                              </div>
-                                              <div className="text-sm font-semibold">{formatEUR.format(Number(p.price || 0))}</div>
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={item.product_name}
+                                  onChange={(e) => updateItem(item.id, 'product_name', e.target.value)}
+                                  placeholder="Produto…"
+                                  className="h-8"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8"
+                                  onClick={() => openPickerForLine(item.id, item.product_name || item.sku || "")}
+                                  title="Pesquisar e escolher produto"
+                                >
+                                  <Search className="h-4 w-4" />
+                                </Button>
+                              </div>
                             ) : (
                               <Input
                                 value={item.product_name}
@@ -861,6 +785,21 @@ export function QuotationCreator({
             </Button>
           </div>
         </div>
+
+        <ProductSearchDialog
+          open={pickerOpen}
+          onOpenChange={(v) => {
+            setPickerOpen(v);
+            if (!v) setPickerTargetId(null);
+          }}
+          title="Pesquisar Produtos"
+          initialQuery={searchQuery}
+          pickLabel="Escolher"
+          onPick={(p) => {
+            if (!pickerTargetId) return;
+            applyProductToItem(pickerTargetId, p);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
