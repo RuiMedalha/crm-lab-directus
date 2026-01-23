@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useDeals, useUpdateDeal, DEAL_STATUSES } from "@/hooks/useDeals";
 import { useContacts } from "@/hooks/useContacts";
@@ -27,8 +27,10 @@ import { DealDialog } from "@/components/deals/DealDialog";
 import { DealCard } from "@/components/deals/DealCard";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { toast } from "@/hooks/use-toast";
+import { useSearchParams } from "react-router-dom";
 
 export default function Pipeline() {
+  const [searchParams] = useSearchParams();
   const { data: deals, isLoading } = useDeals();
   const { data: contacts } = useContacts();
   const { data: manufacturers } = useManufacturers();
@@ -46,6 +48,12 @@ export default function Pipeline() {
     minValue: "",
     maxValue: "",
   });
+
+  // Deep-link: /pipeline?dealId=...
+  useEffect(() => {
+    const dealId = searchParams.get("dealId");
+    if (dealId) setSelectedDealId(String(dealId));
+  }, [searchParams]);
 
   // Aplicar filtros
   const filteredDeals = useMemo(() => {

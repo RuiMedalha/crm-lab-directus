@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from "react-router-dom";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -65,6 +66,7 @@ interface QuotationData {
 }
 
 export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: QuotationPreviewProps) {
+  const navigate = useNavigate();
   const [quotation, setQuotation] = useState<QuotationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -407,21 +409,17 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
                 size="sm"
                 onClick={() => {
                   if (quotation?.deal_id) {
-                    // if already linked, ensure deal is in proposta
-                    patchDeal(String(quotation.deal_id), { status: "proposta" } as any)
-                      .then(() => toast({ title: "Negócio atualizado para Proposta" }))
-                      .catch((e: any) =>
-                        toast({ title: "Erro ao atualizar negócio", description: String(e?.message || e), variant: "destructive" })
-                      );
-                  } else {
-                    handleOpenProposalDialog();
+                    onOpenChange(false);
+                    navigate(`/pipeline?dealId=${encodeURIComponent(String(quotation.deal_id))}`);
+                    return;
                   }
+                  handleOpenProposalDialog();
                 }}
                 disabled={!quotation?.customer?.id}
-                title="Passar para pipeline (Proposta)"
+                title={quotation?.deal_id ? "Abrir negócio no Pipeline" : "Criar/Ligar negócio no Pipeline"}
               >
-                <Badge variant="outline" className="mr-2">Proposta</Badge>
-                Fechar
+                <Badge variant="outline" className="mr-2">{quotation?.deal_id ? "Negócio" : "Pipeline"}</Badge>
+                {quotation?.deal_id ? "Abrir no Pipeline" : "Criar/Ligar"}
               </Button>
               <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfBusy}>
                 <Printer className="h-4 w-4 mr-1" />
@@ -491,17 +489,17 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
         <Dialog open={proposalDialogOpen} onOpenChange={setProposalDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Fechar como Proposta</DialogTitle>
+              <DialogTitle>Criar/Ligar Negócio (Pipeline)</DialogTitle>
               <DialogDescription className="sr-only">
                 Cria ou liga um negócio existente e atualiza o estado para proposta.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
-                Recomendado: criar negócio quando passa a proposta real. Podes criar novo ou ligar a um existente.
+                Cria um negócio novo ou liga este orçamento a um negócio existente (e move para Proposta).
               </div>
               <div className="flex items-center justify-between gap-2">
-                <Button onClick={closeAsProposalCreateDeal}>Criar novo negócio</Button>
+                <Button onClick={closeAsProposalCreateDeal}>Criar negócio novo</Button>
                 <div className="flex-1" />
                 <Input
                   value={dealSearch}
