@@ -31,6 +31,11 @@ export default function Definicoes() {
     phone: "",
     email: "",
     logo_url: "",
+    address: "",
+    postal_code: "",
+    city: "",
+    iban: "",
+    payment_instructions: "",
   });
 
   const [uploading, setUploading] = useState(false);
@@ -63,6 +68,11 @@ export default function Definicoes() {
         phone: settings.phone || "",
         email: settings.email || "",
         logo_url: settings.logo_url || "",
+        address: (settings as any).address || "",
+        postal_code: (settings as any).postal_code || "",
+        city: (settings as any).city || "",
+        iban: (settings as any).iban || "",
+        payment_instructions: (settings as any).payment_instructions || "",
       });
       setIntegrations({
         chatwoot_url: settings.chatwoot_url || "",
@@ -313,6 +323,32 @@ export default function Definicoes() {
             <Separator />
 
             <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="company_address">Morada</Label>
+                <Input
+                  id="company_address"
+                  value={companyData.address}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, address: e.target.value }))}
+                  placeholder="Rua, nº, andar..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company_postal_code">Código Postal</Label>
+                <Input
+                  id="company_postal_code"
+                  value={companyData.postal_code}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, postal_code: e.target.value }))}
+                  placeholder="0000-000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company_city">Localidade</Label>
+                <Input
+                  id="company_city"
+                  value={companyData.city}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, city: e.target.value }))}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="company_name">Nome</Label>
                 <Input
@@ -352,6 +388,24 @@ export default function Definicoes() {
                   onChange={(e) =>
                     setCompanyData((prev) => ({ ...prev, email: e.target.value }))
                   }
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="company_iban">IBAN / NIB</Label>
+                <Input
+                  id="company_iban"
+                  value={companyData.iban}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, iban: e.target.value }))}
+                  placeholder="PT50 ...."
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="company_payment_instructions">Instruções de pagamento (ex: Eu Pago)</Label>
+                <Input
+                  id="company_payment_instructions"
+                  value={companyData.payment_instructions}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, payment_instructions: e.target.value }))}
+                  placeholder="ex: Pagamento via Eu Pago / referência ..."
                 />
               </div>
             </div>

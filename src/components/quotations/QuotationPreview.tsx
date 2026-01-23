@@ -550,7 +550,14 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
                 />
                 <div className="text-sm text-gray-600 space-y-0.5">
                   <p className="font-semibold">{companySettings?.name || 'HotelEquip'}</p>
-                  <p>{companySettings?.address || 'Morada da empresa'}</p>
+                  <p>
+                    {[
+                      companySettings?.address || null,
+                      [companySettings?.postal_code || null, companySettings?.city || null].filter(Boolean).join(" "),
+                    ]
+                      .filter(Boolean)
+                      .join(" • ") || "Morada da empresa"}
+                  </p>
                   <p>NIF: {companySettings?.vat_number || '000000000'}</p>
                   <p>Tel: {companySettings?.phone || '+351 XXX XXX XXX'}</p>
                   <p>Email: {companySettings?.email || 'geral@hotelequip.pt'}</p>
@@ -660,7 +667,10 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-semibold">Dados Bancários:</p>
-                  <p>IBAN: PT50 0000 0000 0000 0000 0000 0</p>
+                  <p>IBAN: {companySettings?.iban || "—"}</p>
+                  {companySettings?.payment_instructions ? (
+                    <p className="whitespace-pre-wrap">{String(companySettings.payment_instructions)}</p>
+                  ) : null}
                 </div>
                 <div className="text-right">
                   <p>{companySettings?.name || 'HotelEquip'}</p>

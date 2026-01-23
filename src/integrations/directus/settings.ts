@@ -11,6 +11,11 @@ export interface CompanySettingsItem {
   phone?: string | null;
   email?: string | null;
   logo_url?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  iban?: string | null;
+  payment_instructions?: string | null;
 
   chatwoot_url?: string | null;
   chatwoot_token?: string | null;
@@ -34,6 +39,11 @@ const FIELDS = [
   "phone",
   "email",
   "logo_url",
+  "address",
+  "postal_code",
+  "city",
+  "iban",
+  "payment_instructions",
   "chatwoot_url",
   "chatwoot_token",
   "whatsapp_api_url",
