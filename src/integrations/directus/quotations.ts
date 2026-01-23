@@ -99,12 +99,24 @@ export async function listQuotationsByCustomer(customerId: string | number, para
 }
 
 export async function getQuotationById(quotationId: string) {
-  const res = await directusRequest<{ data: any }>(
-    `/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(quotationId)}${qs({
-      fields:
-        "id,quotation_number,status,deal_id,subtotal,total_amount,notes,terms_conditions,internal_notes,sent_to_email,sent_at,follow_up_at,follow_up_notes,pdf_link,pdf_file,valid_until,date_created,customer_id.id,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone",
-    })}`
-  );
+  const fullFields =
+    "id,quotation_number,status,deal_id,subtotal,total_amount,notes,terms_conditions,internal_notes,sent_to_email,sent_at,follow_up_at,follow_up_notes,pdf_link,pdf_file,valid_until,date_created,customer_id.id,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone";
+  const safeFields =
+    "id,quotation_number,status,deal_id,subtotal,total_amount,notes,terms_conditions,internal_notes,pdf_link,valid_until,date_created,customer_id.id,customer_id.company_name,customer_id.contact_name,customer_id.address,customer_id.postal_code,customer_id.city,customer_id.nif,customer_id.email,customer_id.phone";
+
+  const fetchOne = async (fields: string) =>
+    await directusRequest<{ data: any }>(
+      `/items/${DIRECTUS_QUOTATIONS_COLLECTION}/${encodeURIComponent(quotationId)}${qs({ fields })}`
+    );
+
+  const res = await fetchOne(fullFields).catch(async (e: any) => {
+    const msg = String(e?.message || e || "");
+    // Fallback: some policies can't read tracking fields; don't break the UI.
+    if (msg.includes(`You don't have permission to access fields`) || msg.includes("permission to access fields")) {
+      return await fetchOne(safeFields);
+    }
+    throw e;
+  });
 
   const items = await directusRequest<{ data: QuotationItemRow[] }>(
     `/items/${DIRECTUS_QUOTATION_ITEMS_COLLECTION}${qs({
