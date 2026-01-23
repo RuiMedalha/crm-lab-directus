@@ -36,20 +36,52 @@ if (!DIRECTUS_URL || !DIRECTUS_TOKEN) {
   process.exit(2);
 }
 
+// Some VPS have broken IPv6/DNS; allow forcing IPv4-first DNS ordering.
+// Usage: DNS_IPV4FIRST=1 node scripts/setup-directus-crm.js --yes
+if (String(process.env.DNS_IPV4FIRST || "") === "1") {
+  try {
+    // Node >=18 supports this.
+    const dns = require("node:dns");
+    if (typeof dns.setDefaultResultOrder === "function") dns.setDefaultResultOrder("ipv4first");
+  } catch {
+    // ignore
+  }
+}
+
 function apiUrl(path) {
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${DIRECTUS_URL}${p}`;
 }
 
 async function req(path, init = {}) {
-  const res = await fetch(apiUrl(path), {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
-      ...(init.headers || {}),
-    },
-  });
+  const url = apiUrl(path);
+  let res;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+        ...(init.headers || {}),
+      },
+    });
+  } catch (e) {
+    // Undici (Node fetch) wraps network failures; expose root cause.
+    const cause = e?.cause || e;
+    const details = [
+      `Fetch failed: ${url}`,
+      cause?.code ? `code=${cause.code}` : null,
+      cause?.errno ? `errno=${cause.errno}` : null,
+      cause?.address ? `address=${cause.address}` : null,
+      cause?.port ? `port=${cause.port}` : null,
+      cause?.message ? `message=${cause.message}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    const err = new Error(details);
+    err.cause = e;
+    throw err;
+  }
 
   const text = await res.text();
   const json = (() => {
@@ -281,6 +313,8 @@ async function main() {
 
 main().catch((e) => {
   console.error("\nFAILED:", e?.message || e);
+  // Print extra debug info if present
+  if (e?.cause) console.error("CAUSE:", e.cause);
   process.exit(1);
 });
 
