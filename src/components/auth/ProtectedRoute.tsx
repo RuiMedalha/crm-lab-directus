@@ -8,6 +8,11 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
+  // TEMPORÁRIO: Desativado enquanto não usa Supabase
+  // Permitir acesso direto para testar melhorias UI
+  return <>{children}</>;
+
+  /* CÓDIGO ORIGINAL - REATIVAR QUANDO CONFIGURAR AUTENTICAÇÃO
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -24,4 +29,5 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   return <>{children}</>;
+  */
 }
