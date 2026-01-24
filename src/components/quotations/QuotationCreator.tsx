@@ -199,13 +199,29 @@ export function QuotationCreator({
     return Math.round((v + Number.EPSILON) * 100) / 100;
   };
 
-  const computeLineTotal = (item: QuotationItem) => {
-    const qty = Number(item.quantity || 0);
+  const roundInt = (n: unknown, fallback = 1) => {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return fallback;
+    const i = Math.trunc(v);
+    return i > 0 ? i : fallback;
+  };
+
+  const computeLineBase = (item: QuotationItem) => {
+    const qty = roundInt(item.quantity || 1);
     const unit = Number(item.unit_price || 0);
     const base = qty * unit;
     const discount = base * (Number(item.discount_percent || 0) / 100);
-    const taxable = Math.max(0, base - discount);
-    const ivaAmount = taxable * (Number(item.iva_percent || 0) / 100);
+    return Math.max(0, base - discount);
+  };
+
+  const computeLineIvaAmount = (item: QuotationItem) => {
+    const taxable = computeLineBase(item);
+    return round2(taxable * (Number(item.iva_percent || 0) / 100));
+  };
+
+  const computeLineTotal = (item: QuotationItem) => {
+    const taxable = computeLineBase(item);
+    const ivaAmount = computeLineIvaAmount(item);
     return round2(taxable + ivaAmount);
   };
 
@@ -214,6 +230,11 @@ export function QuotationCreator({
       if (item.id !== id) return item;
 
       const updated: any = { ...item, [field]: value };
+
+      // Quantidades: apenas inteiros
+      if (field === "quantity") {
+        updated.quantity = roundInt(value, 1);
+      }
 
       // Enforce 2 decimals on money fields
       if (field === "cost_price" || field === "unit_price") {
@@ -269,15 +290,10 @@ export function QuotationCreator({
 
   const calculateTotals = () => {
     const subtotal = items.reduce((sum, item) => {
-      const base = Number(item.quantity || 0) * Number(item.unit_price || 0);
-      const discount = base * (Number(item.discount_percent || 0) / 100);
-      return sum + Math.max(0, base - discount);
+      return sum + computeLineBase(item);
     }, 0);
     const ivaTotal = items.reduce((sum, item) => {
-      const base = Number(item.quantity || 0) * Number(item.unit_price || 0);
-      const discount = base * (Number(item.discount_percent || 0) / 100);
-      const taxable = Math.max(0, base - discount);
-      return sum + taxable * (Number(item.iva_percent || 0) / 100);
+      return sum + computeLineIvaAmount(item);
     }, 0);
     const total = items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
 
@@ -399,7 +415,7 @@ export function QuotationCreator({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[96vw] max-w-6xl h-[94vh] max-h-[94vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[98vw] max-w-[1400px] h-[96vh] max-h-[96vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -510,12 +526,11 @@ export function QuotationCreator({
                               <Label className="text-xs">Qtd</Label>
                               <Input
                                 type="number"
-                                min="0.01"
-                                step="0.01"
+                                min="1"
+                                step="1"
                                 value={String(item.quantity)}
                                 onChange={(e) => {
-                                  const n = Number.parseFloat(e.target.value);
-                                  updateItem(item.id, "quantity", Number.isFinite(n) && n > 0 ? n : 1);
+                                  updateItem(item.id, "quantity", Number.parseInt(e.target.value, 10) || 1);
                                 }}
                                 className="h-9"
                               />
@@ -555,6 +570,9 @@ export function QuotationCreator({
                                 onChange={(e) => updateItem(item.id, "iva_percent", Number.parseFloat(e.target.value) || 0)}
                                 className="h-9"
                               />
+                              <div className="text-[11px] text-muted-foreground">
+                                IVA: {formatEUR.format(computeLineIvaAmount(item))}
+                              </div>
                             </div>
                           </div>
 
@@ -582,13 +600,14 @@ export function QuotationCreator({
                       <TableRow>
                         <TableHead className="w-[48px]">Tipo</TableHead>
                         <TableHead className="w-[240px]">Produto / Linha</TableHead>
-                        <TableHead className="w-[110px]">SKU</TableHead>
+                        <TableHead className="w-[180px]">SKU</TableHead>
                         <TableHead className="w-[80px] text-center">Qtd</TableHead>
                         <TableHead className="w-[80px] text-right">Desc %</TableHead>
                         <TableHead className="w-[100px] text-right">P. Custo</TableHead>
                         <TableHead className="w-[80px] text-right">Margem %</TableHead>
                         <TableHead className="w-[110px] text-right">P. Venda</TableHead>
                         <TableHead className="w-[70px] text-center">IVA %</TableHead>
+                        <TableHead className="w-[110px] text-right">IVA €</TableHead>
                         <TableHead className="w-[110px] text-right">Total</TableHead>
                         <TableHead className="w-[40px]"></TableHead>
                       </TableRow>
@@ -660,19 +679,18 @@ export function QuotationCreator({
                                 }
                               }}
                               placeholder="SKU"
-                              className="h-8"
+                              className="h-8 font-mono"
                               disabled={item.line_type === "free"}
                             />
                           </TableCell>
                           <TableCell className="align-top">
                             <Input
                               type="number"
-                              min="0.01"
-                              step="0.01"
+                              min="1"
+                              step="1"
                               value={String(item.quantity)}
                               onChange={(e) => {
-                                const n = Number.parseFloat(e.target.value);
-                                updateItem(item.id, 'quantity', Number.isFinite(n) && n > 0 ? n : 1);
+                                updateItem(item.id, 'quantity', Number.parseInt(e.target.value, 10) || 1);
                               }}
                               className="h-8 text-center"
                             />
@@ -729,6 +747,9 @@ export function QuotationCreator({
                               onChange={(e) => updateItem(item.id, 'iva_percent', Number.parseFloat(e.target.value) || 0)}
                               className="h-8 text-center"
                             />
+                          </TableCell>
+                          <TableCell className="align-top text-right font-medium">
+                            {formatEUR.format(computeLineIvaAmount(item))}
                           </TableCell>
                           <TableCell className="text-right font-bold align-top">
                             {formatEUR.format(Number(item.line_total || 0))}
