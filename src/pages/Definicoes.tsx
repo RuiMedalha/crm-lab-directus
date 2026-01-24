@@ -57,6 +57,7 @@ export default function Definicoes() {
   const [integrations, setIntegrations] = useState({
     chatwoot_url: "",
     chatwoot_token: "",
+    chatwoot_account_id: "",
     whatsapp_api_url: "",
     typebot_url: "",
     typebot_token: "",
@@ -79,6 +80,7 @@ export default function Definicoes() {
       setIntegrations({
         chatwoot_url: settings.chatwoot_url || "",
         chatwoot_token: settings.chatwoot_token || "",
+        chatwoot_account_id: (settings as any).chatwoot_account_id || "",
         whatsapp_api_url: settings.whatsapp_api_url || "",
         typebot_url: settings.typebot_url || "",
         typebot_token: settings.typebot_token || "",
@@ -678,6 +680,14 @@ export default function Definicoes() {
                   value={integrations.chatwoot_token}
                   onChange={(e) => setIntegrations(prev => ({ ...prev, chatwoot_token: e.target.value }))}
                   placeholder="Token de acesso"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Chatwoot Account ID</Label>
+                <Input
+                  value={integrations.chatwoot_account_id}
+                  onChange={(e) => setIntegrations(prev => ({ ...prev, chatwoot_account_id: e.target.value }))}
+                  placeholder="ex: 1"
                 />
               </div>
               <div className="space-y-2">

@@ -19,6 +19,7 @@ export interface CompanySettingsItem {
 
   chatwoot_url?: string | null;
   chatwoot_token?: string | null;
+  chatwoot_account_id?: string | null;
   whatsapp_api_url?: string | null;
   typebot_url?: string | null;
   typebot_token?: string | null;
@@ -46,6 +47,7 @@ const FIELDS = [
   "payment_instructions",
   "chatwoot_url",
   "chatwoot_token",
+  "chatwoot_account_id",
   "whatsapp_api_url",
   "typebot_url",
   "typebot_token",
@@ -66,6 +68,7 @@ const SAFE_FIELDS = [
   "logo_url",
   "chatwoot_url",
   "chatwoot_token",
+  "chatwoot_account_id",
   "whatsapp_api_url",
   "typebot_url",
   "typebot_token",

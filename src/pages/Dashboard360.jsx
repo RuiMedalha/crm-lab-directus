@@ -47,6 +47,7 @@ import { listActiveDealsByCustomerIds } from "@/integrations/directus/deals";
 import { listActiveQuotationsByCustomerIds } from "@/integrations/directus/quotations";
 import { TagSelector } from "@/components/contacts/TagSelector";
 import { CustomerTimeline } from "@/components/contacts/CustomerTimeline";
+import { useCompanySettings } from "@/hooks/useSettings";
 
 function NewsletterBannerDirectus({
   contactId,
@@ -210,6 +211,8 @@ export default function Dashboard360() {
   const [skuInput, setSkuInput] = useState("");
   const [openQuotationCreator, setOpenQuotationCreator] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
+
+  const { data: companySettings } = useCompanySettings();
 
   const contactId = useMemo(() => (contact?.id ? String(contact.id) : id ? String(id) : null), [contact, id]);
   const resolvedExistingRef = useRef(false);
@@ -470,6 +473,22 @@ export default function Dashboard360() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {(() => {
+              const cs = companySettings || {};
+              const cwUrl = String(cs?.chatwoot_url || "").replace(/\/+$/, "");
+              const cwAccountId = String(cs?.chatwoot_account_id || "").trim();
+              const cwContactId = String(contact?.chatwoot_contact_id || getValue("chatwoot_contact_id") || "").trim();
+              if (!cwUrl || !cwAccountId || !cwContactId) return null;
+              const link = `${cwUrl}/app/accounts/${encodeURIComponent(cwAccountId)}/contacts/${encodeURIComponent(cwContactId)}`;
+              return (
+                <Button variant="outline" size="sm" asChild title="Abrir contacto no Chatwoot">
+                  <a href={link} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Chatwoot
+                  </a>
+                </Button>
+              );
+            })()}
             {activity.data?.firstQuotationId ? (
               <Button
                 variant="secondary"

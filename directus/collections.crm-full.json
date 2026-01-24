@@ -297,6 +297,7 @@
         { "field": "payment_instructions", "type": "text", "meta": { "interface": "textarea", "display_name": "Instruções de Pagamento" } },
         { "field": "chatwoot_url", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot URL" } },
         { "field": "chatwoot_token", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot Token" } },
+        { "field": "chatwoot_account_id", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot Account ID" } },
         { "field": "whatsapp_api_url", "type": "string", "meta": { "interface": "input", "display_name": "WhatsApp API URL" } },
         { "field": "typebot_url", "type": "string", "meta": { "interface": "input", "display_name": "Typebot URL" } },
         { "field": "typebot_token", "type": "string", "meta": { "interface": "input", "display_name": "Typebot Token" } },
