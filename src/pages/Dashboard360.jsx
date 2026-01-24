@@ -44,6 +44,7 @@ import { FileText } from "lucide-react";
 import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
 import { listActiveDealsByCustomerIds } from "@/integrations/directus/deals";
 import { listActiveQuotationsByCustomerIds } from "@/integrations/directus/quotations";
+import { TagSelector } from "@/components/contacts/TagSelector";
 
 function NewsletterBannerDirectus({
   contactId,
@@ -784,24 +785,16 @@ export default function Dashboard360() {
                       </div>
 
                       <div className="space-y-2 sm:col-span-2">
-                        <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
-                        <Input
-                          id="tags"
+                        <Label>Tags</Label>
+                        <TagSelector
                           value={(() => {
                             const v = getValue("tags");
-                            if (Array.isArray(v)) return v.join(", ");
-                            if (typeof v === "string") return v;
-                            return "";
+                            if (Array.isArray(v)) return v.map((x) => String(x));
+                            if (typeof v === "string") return v.split(",").map((s) => s.trim()).filter(Boolean);
+                            return [];
                           })()}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            const tags = raw
-                              .split(",")
-                              .map((s) => s.trim())
-                              .filter(Boolean);
-                            handleChange("tags", tags);
-                          }}
-                          placeholder="ex: hotel, restaurante, revenda"
+                          onChange={(tags) => handleChange("tags", tags)}
+                          placeholder="Adicionar tags…"
                         />
                       </div>
                     </div>
