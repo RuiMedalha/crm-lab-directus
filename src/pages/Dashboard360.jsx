@@ -220,9 +220,13 @@ export default function Dashboard360() {
         listActiveDealsByCustomerIds([cid]).catch(() => []),
         listActiveQuotationsByCustomerIds([cid]).catch(() => []),
       ]);
+      const dealsArr = Array.isArray(deals) ? deals : [];
+      const quotationsArr = Array.isArray(quotations) ? quotations : [];
       return {
-        activeDeals: (deals || []).length,
-        activeQuotations: (quotations || []).length,
+        activeDeals: dealsArr.length,
+        activeQuotations: quotationsArr.length,
+        firstDealId: dealsArr[0]?.id ? String(dealsArr[0].id) : null,
+        firstQuotationId: quotationsArr[0]?.id ? String(quotationsArr[0].id) : null,
       };
     },
   });
@@ -463,6 +467,28 @@ export default function Dashboard360() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {activity.data?.firstQuotationId ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate(`/orcamentos?openId=${encodeURIComponent(String(activity.data.firstQuotationId))}`)}
+                title="Abrir orçamento ativo"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Abrir Orçamento
+              </Button>
+            ) : null}
+            {activity.data?.firstDealId ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate(`/pipeline?dealId=${encodeURIComponent(String(activity.data.firstDealId))}`)}
+                title="Abrir negócio em curso"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Abrir Negócio
+              </Button>
+            ) : null}
             {(contact?.phone || getValue("phone")) && (
               <Button variant="outline" size="sm" asChild>
                 <a href={`tel:${contact?.phone || getValue("phone")}`}>

@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, Phone, Mail, MessageCircle } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, MessageCircle, FileText, Workflow } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listContacts } from "@/integrations/directus/contacts";
@@ -65,35 +65,49 @@ export default function ContactosDirectus() {
       ]);
 
       const dealsByCustomer: Record<string, { count: number; total: number }> = {};
+      const firstDealIdByCustomer: Record<string, string> = {};
       for (const d of deals as any[]) {
         const cid = d?.customer_id?.id ? String(d.customer_id.id) : d?.customer_id ? String(d.customer_id) : "";
         if (!cid) continue;
         const prev = dealsByCustomer[cid] || { count: 0, total: 0 };
         dealsByCustomer[cid] = { count: prev.count + 1, total: prev.total + Number(d.total_amount || 0) };
+        if (!firstDealIdByCustomer[cid] && d?.id) firstDealIdByCustomer[cid] = String(d.id);
       }
 
       const quotationsByCustomer: Record<string, { count: number; total: number }> = {};
+      const firstQuotationIdByCustomer: Record<string, string> = {};
       for (const q of quotations as any[]) {
         const cid = q?.customer_id?.id ? String(q.customer_id.id) : q?.customer_id ? String(q.customer_id) : "";
         if (!cid) continue;
         const prev = quotationsByCustomer[cid] || { count: 0, total: 0 };
         quotationsByCustomer[cid] = { count: prev.count + 1, total: prev.total + Number(q.total_amount || 0) };
+        if (!firstQuotationIdByCustomer[cid] && q?.id) firstQuotationIdByCustomer[cid] = String(q.id);
       }
 
-      return { dealsByCustomer, quotationsByCustomer };
+      return { dealsByCustomer, quotationsByCustomer, firstDealIdByCustomer, firstQuotationIdByCustomer };
     },
   });
 
   const enrichedContacts = useMemo(() => {
     const dealsByCustomer = (activeSummary.data as any)?.dealsByCustomer || {};
     const quotationsByCustomer = (activeSummary.data as any)?.quotationsByCustomer || {};
+    const firstDealIdByCustomer = (activeSummary.data as any)?.firstDealIdByCustomer || {};
+    const firstQuotationIdByCustomer = (activeSummary.data as any)?.firstQuotationIdByCustomer || {};
     const withMeta = contacts.map((c: any) => {
       const id = String(c?.id || "");
       const d = dealsByCustomer[id] || { count: 0, total: 0 };
       const q = quotationsByCustomer[id] || { count: 0, total: 0 };
       const hasActive = (d.count || 0) > 0 || (q.count || 0) > 0;
       const activeScore = (d.total || 0) + (q.total || 0);
-      return { ...c, __activeDeals: d, __activeQuotations: q, __hasActive: hasActive, __activeScore: activeScore };
+      return {
+        ...c,
+        __activeDeals: d,
+        __activeQuotations: q,
+        __hasActive: hasActive,
+        __activeScore: activeScore,
+        __firstDealId: firstDealIdByCustomer[id] || null,
+        __firstQuotationId: firstQuotationIdByCustomer[id] || null,
+      };
     });
     // Prioridade: quem tem em curso aparece primeiro; depois por valor total em curso; depois por nome
     return withMeta.sort((a: any, b: any) => {
@@ -216,6 +230,36 @@ export default function ContactosDirectus() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {c.__firstQuotationId ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 min-w-28"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/orcamentos?openId=${encodeURIComponent(String(c.__firstQuotationId))}`);
+                        }}
+                        title="Abrir orçamento ativo"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Orçamento
+                      </Button>
+                    ) : null}
+                    {c.__firstDealId ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 min-w-28"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/pipeline?dealId=${encodeURIComponent(String(c.__firstDealId))}`);
+                        }}
+                        title="Abrir negócio em curso no pipeline"
+                      >
+                        <Workflow className="h-4 w-4 mr-2" />
+                        Pipeline
+                      </Button>
+                    ) : null}
                     {c.phone && (
                       <Button
                         size="sm"
@@ -370,6 +414,34 @@ export default function ContactosDirectus() {
                     <TableCell className="hidden lg:table-cell">{c.email || "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
+                        {c.__firstQuotationId ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/orcamentos?openId=${encodeURIComponent(String(c.__firstQuotationId))}`);
+                            }}
+                            title="Abrir orçamento ativo"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {c.__firstDealId ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/pipeline?dealId=${encodeURIComponent(String(c.__firstDealId))}`);
+                            }}
+                            title="Abrir negócio no pipeline"
+                          >
+                            <Workflow className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         {c.phone && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                             <a href={`tel:${c.phone}`}>

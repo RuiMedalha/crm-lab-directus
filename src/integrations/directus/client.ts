@@ -7,6 +7,14 @@ type DirectusErrorPayload =
     }
   | { error?: string; message?: string };
 
+type DirectusRefreshResponse = {
+  data?: {
+    access_token?: string;
+    refresh_token?: string;
+    expires?: number;
+  };
+};
+
 const DEFAULT_DIRECTUS_URL = "http://localhost:8055";
 
 export const DIRECTUS_URL: string =
@@ -96,25 +104,57 @@ export async function directusRequest<T>(
   const token = skipAuth ? "" : getDirectusTokenForRequest();
   if (!skipAuth && !token) throw new Error("Sem sessão. Faça login para continuar.");
 
-  const res = await fetch(directusApiUrl(path), {
-    ...rest,
-    headers: (() => {
-      const h = new Headers(rest.headers);
-      h.set("Content-Type", h.get("Content-Type") || "application/json");
-      if (!skipAuth) h.set("Authorization", `Bearer ${token}`);
-      return h;
-    })(),
-  });
+  const doFetch = async (accessToken?: string) => {
+    return await fetch(directusApiUrl(path), {
+      ...rest,
+      headers: (() => {
+        const h = new Headers(rest.headers);
+        h.set("Content-Type", h.get("Content-Type") || "application/json");
+        if (!skipAuth) h.set("Authorization", `Bearer ${accessToken || token}`);
+        return h;
+      })(),
+    });
+  };
+
+  const tryRefresh = async () => {
+    const refresh_token = getDirectusRefreshToken();
+    if (!refresh_token) return null;
+    const res = await fetch(directusApiUrl("/auth/refresh"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token }),
+    });
+    const contentType = res.headers.get("content-type") || "";
+    const isJson = contentType.includes("application/json");
+    const body: unknown = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null);
+    if (!res.ok) return null;
+    const data = body as DirectusRefreshResponse;
+    const nextAccess = String(data?.data?.access_token || "").trim();
+    const nextRefresh = String(data?.data?.refresh_token || "").trim();
+    if (nextAccess) setDirectusAccessToken(nextAccess);
+    if (nextRefresh) setDirectusRefreshToken(nextRefresh);
+    return nextAccess || null;
+  };
+
+  let res = await doFetch();
 
   const contentType = res.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
   const body: unknown = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null);
 
   if (!res.ok) {
-    // If the session is invalid, clear stored tokens to avoid endless 401 loops.
+    // Auto-refresh session once on 401 (prevents random logouts while working).
     if (!skipAuth && res.status === 401) {
-      // Only clear on 401 (invalid/expired session). 403 is commonly a permissions issue and
-      // clearing the session causes annoying "logout loops" on refresh.
+      const nextAccess = await tryRefresh().catch(() => null);
+      if (nextAccess) {
+        res = await doFetch(nextAccess);
+        const ct2 = res.headers.get("content-type") || "";
+        const isJson2 = ct2.includes("application/json");
+        const body2: unknown = isJson2 ? await res.json().catch(() => null) : await res.text().catch(() => null);
+        if (res.ok) return body2 as T;
+      }
+
+      // Refresh failed -> clear stored tokens to avoid endless 401 loops.
       clearDirectusSession();
     }
     const payload = (body || {}) as DirectusErrorPayload;

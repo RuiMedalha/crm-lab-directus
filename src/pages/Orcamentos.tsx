@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,13 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, FileText, Calendar, Euro, Eye, Plus } from "lucide-react";
-import { listQuotations } from "@/integrations/directus/quotations";
+import { listQuotations, listQuotationsByCustomer } from "@/integrations/directus/quotations";
 import { QuotationPreview } from "@/components/quotations/QuotationPreview";
 import { QuotationCreator } from "@/components/quotations/QuotationCreator";
 import { useContacts } from "@/hooks/useContacts";
 import type { ContactItem } from "@/integrations/directus/contacts";
+import { useSearchParams } from "react-router-dom";
 
 export default function Orcamentos() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [openMeta, setOpenMeta] = useState<{ customerId?: string; customerName?: string } | null>(null);
@@ -25,9 +27,19 @@ export default function Orcamentos() {
   const [createFor, setCreateFor] = useState<{ id: string; name: string } | null>(null);
   const [editFor, setEditFor] = useState<{ quotationId: string; customerId: string; customerName: string } | null>(null);
 
+  const customerId = searchParams.get("customerId") || "";
+  const openIdFromUrl = searchParams.get("openId") || "";
+
+  useEffect(() => {
+    if (openIdFromUrl) setOpenId(String(openIdFromUrl));
+  }, [openIdFromUrl]);
+
   const query = useQuery({
-    queryKey: ["quotations", "all", search],
-    queryFn: async () => await listQuotations({ search, limit: 500, page: 1 }),
+    queryKey: ["quotations", "all", search, customerId],
+    queryFn: async () => {
+      if (customerId) return await listQuotationsByCustomer(customerId, { limit: 500, page: 1 });
+      return await listQuotations({ search, limit: 500, page: 1 });
+    },
   });
 
   const contactsQuery = useContacts(openCreateChooser ? contactSearch : "");
@@ -148,6 +160,11 @@ export default function Orcamentos() {
           if (!open) {
             setOpenId(null);
             setOpenMeta(null);
+            if (searchParams.get("openId")) {
+              const next = new URLSearchParams(searchParams);
+              next.delete("openId");
+              setSearchParams(next, { replace: true });
+            }
           }
         }}
       >
@@ -159,16 +176,21 @@ export default function Orcamentos() {
                 if (!open) {
                   setOpenId(null);
                   setOpenMeta(null);
+                  if (searchParams.get("openId")) {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("openId");
+                    setSearchParams(next, { replace: true });
+                  }
                 }
               }}
               quotationId={openId}
-              onEdit={() => {
-                const cid = openMeta?.customerId;
-                const cname = openMeta?.customerName;
+              onEdit={(qid, cidMaybe) => {
+                const cid = String(cidMaybe ?? openMeta?.customerId ?? "");
+                const cname = String(openMeta?.customerName ?? "");
                 if (!cid || !cname) return;
                 setOpenId(null);
                 setOpenMeta(null);
-                setEditFor({ quotationId: String(openId), customerId: cid, customerName: cname });
+                setEditFor({ quotationId: String(qid), customerId: cid, customerName: cname });
               }}
             />
           ) : (
