@@ -541,10 +541,13 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
             {/* Header com Logo */}
             <div className="flex justify-between items-start mb-8">
               <div>
-                <img 
-                  src="/logo-hotelequip-dark.svg" 
-                  alt="HotelEquip" 
-                  className="h-12 mb-2"
+                <img
+                  src={String(companySettings?.logo_url || "/logo-hotelequip-dark.svg")}
+                  alt={String(companySettings?.name || "HotelEquip")}
+                  className="h-12 mb-2 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/logo-hotelequip-dark.svg";
+                  }}
                 />
                 <div className="text-sm text-gray-600 space-y-0.5">
                   <p className="font-semibold">{companySettings?.name || 'HotelEquip'}</p>
