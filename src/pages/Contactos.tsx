@@ -11,11 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, Search, Eye, Trash2, Phone, Mail, MessageCircle, Download, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,18 +36,24 @@ export default function Contactos() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    const contactToDelete = contacts?.find(c => c.id === deleteId);
+
     try {
       await deleteContact.mutateAsync(deleteId);
-      toast({ title: "Contacto eliminado com sucesso" });
+      toast.success("Contacto eliminado", {
+        description: contactToDelete?.company_name,
+      });
       setDeleteId(null);
     } catch (error) {
-      toast({ title: "Erro ao eliminar contacto", variant: "destructive" });
+      toast.error("Erro ao eliminar", {
+        description: "Não foi possível eliminar o contacto.",
+      });
     }
   };
 
   const handleExportCSV = () => {
     if (!contacts?.length) {
-      toast({ title: "Sem contactos para exportar", variant: "destructive" });
+      toast.warning("Sem contactos para exportar");
       return;
     }
 
@@ -73,7 +79,7 @@ export default function Contactos() {
     link.click();
     URL.revokeObjectURL(url);
 
-    toast({ title: `${contacts.length} contactos exportados` });
+    toast.success(`${contacts.length} contactos exportados`);
   };
 
   return (
@@ -122,16 +128,7 @@ export default function Contactos() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
-                  </TableRow>
-                ))
+                <TableSkeleton rows={5} columns={6} />
               ) : contacts?.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="py-0">
