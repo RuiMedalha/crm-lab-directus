@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { useCreateInteraction, useInteractions } from "@/hooks/useInteractions";
 import { useFollowUps, usePatchFollowUp } from "@/hooks/useFollowUps";
 import { CalendarClock, Check, MessageSquareText, Phone, Mail, MessageCircle } from "lucide-react";
+import { userColorStyle } from "@/lib/userColor";
 
 function fmt(d?: string | null) {
   if (!d) return "—";
@@ -126,6 +127,7 @@ export function CustomerTimeline({ contactId }: { contactId: string }) {
             if (x.kind === "follow_up") {
               const fu: any = x.raw;
               const overdue = fu.due_at ? new Date(fu.due_at).getTime() < Date.now() : false;
+              const assigned = fu.assigned_employee_id?.full_name || fu.assigned_employee_id?.id || null;
               return (
                 <Card key={`fu-${x.id}`} className={overdue ? "border-destructive/40" : "border"}>
                   <CardContent className="p-4 flex items-start justify-between gap-3">
@@ -136,6 +138,11 @@ export function CustomerTimeline({ contactId }: { contactId: string }) {
                         <Badge variant={fu.status === "done" ? "secondary" : overdue ? "destructive" : "outline"}>
                           {fu.status || "open"}
                         </Badge>
+                        {assigned ? (
+                          <Badge variant="outline" style={userColorStyle(String(assigned))}>
+                            {String(assigned).slice(0, 18)}
+                          </Badge>
+                        ) : null}
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-3">
                         <span>{fmt(fu.due_at)}</span>
