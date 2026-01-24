@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   useCompanySettings,
@@ -24,6 +24,8 @@ export default function Definicoes() {
   const { data: settings, isLoading } = useCompanySettings();
   const updateSettings = useUpdateCompanySettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const COMPANY_DRAFT_KEY = useMemo(() => "crm_company_settings_draft_v1", []);
 
   const [companyData, setCompanyData] = useState({
     name: "",
@@ -85,6 +87,37 @@ export default function Definicoes() {
     setWebhooks(getWebhookSettings());
     setMeilisearch(getMeilisearchSettings());
   }, [settings]);
+
+  // Restore local draft (prevents losing work on session expiry/navigation)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(COMPANY_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft || typeof draft !== "object") return;
+      setCompanyData((prev) => ({ ...prev, ...(draft.companyData || {}) }));
+      toast({ title: "Rascunho recuperado", description: "Recuperámos alterações não guardadas das Definições." });
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist draft with debounce
+  const draftTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      try {
+        localStorage.setItem(COMPANY_DRAFT_KEY, JSON.stringify({ companyData }));
+      } catch {
+        // ignore
+      }
+    }, 400);
+    return () => {
+      if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    };
+  }, [COMPANY_DRAFT_KEY, companyData]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -164,9 +197,15 @@ export default function Definicoes() {
     try {
       const { logo_url, ...dataToSave } = companyData;
       await updateSettings.mutateAsync(dataToSave);
+      try {
+        localStorage.removeItem(COMPANY_DRAFT_KEY);
+      } catch {
+        // ignore
+      }
       toast({ title: "Definições da empresa guardadas" });
     } catch (error) {
-      toast({ title: "Erro ao guardar definições", variant: "destructive" });
+      const msg = error instanceof Error ? error.message : String(error || "");
+      toast({ title: "Erro ao guardar definições", description: msg || undefined, variant: "destructive" });
     }
   };
 

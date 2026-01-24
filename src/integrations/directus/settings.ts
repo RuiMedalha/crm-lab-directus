@@ -57,40 +57,106 @@ const FIELDS = [
   "woo_consumer_secret",
 ].join(",");
 
+const SAFE_FIELDS = [
+  "id",
+  "name",
+  "vat_number",
+  "phone",
+  "email",
+  "logo_url",
+  "chatwoot_url",
+  "chatwoot_token",
+  "whatsapp_api_url",
+  "typebot_url",
+  "typebot_token",
+  "moloni_client_id",
+  "moloni_client_secret",
+  "moloni_api_key",
+  "woo_url",
+  "woo_consumer_key",
+  "woo_consumer_secret",
+].join(",");
+
+async function getCompanySettingsFields(): Promise<Set<string> | null> {
+  try {
+    const res = await directusRequest<{ data: Array<{ field: string }> }>(
+      `/fields/${encodeURIComponent(DIRECTUS_COMPANY_SETTINGS_COLLECTION)}`
+    );
+    const fields = new Set<string>((res?.data || []).map((f) => f.field).filter(Boolean));
+    return fields.size ? fields : null;
+  } catch {
+    return null;
+  }
+}
+
+function filterPatchToFields(patch: Partial<CompanySettingsItem>, allowed: Set<string> | null) {
+  if (!allowed) return patch;
+  const out: any = {};
+  Object.entries(patch || {}).forEach(([k, v]) => {
+    if (!allowed.has(k)) return;
+    out[k] = v;
+  });
+  return out as Partial<CompanySettingsItem>;
+}
+
 export async function getCompanySettings(): Promise<CompanySettingsItem | null> {
   const fixedId = import.meta.env.VITE_DIRECTUS_COMPANY_SETTINGS_ID || "";
-  if (fixedId) {
-    const res = await directusRequest<{ data: CompanySettingsItem }>(
-      `/items/${DIRECTUS_COMPANY_SETTINGS_COLLECTION}/${encodeURIComponent(String(fixedId))}${qs({
-        fields: FIELDS,
+  const readOne = async (fields: string) => {
+    return await directusRequest<{ data: CompanySettingsItem }>(
+      `/items/${DIRECTUS_COMPANY_SETTINGS_COLLECTION}/${encodeURIComponent(String(fixedId))}${qs({ fields })}`
+    );
+  };
+  const readList = async (fields: string) => {
+    return await directusRequest<{ data: CompanySettingsItem[] }>(
+      `/items/${DIRECTUS_COMPANY_SETTINGS_COLLECTION}${qs({
+        limit: 1,
+        sort: "-id",
+        fields,
       })}`
     );
-    return res.data || null;
-  }
+  };
 
-  const res = await directusRequest<{ data: CompanySettingsItem[] }>(
-    `/items/${DIRECTUS_COMPANY_SETTINGS_COLLECTION}${qs({
-      limit: 1,
-      sort: "-id",
-      fields: FIELDS,
-    })}`
-  );
-  return res.data?.[0] || null;
+  const shouldFallback = (msg: string) =>
+    msg.includes("permission to access fields") ||
+    msg.includes("does not exist") ||
+    msg.includes("Invalid query") ||
+    msg.includes("Invalid field");
+
+  try {
+    if (fixedId) {
+      const res = await readOne(FIELDS);
+      return res.data || null;
+    }
+    const res = await readList(FIELDS);
+    return res.data?.[0] || null;
+  } catch (e: any) {
+    const msg = String(e?.message || "");
+    if (!shouldFallback(msg)) throw e;
+    if (fixedId) {
+      const res = await readOne(SAFE_FIELDS);
+      return res.data || null;
+    }
+    const res = await readList(SAFE_FIELDS);
+    return res.data?.[0] || null;
+  }
 }
 
 export async function upsertCompanySettings(patch: Partial<CompanySettingsItem>): Promise<CompanySettingsItem> {
+  const allowed = await getCompanySettingsFields();
+  const filtered = filterPatchToFields(patch, allowed);
+
   const current = await getCompanySettings().catch(() => null);
   if (current?.id) {
     const res = await directusRequest<{ data: CompanySettingsItem }>(
       `/items/${DIRECTUS_COMPANY_SETTINGS_COLLECTION}/${encodeURIComponent(String(current.id))}`,
-      { method: "PATCH", body: JSON.stringify(patch) }
+      { method: "PATCH", body: JSON.stringify(filtered) }
     );
     return res.data;
   }
 
   const res = await directusRequest<{ data: CompanySettingsItem }>(`/items/${DIRECTUS_COMPANY_SETTINGS_COLLECTION}`, {
     method: "POST",
-    body: JSON.stringify(patch),
+    body: JSON.stringify(filtered),
   });
   return res.data;
 }
