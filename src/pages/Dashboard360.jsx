@@ -32,6 +32,7 @@ import {
   X,
   MapPin,
   StickyNote,
+  History,
   Truck,
   ShoppingCart,
   Plus,
@@ -45,6 +46,7 @@ import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
 import { listActiveDealsByCustomerIds } from "@/integrations/directus/deals";
 import { listActiveQuotationsByCustomerIds } from "@/integrations/directus/quotations";
 import { TagSelector } from "@/components/contacts/TagSelector";
+import { CustomerTimeline } from "@/components/contacts/CustomerTimeline";
 
 function NewsletterBannerDirectus({
   contactId,
@@ -571,7 +573,7 @@ export default function Dashboard360() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="geral" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto">
                 <TabsTrigger value="geral" className="text-xs">
                   <Building2 className="h-3 w-3 mr-1" />
                   Geral
@@ -587,6 +589,10 @@ export default function Dashboard360() {
                 <TabsTrigger value="notas" className="text-xs">
                   <StickyNote className="h-3 w-3 mr-1" />
                   Notas
+                </TabsTrigger>
+                <TabsTrigger value="historico" className="text-xs">
+                  <History className="h-3 w-3 mr-1" />
+                  Histórico
                 </TabsTrigger>
               </TabsList>
 
@@ -1069,6 +1075,16 @@ export default function Dashboard360() {
                     placeholder="Notas internas (equipa) – opcional."
                   />
                 </div>
+              </TabsContent>
+
+              <TabsContent value="historico" className="space-y-4 mt-4">
+                {contactId ? (
+                  <CustomerTimeline contactId={contactId} />
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-10 border rounded-lg bg-muted/20">
+                    Guarda o contacto primeiro para ver o histórico.
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

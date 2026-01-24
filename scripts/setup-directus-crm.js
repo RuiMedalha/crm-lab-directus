@@ -386,6 +386,11 @@ async function main() {
   await upsertPermission({ subjectField, subjectId, collection: "company_settings", action: "read", fields: "*" });
   await upsertPermission({ subjectField, subjectId, collection: "company_settings", action: "update", fields: "*" });
 
+  // interactions (timeline/history)
+  await upsertPermission({ subjectField, subjectId, collection: "interactions", action: "read", fields: "*" });
+  await upsertPermission({ subjectField, subjectId, collection: "interactions", action: "create", fields: "*" });
+  await upsertPermission({ subjectField, subjectId, collection: "interactions", action: "update", fields: "*" });
+
   // deals: ensure the new fields are readable/updatable even if role uses a field allowlist
   const requiredDealFields = [
     "owner_employee_id",
