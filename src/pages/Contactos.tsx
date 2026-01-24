@@ -12,7 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Eye, Trash2, Phone, Mail, MessageCircle, Download } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Plus, Search, Eye, Trash2, Phone, Mail, MessageCircle, Download, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -71,7 +72,7 @@ export default function Contactos() {
     link.download = `contactos_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    
+
     toast({ title: `${contacts.length} contactos exportados` });
   };
 
@@ -133,8 +134,24 @@ export default function Contactos() {
                 ))
               ) : contacts?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Nenhum contacto encontrado
+                  <TableCell colSpan={6} className="py-0">
+                    <EmptyState
+                      icon={Users}
+                      title={searchTerm ? "Nenhum contacto encontrado" : "Ainda não tens contactos"}
+                      description={
+                        searchTerm
+                          ? "Tenta ajustar os termos de pesquisa para encontrar o que procuras."
+                          : "Começa a adicionar contactos para gerir os teus clientes e empresas."
+                      }
+                      action={
+                        !searchTerm
+                          ? {
+                            label: "Criar Primeiro Contacto",
+                            onClick: () => navigate("/contactos/novo"),
+                          }
+                          : undefined
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ) : (

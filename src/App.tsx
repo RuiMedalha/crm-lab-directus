@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LeadPopup360 } from "@/components/LeadPopup360";
 import { useLeadListener360 } from "@/hooks/useLeadListener360";
+import { CommandPalette } from "@/components/CommandPalette";
 import Dashboard from "./pages/Dashboard";
 import Pipeline from "./pages/Pipeline";
 import Inbox from "./pages/Inbox";
@@ -29,6 +30,7 @@ const AppContent = () => {
 
   return (
     <>
+      <CommandPalette />
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
