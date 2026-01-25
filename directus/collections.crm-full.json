@@ -94,6 +94,10 @@
         { "field": "logistics_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Logística (notas)" } },
         { "field": "commercial_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Comercial (campo livre)" } },
 
+        { "field": "assigned_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Responsável" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_by_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Atribuído por" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Atribuído em" } },
+
         { "field": "moloni_client_id", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client ID" } },
         { "field": "source", "type": "string", "meta": { "interface": "input", "display_name": "Origem" } },
         { "field": "source_call_id", "type": "string", "meta": { "interface": "input", "display_name": "Source Call ID" } }

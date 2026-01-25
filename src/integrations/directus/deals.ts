@@ -32,6 +32,10 @@ export interface DealRow {
   customer_id?: any; // m2o -> contacts (object when requested with fields=customer_id.*)
   manufacturer_id?: any; // m2o -> manufacturers
   total_amount?: number | null;
+  owner_employee_id?: any;
+  assigned_employee_id?: any;
+  assigned_by_employee_id?: any;
+  assigned_at?: string | null;
   items?: DealItemRow[];
   quotations?: any[]; // optional (if your schema has it)
 }
@@ -45,6 +49,13 @@ const LIST_FIELDS = [
   "customer_id.company_name",
   "manufacturer_id.id",
   "manufacturer_id.name",
+  "owner_employee_id.id",
+  "owner_employee_id.full_name",
+  "assigned_employee_id.id",
+  "assigned_employee_id.full_name",
+  "assigned_by_employee_id.id",
+  "assigned_by_employee_id.full_name",
+  "assigned_at",
 ].join(",");
 
 const DETAIL_FIELDS = [
@@ -54,6 +65,13 @@ const DETAIL_FIELDS = [
   "total_amount",
   "customer_id.*",
   "manufacturer_id.*",
+  "owner_employee_id.id",
+  "owner_employee_id.full_name",
+  "assigned_employee_id.id",
+  "assigned_employee_id.full_name",
+  "assigned_by_employee_id.id",
+  "assigned_by_employee_id.full_name",
+  "assigned_at",
 ].join(",");
 
 export async function listDeals(params?: { search?: string; limit?: number; page?: number }) {

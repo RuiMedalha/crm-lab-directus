@@ -52,6 +52,7 @@ import { CustomerTimeline } from "@/components/contacts/CustomerTimeline";
 import { useCompanySettings } from "@/hooks/useSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { getEmployeeByEmail } from "@/integrations/directus/employees";
+import { useEmployees } from "@/hooks/useEmployees";
 import { useCreateFollowUp } from "@/hooks/useFollowUps";
 import { useCreateInteraction } from "@/hooks/useInteractions";
 
@@ -232,6 +233,8 @@ export default function Dashboard360() {
     enabled: !!user?.email,
   });
   const meEmp = employeeQuery.data;
+  const employeesQuery = useEmployees("");
+  const employees = Array.isArray(employeesQuery.data) ? employeesQuery.data.filter((e) => e?.is_active !== false) : [];
 
   const createFollowUp = useCreateFollowUp();
   const createInteraction = useCreateInteraction();
@@ -426,7 +429,7 @@ export default function Dashboard360() {
       // Registar alterações relevantes no histórico (ex: notas/tags/sku)
       try {
         const savedId = saved?.id ? String(saved.id) : null;
-        const tracked = ["notes", "internal_notes", "commercial_notes", "logistics_notes", "quick_notes", "tags", "sku_history"];
+        const tracked = ["notes", "internal_notes", "commercial_notes", "logistics_notes", "quick_notes", "tags", "sku_history", "assigned_employee_id"];
         const changed = tracked.filter((k) => Object.prototype.hasOwnProperty.call(patch, k));
         if (savedId && changed.length) {
           await createInteraction.mutateAsync({
@@ -611,7 +614,31 @@ export default function Dashboard360() {
             )}
             {(contact?.email || getValue("email")) && (
               <Button variant="outline" size="sm" asChild>
-                <a href={`mailto:${contact?.email || getValue("email")}`}>
+                <a
+                  href={`mailto:${contact?.email || getValue("email")}`}
+                  onClick={() => {
+                    try {
+                      const email = String(contact?.email || getValue("email") || "");
+                      if (contactId && email) {
+                        void createInteraction
+                          .mutateAsync({
+                            type: "email",
+                            direction: "out",
+                            status: "open",
+                            source: "crm",
+                            occurred_at: new Date().toISOString(),
+                            contact_id: normalizeContactIdForDirectus(contactId),
+                            email,
+                            summary: "Abrir email (mailto)",
+                            payload: { kind: "mailto_open" },
+                          })
+                          .catch(() => undefined);
+                      }
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                >
                   <Mail className="h-4 w-4 mr-2" />
                   Email
                 </a>
@@ -623,6 +650,28 @@ export default function Dashboard360() {
                   href={`https://wa.me/${String(contact?.whatsapp_number || getValue("whatsapp_number")).replace(/\D/g, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => {
+                    try {
+                      const phone = String(contact?.whatsapp_number || getValue("whatsapp_number") || "").replace(/\D/g, "");
+                      if (contactId && phone) {
+                        void createInteraction
+                          .mutateAsync({
+                            type: "whatsapp",
+                            direction: "out",
+                            status: "open",
+                            source: "crm",
+                            occurred_at: new Date().toISOString(),
+                            contact_id: normalizeContactIdForDirectus(contactId),
+                            phone,
+                            summary: "Abrir WhatsApp (wa.me)",
+                            payload: { kind: "whatsapp_open" },
+                          })
+                          .catch(() => undefined);
+                      }
+                    } catch {
+                      // ignore
+                    }
+                  }}
                 >
                   <MessageCircle className="h-4 w-4 mr-2" />
                   WhatsApp
@@ -795,6 +844,51 @@ export default function Dashboard360() {
               </TabsList>
 
               <TabsContent value="geral" className="space-y-4 mt-4">
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">Responsável (cliente)</div>
+                        <div className="text-xs text-muted-foreground">
+                          Define quem fica responsável por este cliente.
+                        </div>
+                      </div>
+                      <div className="w-[260px] max-w-full">
+                        <Select
+                          value={String(getValue("assigned_employee_id") || "")}
+                          onValueChange={(v) => {
+                            // guardar apenas o id (uuid) no contacto
+                            handleChange("assigned_employee_id", v || null);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">—</SelectItem>
+                            {employees.map((e) => (
+                              <SelectItem key={String(e.id)} value={String(e.id)}>
+                                {String(e.full_name || e.email || e.id)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {meEmp?.id ? (
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleChange("assigned_employee_id", String(meEmp.id))}
+                        >
+                          Atribuir a mim
+                        </Button>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
                 {(() => {
                   const accept = !!(contact?.accept_newsletter ?? getValue("accept_newsletter"));
                   const consentAt = contact?.newsletter_consent_at ?? getValue("newsletter_consent_at") ?? null;

@@ -343,6 +343,7 @@ async function main() {
   // 1) Schema
   const deals = pickCollection(snapshot, "deals");
   const followUps = pickCollection(snapshot, "follow_ups");
+  const contacts = pickCollection(snapshot, "contacts");
 
   await ensureCollection(followUps);
 
@@ -361,6 +362,18 @@ async function main() {
   for (const f of deals.fields || []) {
     if (dealAssignmentFields.has(String(f.field))) {
       await ensureField("deals", f);
+    }
+  }
+
+  // Ensure contacts assignment fields (responsável do cliente)
+  const contactAssignmentFields = new Set([
+    "assigned_employee_id",
+    "assigned_by_employee_id",
+    "assigned_at",
+  ]);
+  for (const f of contacts.fields || []) {
+    if (contactAssignmentFields.has(String(f.field))) {
+      await ensureField("contacts", f);
     }
   }
 
@@ -390,6 +403,11 @@ async function main() {
   await upsertPermission({ subjectField, subjectId, collection: "interactions", action: "read", fields: "*" });
   await upsertPermission({ subjectField, subjectId, collection: "interactions", action: "create", fields: "*" });
   await upsertPermission({ subjectField, subjectId, collection: "interactions", action: "update", fields: "*" });
+
+  // contacts: needed by CRM app (ficha + atribuições)
+  await upsertPermission({ subjectField, subjectId, collection: "contacts", action: "read", fields: "*" });
+  await upsertPermission({ subjectField, subjectId, collection: "contacts", action: "create", fields: "*" });
+  await upsertPermission({ subjectField, subjectId, collection: "contacts", action: "update", fields: "*" });
 
   // deals: ensure the new fields are readable/updatable even if role uses a field allowlist
   const requiredDealFields = [

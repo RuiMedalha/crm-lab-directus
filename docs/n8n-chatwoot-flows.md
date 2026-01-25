@@ -87,6 +87,8 @@ Este repositório já inclui exports do n8n (para importares no UI do n8n):
 
 - `n8n/workflows/quotation-sent.json`
 - `n8n/workflows/quotation-approved.json`
+- `n8n/workflows/chatwoot-inbound-to-directus.json`
+- `n8n/workflows/email-inbound-to-directus.json`
 
 ### Variáveis no n8n (Environment Variables)
 
@@ -97,6 +99,16 @@ No n8n (Settings → Environment Variables), define:
 - `SMTP_FROM` (ex: `crm@hotelequip.pt`)
 
 E configura as credenciais do node **Email Send** (SMTP) no n8n.
+
+### Webhooks inbound (receber mensagens)
+
+- **Chatwoot inbound**: aponta um webhook do Chatwoot para `POST /webhook/crm/chatwoot-inbound`
+  - o workflow tenta resolver o cliente por `contacts.chatwoot_contact_id`
+  - cria um registo em `interactions` com `type="whatsapp"`, `direction="in"`
+
+- **Email inbound**: integra o teu provedor (ou um Email Trigger no n8n) para enviar payload para `POST /webhook/crm/email-inbound`
+  - o workflow tenta resolver o cliente por `contacts.email == from`
+  - cria um registo em `interactions` com `type="email"`, `direction="in"`
 
 ---
 
