@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, FileText, Calendar, Euro, Eye, Plus } from "lucide-react";
 import { listQuotations, listQuotationsByCustomer } from "@/integrations/directus/quotations";
@@ -206,6 +206,9 @@ export default function Orcamentos() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Novo Orçamento</DialogTitle>
+            <DialogDescription className="sr-only">
+              Seleciona um cliente e cria um novo orçamento.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
