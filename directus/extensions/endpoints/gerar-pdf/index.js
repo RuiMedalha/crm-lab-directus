@@ -1,4 +1,20 @@
-import puppeteer from "puppeteer";
+async function getPuppeteer() {
+  try {
+    const mod = await import("puppeteer");
+    return mod.default || mod;
+  } catch (e1) {
+    try {
+      const mod = await import("puppeteer-core");
+      return mod.default || mod;
+    } catch (e2) {
+      const err = new Error(
+        `Puppeteer não disponível no container (tentado puppeteer e puppeteer-core). Instala no image ou adiciona como dependência.`
+      );
+      err.cause = e2 || e1;
+      throw err;
+    }
+  }
+}
 
 /**
  * Directus Endpoint Extension: /gerar-pdf
@@ -236,6 +252,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; vertical-ali
     let browser;
     let pdfBuffer;
     try {
+      const puppeteer = await getPuppeteer();
       browser = await puppeteer.launch({
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
