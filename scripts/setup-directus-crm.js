@@ -411,6 +411,13 @@ async function main() {
 
   // deals: ensure the new fields are readable/updatable even if role uses a field allowlist
   const requiredDealFields = [
+    // essential for pipeline + UI
+    "title",
+    "status",
+    "total_amount",
+    "customer_id",
+    "manufacturer_id",
+    // assignments
     "owner_employee_id",
     "assigned_employee_id",
     "assigned_by_employee_id",

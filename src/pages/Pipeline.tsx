@@ -143,7 +143,8 @@ export default function Pipeline() {
         const statusLabel = DEAL_STATUSES.find((s) => s.value === newStatus)?.label || newStatus;
         toast({ title: `Movido para ${statusLabel}` });
       } catch (error) {
-        toast({ title: "Erro ao mover negócio", variant: "destructive" });
+        const msg = String((error as any)?.message || error || "");
+        toast({ title: "Erro ao mover negócio", description: msg || undefined, variant: "destructive" });
       }
     }
   }, [deals, updateDeal]);
