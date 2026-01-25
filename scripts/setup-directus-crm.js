@@ -441,6 +441,15 @@ async function main() {
     "follow_up_notes",
     "pdf_file",
     "pdf_link",
+    "status",
+    "deal_id",
+    "customer_id",
+    "subtotal",
+    "total_amount",
+    "notes",
+    "terms_conditions",
+    "internal_notes",
+    "valid_until",
   ];
   await upsertPermission({
     subjectField,
@@ -450,6 +459,23 @@ async function main() {
     fields: requiredQuotationFields,
     mergeWithExisting: true,
   });
+
+  // quotations write access (create/update) is required by CRM UI (criar/editar/enviar orçamento)
+  await upsertPermission({ subjectField, subjectId, collection: "quotations", action: "create", fields: "*" });
+  await upsertPermission({ subjectField, subjectId, collection: "quotations", action: "update", fields: "*" });
+
+  // quotation_items write access is required by CRM UI (linhas do orçamento)
+  for (const action of ["read", "create", "update", "delete"]) {
+    await upsertPermission({ subjectField, subjectId, collection: "quotation_items", action, fields: "*" });
+  }
+
+  // deals create/update is required by pipeline (e.g. criar propostas a partir do orçamento)
+  await upsertPermission({ subjectField, subjectId, collection: "deals", action: "create", fields: "*" });
+
+  // deal_items write access is required by pipeline UI
+  for (const action of ["read", "create", "update", "delete"]) {
+    await upsertPermission({ subjectField, subjectId, collection: "deal_items", action, fields: "*" });
+  }
 
   console.log("\nDone.");
 }

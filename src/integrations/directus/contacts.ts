@@ -64,6 +64,11 @@ export interface ContactItem {
   logistics_notes?: string | null;
   commercial_notes?: string | null;
 
+  // assignments
+  assigned_employee_id?: any;
+  assigned_by_employee_id?: any;
+  assigned_at?: string | null;
+
   // Allow future fields without breaking types
   [k: string]: unknown;
 }
@@ -176,6 +181,9 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "delivery_addresses",
   "logistics_notes",
   "commercial_notes",
+  "assigned_employee_id",
+  "assigned_by_employee_id",
+  "assigned_at",
   "moloni_client_id",
   "source",
   "source_call_id",

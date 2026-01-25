@@ -396,6 +396,29 @@ export default function Dashboard360() {
 
     setSaving(true);
     try {
+      // Se mudou o responsável, carimbar "atribuído por" e "atribuído em"
+      try {
+        if (Object.prototype.hasOwnProperty.call(patch, "assigned_employee_id")) {
+          const nextAssigned = patch.assigned_employee_id || null;
+          const prevAssignedRaw =
+            contact && typeof contact === "object" ? contact.assigned_employee_id : undefined;
+          const prevAssigned =
+            prevAssignedRaw && typeof prevAssignedRaw === "object"
+              ? String(prevAssignedRaw.id || "")
+              : prevAssignedRaw
+              ? String(prevAssignedRaw)
+              : "";
+          const nextAssignedStr = nextAssigned ? String(nextAssigned) : "";
+          const changed = nextAssignedStr !== prevAssigned;
+          if (changed && meEmp?.id) {
+            patch.assigned_by_employee_id = String(meEmp.id);
+            patch.assigned_at = new Date().toISOString();
+          }
+        }
+      } catch {
+        // ignore
+      }
+
       // If we don't have an ID (create mode), do dedupe first
       let targetId = contactId;
       if (!targetId) {
@@ -859,6 +882,8 @@ export default function Dashboard360() {
                           onValueChange={(v) => {
                             // guardar apenas o id (uuid) no contacto
                             handleChange("assigned_employee_id", v || null);
+                            handleChange("assigned_by_employee_id", meEmp?.id ? String(meEmp.id) : null);
+                            handleChange("assigned_at", new Date().toISOString());
                           }}
                         >
                           <SelectTrigger>
