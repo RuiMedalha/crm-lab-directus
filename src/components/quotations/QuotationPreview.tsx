@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { getEmployeeByEmail } from "@/integrations/directus/employees";
 import { useAuth } from "@/contexts/AuthContext";
 import { createFollowUp } from "@/integrations/directus/follow-ups";
+import { useCreateInteraction } from "@/hooks/useInteractions";
 
 interface QuotationPreviewProps {
   open: boolean;
@@ -59,6 +60,7 @@ interface QuotationData {
     id: string;
     product_name: string | null;
     sku: string | null;
+    image_url?: string | null;
     quantity: number | null;
     unit_price: number | null;
     line_total: number | null;
@@ -67,6 +69,7 @@ interface QuotationData {
 
 export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: QuotationPreviewProps) {
   const navigate = useNavigate();
+  const createInteraction = useCreateInteraction();
   const [quotation, setQuotation] = useState<QuotationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -140,6 +143,7 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           id: i.id,
           product_name: i.product_name ?? null,
           sku: i.sku ?? null,
+          image_url: i.image_url ?? null,
           quantity: i.quantity === null || i.quantity === undefined ? null : Number(i.quantity),
           unit_price: i.unit_price === null || i.unit_price === undefined ? null : Number(i.unit_price),
           line_total: i.line_total === null || i.line_total === undefined ? null : Number(i.line_total),
@@ -236,13 +240,37 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           type: followUpType,
           due_at: new Date(followUpAt).toISOString(),
           title: `Follow-up ${quotation.quotation_number || quotationId}`,
-          contact_id: quotation.customer?.id ? (typeof quotation.customer.id === "number" ? quotation.customer.id : Number(quotation.customer.id)) : null,
+          contact_id: quotation.customer?.id ? normalizeCustomerId(quotation.customer.id) : null,
           quotation_id: /^\d+$/.test(String(quotationId)) ? Number(quotationId) : quotationId,
           deal_id: quotation.deal_id ? String(quotation.deal_id) : null,
           assigned_employee_id: meEmpId,
           created_by_employee_id: meEmpId,
           notes: `Enviar: ${email}`,
         } as any);
+      }
+
+      // registar no histórico do cliente (interactions)
+      try {
+        if (quotation.customer?.id) {
+          await createInteraction.mutateAsync({
+            type: "email",
+            direction: "out",
+            status: "done",
+            source: "crm",
+            occurred_at: now,
+            contact_id: normalizeCustomerId(quotation.customer.id),
+            email,
+            summary: `Orçamento enviado: ${String(quotation.quotation_number || quotationId)}`,
+            payload: {
+              kind: "quotation_sent",
+              quotation_id: String(quotationId),
+              quotation_number: String(quotation.quotation_number || ""),
+              pdf_link: String(quotation.pdf_link || ""),
+            },
+          } as any);
+        }
+      } catch {
+        // best-effort
       }
 
       toast({ title: "Marcado como enviado", description: "O n8n vai gerar o PDF e enviar o email." });
@@ -610,10 +638,25 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
                 {quotation.items.map((item, index) => (
                   <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
                     <td className="py-3 text-sm">
-                      <p className="font-medium">{item.product_name}</p>
-                      {item.sku && (
-                        <p className="text-xs text-gray-500">SKU: {item.sku}</p>
-                      )}
+                      <div className="flex items-start gap-3">
+                        {item.image_url ? (
+                          <img
+                            src={String(item.image_url)}
+                            alt={String(item.product_name || item.sku || "Produto")}
+                            className="h-12 w-12 object-contain bg-gray-100 border rounded"
+                            loading="lazy"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "/placeholder.svg";
+                            }}
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <p className="font-medium">{item.product_name}</p>
+                          {item.sku && (
+                            <p className="text-xs text-gray-500">SKU: {item.sku}</p>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="py-3 text-sm text-center">{item.quantity}</td>
                     <td className="py-3 text-sm text-right">

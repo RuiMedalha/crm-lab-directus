@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useCreateInteraction, useInteractions } from "@/hooks/useInteractions";
 import { useFollowUps, usePatchFollowUp } from "@/hooks/useFollowUps";
-import { CalendarClock, Check, MessageSquareText, Phone, Mail, MessageCircle } from "lucide-react";
+import { CalendarClock, Check, MessageSquareText, Phone, Mail, MessageCircle, FileText } from "lucide-react";
 import { userColorStyle } from "@/lib/userColor";
 
 function fmt(d?: string | null) {
@@ -25,6 +25,7 @@ function iconForType(t: string) {
   if (t === "call") return <Phone className="h-4 w-4" />;
   if (t === "email") return <Mail className="h-4 w-4" />;
   if (t === "whatsapp") return <MessageCircle className="h-4 w-4" />;
+  if (t === "quotation") return <FileText className="h-4 w-4" />;
   return <MessageSquareText className="h-4 w-4" />;
 }
 

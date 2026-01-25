@@ -19,13 +19,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Calculator, FileText, Eye, Search, TextCursorInput } from 'lucide-react';
+import { Plus, Trash2, Calculator, FileText, Eye, Search, TextCursorInput, Package } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { QuotationPreview } from './QuotationPreview';
 import { createQuotation, createQuotationItems, getQuotationById, patchQuotation, replaceQuotationItems } from '@/integrations/directus/quotations';
 import { useMeilisearch, type MeilisearchProduct } from "@/hooks/useMeilisearch";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
+import { useCreateInteraction } from "@/hooks/useInteractions";
 
 interface QuotationItem {
   id: string;
@@ -68,6 +69,7 @@ export function QuotationCreator({
   onComplete
 }: QuotationCreatorProps) {
   const isMobile = useIsMobile();
+  const createInteraction = useCreateInteraction();
   const [items, setItems] = useState<QuotationItem[]>([]);
   // Visível ao cliente (vai para PDF)
   const [notes, setNotes] = useState('');
@@ -86,6 +88,11 @@ export function QuotationCreator({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTargetId, setPickerTargetId] = useState<string | null>(null);
+
+  const normalizeContactIdForDirectus = (cid: any) => {
+    const s = String(cid ?? "").trim();
+    return /^\d+$/.test(s) ? Number(s) : s;
+  };
 
   // Inicializar com itens passados ou linha vazia
   useEffect(() => {
@@ -357,6 +364,28 @@ export function QuotationCreator({
       setQuotationId(quotation.id);
       toast({ title: `Orçamento ${quotation.quotation_number || ''} guardado com sucesso!` });
       setShowPreview(true);
+
+      // Registar automaticamente no histórico do cliente (separador "Histórico")
+      try {
+        await createInteraction.mutateAsync({
+          type: "quotation",
+          direction: "out",
+          status: "done",
+          source: "crm",
+          occurred_at: new Date().toISOString(),
+          contact_id: normalizeContactIdForDirectus(contactId),
+          summary: isEditMode
+            ? `Orçamento atualizado: ${String(quotation.quotation_number || quotation.id)}`
+            : `Orçamento criado: ${String(quotation.quotation_number || quotation.id)}`,
+          payload: {
+            kind: isEditMode ? "quotation_updated" : "quotation_created",
+            quotation_id: String(quotation.id),
+            quotation_number: String(quotation.quotation_number || ""),
+          },
+        } as any);
+      } catch {
+        // best-effort: não bloquear o fluxo do orçamento
+      }
     } catch (error) {
       console.error('Erro ao criar orçamento:', error);
       const msg = String((error as any)?.message || error || "");
@@ -479,6 +508,17 @@ export function QuotationCreator({
 
                           {item.line_type === "product" ? (
                             <div className="space-y-2">
+                              {item.image_url ? (
+                                <img
+                                  src={String(item.image_url)}
+                                  alt={item.product_name || item.sku || "Produto"}
+                                  className="w-full h-28 object-contain bg-muted rounded-md border"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                                  }}
+                                />
+                              ) : null}
                               <div className="flex items-end justify-between gap-2">
                                 <div className="flex-1 space-y-1">
                                   <Label className="text-xs">Produto (nome)</Label>
@@ -628,6 +668,21 @@ export function QuotationCreator({
                           <TableCell className="align-top">
                             {item.line_type === "product" ? (
                               <div className="flex items-center gap-2">
+                                <div className="h-10 w-10 rounded border bg-muted overflow-hidden flex items-center justify-center shrink-0">
+                                  {item.image_url ? (
+                                    <img
+                                      src={String(item.image_url)}
+                                      alt={item.product_name || item.sku || "Produto"}
+                                      className="h-10 w-10 object-contain"
+                                      loading="lazy"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = "/placeholder.svg";
+                                      }}
+                                    />
+                                  ) : (
+                                    <Package className="h-5 w-5 text-muted-foreground" />
+                                  )}
+                                </div>
                                 <Input
                                   value={item.product_name}
                                   onChange={(e) => updateItem(item.id, 'product_name', e.target.value)}

@@ -127,7 +127,8 @@ export function ProductSearchDialog({
                       <img
                         src={img}
                         alt={getProductName(p)}
-                        className="h-32 w-full object-cover bg-muted"
+                        className="h-32 w-full object-contain bg-muted"
+                        loading="lazy"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = "/placeholder.svg";
                         }}

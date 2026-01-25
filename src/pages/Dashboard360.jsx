@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   createContact,
   findDuplicateContact,
@@ -48,6 +50,10 @@ import { listActiveQuotationsByCustomerIds } from "@/integrations/directus/quota
 import { TagSelector } from "@/components/contacts/TagSelector";
 import { CustomerTimeline } from "@/components/contacts/CustomerTimeline";
 import { useCompanySettings } from "@/hooks/useSettings";
+import { useAuth } from "@/contexts/AuthContext";
+import { getEmployeeByEmail } from "@/integrations/directus/employees";
+import { useCreateFollowUp } from "@/hooks/useFollowUps";
+import { useCreateInteraction } from "@/hooks/useInteractions";
 
 function NewsletterBannerDirectus({
   contactId,
@@ -201,6 +207,7 @@ export default function Dashboard360() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(!!id);
   const [contact, setContact] = useState(null);
@@ -210,12 +217,62 @@ export default function Dashboard360() {
   const [savingLead, setSavingLead] = useState(false);
   const [skuInput, setSkuInput] = useState("");
   const [openQuotationCreator, setOpenQuotationCreator] = useState(false);
+  const [openFollowUp, setOpenFollowUp] = useState(false);
+  const [followUpForm, setFollowUpForm] = useState({ type: "call", title: "", due_at: "", notes: "" });
   const [productPickerOpen, setProductPickerOpen] = useState(false);
 
   const { data: companySettings } = useCompanySettings();
 
   const contactId = useMemo(() => (contact?.id ? String(contact.id) : id ? String(id) : null), [contact, id]);
   const resolvedExistingRef = useRef(false);
+
+  const employeeQuery = useQuery({
+    queryKey: ["me", "employee", user?.email],
+    queryFn: async () => (user?.email ? await getEmployeeByEmail(String(user.email)) : null),
+    enabled: !!user?.email,
+  });
+  const meEmp = employeeQuery.data;
+
+  const createFollowUp = useCreateFollowUp();
+  const createInteraction = useCreateInteraction();
+
+  const normalizeContactIdForDirectus = (cid) => {
+    const s = String(cid ?? "").trim();
+    return /^\d+$/.test(s) ? Number(s) : s;
+  };
+
+  const saveFollowUp = async () => {
+    if (!contactId) {
+      toast({ title: "Guarda o contacto primeiro", variant: "destructive" });
+      return;
+    }
+    if (!meEmp?.id) {
+      toast({ title: "Sem funcionário", description: "O teu utilizador tem de existir em `employees` (por email).", variant: "destructive" });
+      return;
+    }
+    if (!followUpForm.due_at) {
+      toast({ title: "Data/hora em falta", variant: "destructive" });
+      return;
+    }
+    try {
+      await createFollowUp.mutateAsync({
+        status: "open",
+        type: followUpForm.type,
+        title: followUpForm.title || null,
+        due_at: new Date(followUpForm.due_at).toISOString(),
+        notes: followUpForm.notes || null,
+        contact_id: normalizeContactIdForDirectus(contactId),
+        assigned_employee_id: meEmp.id,
+        created_by_employee_id: meEmp.id,
+      });
+      toast({ title: "Follow-up criado" });
+      setOpenFollowUp(false);
+      setFollowUpForm({ type: "call", title: "", due_at: "", notes: "" });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro ao criar follow-up", description: String(e?.message || e), variant: "destructive" });
+    }
+  };
 
   const activity = useQuery({
     queryKey: ["card360", "activity", contactId],
@@ -365,6 +422,39 @@ export default function Dashboard360() {
       setFormData({});
       setHasChanges(false);
       toast({ title: targetId ? "Contacto atualizado com sucesso" : "Contacto criado com sucesso" });
+
+      // Registar alterações relevantes no histórico (ex: notas/tags/sku)
+      try {
+        const savedId = saved?.id ? String(saved.id) : null;
+        const tracked = ["notes", "internal_notes", "commercial_notes", "logistics_notes", "quick_notes", "tags", "sku_history"];
+        const changed = tracked.filter((k) => Object.prototype.hasOwnProperty.call(patch, k));
+        if (savedId && changed.length) {
+          await createInteraction.mutateAsync({
+            type: "note",
+            direction: "out",
+            status: "done",
+            source: "crm",
+            occurred_at: new Date().toISOString(),
+            contact_id: normalizeContactIdForDirectus(savedId),
+            summary: `Ficha atualizada (${changed.join(", ")})`,
+            payload: { kind: "contact_updated", changed_fields: changed },
+          });
+        } else if (!targetId && savedId) {
+          // criação do contacto
+          await createInteraction.mutateAsync({
+            type: "note",
+            direction: "out",
+            status: "done",
+            source: "crm",
+            occurred_at: new Date().toISOString(),
+            contact_id: normalizeContactIdForDirectus(savedId),
+            summary: "Contacto criado",
+            payload: { kind: "contact_created" },
+          });
+        }
+      } catch {
+        // best-effort
+      }
     } catch (e) {
       console.error(e);
       toast({ title: "Erro ao guardar contacto", variant: "destructive" });
@@ -557,6 +647,36 @@ export default function Dashboard360() {
               <FileText className="h-4 w-4 mr-2" />
               Novo Orçamento
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!contactId}
+              onClick={() => {
+                if (!contactId) {
+                  toast({ title: "Guarda o contacto primeiro", description: "Para criares um follow-up, o contacto precisa de ID.", variant: "destructive" });
+                  return;
+                }
+                // defaults: amanhã, título com nome
+                setFollowUpForm((p) => {
+                  const next = { ...p };
+                  if (!next.due_at) {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 1);
+                    next.due_at = d.toISOString().slice(0, 16);
+                  }
+                  if (!next.title) {
+                    const name = String(contact?.company_name || getValue("company_name") || contact?.contact_name || "Cliente");
+                    next.title = `Follow-up - ${name}`;
+                  }
+                  return next;
+                });
+                setOpenFollowUp(true);
+              }}
+              title={!contactId ? "Guarda o contacto primeiro" : "Criar um follow-up para este cliente"}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo follow-up
+            </Button>
             <Button size="sm" variant="outline" onClick={handleSaveLead} disabled={!hasChanges || savingLead}>
               {savingLead ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               Guardar Lead
@@ -578,6 +698,65 @@ export default function Dashboard360() {
             onComplete={() => setOpenQuotationCreator(false)}
           />
         ) : null}
+
+        <Dialog open={openFollowUp} onOpenChange={setOpenFollowUp}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Novo follow-up</DialogTitle>
+              <DialogDescription className="sr-only">
+                Criar um follow-up para este cliente.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <Select value={followUpForm.type} onValueChange={(v) => setFollowUpForm((p) => ({ ...p, type: v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="call">Chamada</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      <SelectItem value="task">Tarefa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data/Hora</Label>
+                  <Input
+                    type="datetime-local"
+                    value={followUpForm.due_at}
+                    onChange={(e) => setFollowUpForm((p) => ({ ...p, due_at: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Título</Label>
+                <Input value={followUpForm.title} onChange={(e) => setFollowUpForm((p) => ({ ...p, title: e.target.value }))} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notas</Label>
+                <Textarea
+                  value={followUpForm.notes}
+                  onChange={(e) => setFollowUpForm((p) => ({ ...p, notes: e.target.value }))}
+                  rows={5}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setOpenFollowUp(false)}>Cancelar</Button>
+                <Button onClick={saveFollowUp} disabled={createFollowUp.isPending}>
+                  {createFollowUp.isPending ? "A guardar…" : "Guardar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Main Card */}
         <Card>
