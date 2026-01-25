@@ -16,8 +16,8 @@ Este CRM já tem 2 “gatilhos” principais para automação:
 No container/stack do Directus:
 
 - **`PUBLIC_URL`**: URL pública do Directus (ex: `https://api.hotelequip.pt`)
-- **`N8N_WEBHOOK_QUOTATION_SENT`**: URL do webhook do n8n (status `sent`)
-- **`N8N_WEBHOOK_QUOTATION_APPROVED`**: URL do webhook do n8n (status `approved`)
+- **`N8N_WEBHOOK_QUOTATION_SENT`**: URL do webhook do n8n (status `sent`) — ex: `https://n8n.../webhook/crm/quotation-sent`
+- **`N8N_WEBHOOK_QUOTATION_APPROVED`**: URL do webhook do n8n (status `approved`) — ex: `https://n8n.../webhook/crm/quotation-approved`
 - **`N8N_WEBHOOK_SHARED_SECRET`** (opcional): segredo para assinar o payload em `X-Signature`
 
 Opcional:
@@ -78,6 +78,25 @@ Assinatura:
      - `contact_id=<customer.id>` (atenção: no teu schema `contacts.id` é UUID)
      - `summary="Orçamento enviado"`
      - `payload={ quotation_id, pdf_link, to }`
+
+---
+
+## 3.1) Workflows prontos a importar (JSON)
+
+Este repositório já inclui exports do n8n (para importares no UI do n8n):
+
+- `n8n/workflows/quotation-sent.json`
+- `n8n/workflows/quotation-approved.json`
+
+### Variáveis no n8n (Environment Variables)
+
+No n8n (Settings → Environment Variables), define:
+
+- `DIRECTUS_URL` (ex: `https://api.hotelequip.pt`)
+- `DIRECTUS_TOKEN` (token de service/admin com permissões para: `files`, `quotations`, `interactions`)
+- `SMTP_FROM` (ex: `crm@hotelequip.pt`)
+
+E configura as credenciais do node **Email Send** (SMTP) no n8n.
 
 ---
 

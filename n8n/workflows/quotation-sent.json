@@ -1,0 +1,240 @@
+{
+  "name": "CRM - Quotation SENT (PDF + Email + Chatwoot + Directus log)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/quotation-sent",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "Webhook",
+      "name": "Webhook (quotation sent)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        320,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "DIRECTUS_URL", "value": "={{ $env.DIRECTUS_URL || $json.public_url || '' }}" },
+            { "name": "DIRECTUS_TOKEN", "value": "={{ $env.DIRECTUS_TOKEN }}" },
+            { "name": "CHATWOOT_URL", "value": "={{ $env.CHATWOOT_URL }}" },
+            { "name": "CHATWOOT_TOKEN", "value": "={{ $env.CHATWOOT_TOKEN }}" },
+            { "name": "CHATWOOT_ACCOUNT_ID", "value": "={{ $env.CHATWOOT_ACCOUNT_ID }}" },
+            { "name": "CHATWOOT_INBOX_ID", "value": "={{ $env.CHATWOOT_INBOX_ID }}" }
+          ]
+        }
+      },
+      "id": "SetEnv",
+      "name": "Set (env)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        540,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.pdf_url }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" }
+          ]
+        },
+        "responseFormat": "file",
+        "binaryPropertyName": "pdf"
+      },
+      "id": "GenPdf",
+      "name": "HTTP - Gerar PDF (Directus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        760,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/files' }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "title", "value": "={{ 'Orçamento ' + ($json.quotation.quotation_number || $json.quotation.id) }}" }
+          ]
+        },
+        "sendBinaryData": true,
+        "binaryPropertyName": "pdf",
+        "options": {}
+      },
+      "id": "UploadPdf",
+      "name": "HTTP - Upload PDF (Directus files)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        980,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "quotationId", "value": "={{ $json.quotation.id }}" },
+            { "name": "customerId", "value": "={{ $json.customer && $json.customer.id ? $json.customer.id : '' }}" },
+            { "name": "fileId", "value": "={{ $json.data && $json.data.id ? $json.data.id : ($json.id || '') }}" },
+            { "name": "pdfLink", "value": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/assets/' + ($json.data && $json.data.id ? $json.data.id : $json.id) + '?download=1' }}" },
+            { "name": "toEmail", "value": "={{ ($json.quotation.sent_to_email || ($json.customer && $json.customer.email) || '') }}" },
+            { "name": "companyName", "value": "={{ ($json.customer && $json.customer.company_name) || '' }}" }
+          ]
+        }
+      },
+      "id": "SetIds",
+      "name": "Set (ids + link)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/quotations/' + encodeURIComponent($node['Set (ids + link)'].json.quotationId) }}",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ { pdf_file: $node['Set (ids + link)'].json.fileId, pdf_link: $node['Set (ids + link)'].json.pdfLink } }}"
+      },
+      "id": "PatchQuotation",
+      "name": "HTTP - Patch quotation (pdf_link/pdf_file)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1420,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'crm@hotelequip.pt' }}",
+        "toEmail": "={{ $node['Set (ids + link)'].json.toEmail }}",
+        "subject": "={{ 'Orçamento ' + ($json.quotation.quotation_number || $json.quotation.id) }}",
+        "text": "={{ 'Olá ' + ($node['Set (ids + link)'].json.companyName || '') + '\\n\\nSegue o link do orçamento em PDF: ' + $node['Set (ids + link)'].json.pdfLink + '\\n\\nObrigado.' }}"
+      },
+      "id": "SendEmail",
+      "name": "Email - Enviar (configurar credenciais SMTP no n8n)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/interactions' }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ { type: 'email', direction: 'out', status: 'done', source: 'n8n', occurred_at: new Date().toISOString(), contact_id: $node['Set (ids + link)'].json.customerId || null, email: $node['Set (ids + link)'].json.toEmail || null, summary: 'Orçamento enviado (n8n)', payload: { quotation_id: $node['Set (ids + link)'].json.quotationId, pdf_link: $node['Set (ids + link)'].json.pdfLink } } }}"
+      },
+      "id": "LogInteraction",
+      "name": "HTTP - Log interaction (Directus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1860,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (quotation sent)": {
+      "main": [
+        [
+          { "node": "Set (env)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Set (env)": {
+      "main": [
+        [
+          { "node": "HTTP - Gerar PDF (Directus)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Gerar PDF (Directus)": {
+      "main": [
+        [
+          { "node": "HTTP - Upload PDF (Directus files)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Upload PDF (Directus files)": {
+      "main": [
+        [
+          { "node": "Set (ids + link)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Set (ids + link)": {
+      "main": [
+        [
+          { "node": "HTTP - Patch quotation (pdf_link/pdf_file)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Patch quotation (pdf_link/pdf_file)": {
+      "main": [
+        [
+          { "node": "Email - Enviar (configurar credenciais SMTP no n8n)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Email - Enviar (configurar credenciais SMTP no n8n)": {
+      "main": [
+        [
+          { "node": "HTTP - Log interaction (Directus)", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 600
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsNotice": "Configura no n8n: DIRECTUS_URL, DIRECTUS_TOKEN, SMTP, e (opcional) variáveis CHATWOOT_*."
+  }
+}

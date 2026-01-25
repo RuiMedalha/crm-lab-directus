@@ -27,6 +27,7 @@ import { useMeilisearch, type MeilisearchProduct } from "@/hooks/useMeilisearch"
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductSearchDialog } from "@/components/products/ProductSearchDialog";
 import { useCreateInteraction } from "@/hooks/useInteractions";
+import { useCompanySettings } from "@/hooks/useSettings";
 
 interface QuotationItem {
   id: string;
@@ -70,6 +71,8 @@ export function QuotationCreator({
 }: QuotationCreatorProps) {
   const isMobile = useIsMobile();
   const createInteraction = useCreateInteraction();
+  const { data: companySettings } = useCompanySettings();
+  const wooUrl = String((companySettings as any)?.woo_url || "").replace(/\/+$/, "");
   const [items, setItems] = useState<QuotationItem[]>([]);
   // Visível ao cliente (vai para PDF)
   const [notes, setNotes] = useState('');
@@ -92,6 +95,29 @@ export function QuotationCreator({
   const normalizeContactIdForDirectus = (cid: any) => {
     const s = String(cid ?? "").trim();
     return /^\d+$/.test(s) ? Number(s) : s;
+  };
+
+  const normalizeImageUrl = (url: any) => {
+    const s = String(url ?? "").trim();
+    if (!s) return null;
+    if (s.startsWith("//")) return `https:${s}`;
+    if (s.startsWith("/") && wooUrl) return `${wooUrl}${s}`;
+    return s;
+  };
+
+  const getProductImage = (product: MeilisearchProduct) => {
+    const p = product as unknown as Record<string, any>;
+    return (
+      p.featured_media_url ||
+      p.image_url ||
+      p.media_url ||
+      p.thumbnail ||
+      p.thumb ||
+      (Array.isArray(p.images) ? p.images?.[0]?.src || p.images?.[0]?.url : null) ||
+      (p.image ? p.image.src || p.image.url : null) ||
+      (p.featured_media ? p.featured_media.src || p.featured_media.url : null) ||
+      null
+    );
   };
 
   // Inicializar com itens passados ou linha vazia
@@ -270,11 +296,7 @@ export function QuotationCreator({
         const sku = product.sku || "";
         const unit_price = round2(product.price || 0);
         const cost_price = round2(product.cost || 0);
-        const image_url =
-          (product as any).featured_media_url ||
-          (product as any).image_url ||
-          (product as any).media_url ||
-          null;
+        const image_url = normalizeImageUrl(getProductImage(product));
         const margin_percent =
           cost_price > 0 ? Math.max(0, ((unit_price / cost_price) - 1) * 100) : item.margin_percent;
 

@@ -124,7 +124,7 @@ export default (router, { services, exceptions, env, getSchema }) => {
 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
 th { background-color: #e2001a; color: white; padding: 12px; text-align: left; text-transform: uppercase; font-size: 11px; }
 td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; vertical-align: top; }
-.product-img { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
+.product-img { width: 50px; height: 50px; object-fit: contain; border-radius: 4px; background: #f2f3f4; border: 1px solid #e6e8ea; }
 .desc-title { font-weight: 700; margin-bottom: 4px; }
 .desc-sub { color: #566573; font-size: 11px; white-space: pre-wrap; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
@@ -189,7 +189,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; vertical-ali
         </thead>
         <tbody>
           ${(items || []).map((it) => {
-            const img = it.image_url ? `<img class="product-img" src="${it.image_url}" />` : ``;
+            const img = it.image_url ? `<img class="product-img" src="${it.image_url}" loading="lazy" referrerpolicy="no-referrer" />` : ``;
             const title = it.product_name || "—";
             const parts = [];
             if (it.sku) parts.push(`SKU: ${it.sku}`);
