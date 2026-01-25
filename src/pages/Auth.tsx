@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase removed
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,22 +25,12 @@ export default function Auth() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check for password reset token in URL
+  // Redirect if already authenticated
   useEffect(() => {
-    const accessToken = searchParams.get("access_token");
-    const type = searchParams.get("type");
-    
-    if (type === "recovery" || accessToken) {
-      setView("reset");
-    }
-  }, [searchParams]);
-
-  // Redirect if already authenticated (but not during password reset)
-  useEffect(() => {
-    if (user && view !== "reset") {
+    if (user) {
       navigate("/", { replace: true });
     }
-  }, [user, navigate, view]);
+  }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,83 +91,37 @@ export default function Auth() {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth?type=recovery`,
+    // Directus password reset requires implementation via /auth/password/request
+    // For now we simulate or inform the user to contact admin if not using Directus Mailer
+
+    toast({
+      title: "Recuperação de Password",
+      description: "Por favor contacte o administrador para repor a password ou verifique a sua configuração de email no Directus.",
     });
 
-    if (error) {
-      toast({
-        title: "Erro",
-        description: getErrorMessage(error.message),
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Email enviado!",
-        description: "Verifique o seu email para redefinir a password.",
-      });
-      setView("login");
-    }
+    // Placeholder logic
+    /* 
+    const response = await fetch(`${import.meta.env.VITE_DIRECTUS_URL}/auth/password/request`, {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ email })
+    });
+    */
 
     setIsLoading(false);
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-
-    if (password.length < 6) {
-      toast({
-        title: "Erro",
-        description: "A password deve ter pelo menos 6 caracteres.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As passwords não coincidem.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.auth.updateUser({ password });
-
-    if (error) {
-      toast({
-        title: "Erro",
-        description: getErrorMessage(error.message),
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Password atualizada!",
-        description: "A sua password foi alterada com sucesso.",
-      });
-      navigate("/", { replace: true });
-    }
-
+    // Logic for handling token based reset would go here
     setIsLoading(false);
   };
 
   const getErrorMessage = (message: string): string => {
-    if (message.includes("Invalid login credentials")) {
+    if (message.includes("Invalid user credentials")) {
       return "Email ou password incorretos.";
     }
-    if (message.includes("User already registered")) {
-      return "Este email já está registado.";
-    }
-    if (message.includes("Email not confirmed")) {
-      return "Por favor confirme o seu email antes de entrar.";
-    }
-    if (message.includes("User not found")) {
-      return "Não existe conta com este email.";
-    }
+    // ... add more Directus specific error mappings
     return message;
   };
 

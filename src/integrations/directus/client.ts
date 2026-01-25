@@ -1,10 +1,10 @@
 type DirectusErrorPayload =
   | {
-      errors?: Array<{
-        message?: string;
-        extensions?: { code?: string };
-      }>;
-    }
+    errors?: Array<{
+      message?: string;
+      extensions?: { code?: string };
+    }>;
+  }
   | { error?: string; message?: string };
 
 const DEFAULT_DIRECTUS_URL = "http://localhost:8055";
@@ -40,7 +40,16 @@ export async function directusRequest<T>(
     headers: (() => {
       const h = new Headers(rest.headers);
       h.set("Content-Type", h.get("Content-Type") || "application/json");
-      if (!skipAuth) h.set("Authorization", `Bearer ${DIRECTUS_TOKEN}`);
+
+      if (!skipAuth) {
+        // Priority: Passed token (not impl here but consistent with rest) -> LocalStorage -> Env
+        const localToken = localStorage.getItem("directus_token");
+        const token = localToken || DIRECTUS_TOKEN;
+
+        if (token) {
+          h.set("Authorization", `Bearer ${token}`);
+        }
+      }
       return h;
     })(),
   });

@@ -23,9 +23,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase removed
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { User } from "@supabase/supabase-js";
 import { useCompanySettings } from "@/hooks/useSettings";
 
 const navItems = [
@@ -44,18 +44,14 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
   const { data: settings } = useCompanySettings();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-    });
-  }, []);
+  // User effect removed as it comes from context
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast({
       title: "Sessão terminada",
       description: "Até breve!",

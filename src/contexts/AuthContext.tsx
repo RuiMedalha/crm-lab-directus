@@ -1,10 +1,15 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+
+export interface User {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string; // Derived or field
+}
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
@@ -13,61 +18,84 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to fetch current user
+async function fetchMe(): Promise<User | null> {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_DIRECTUS_URL}/users/me`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("directus_token")}`
+      }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    const initAuth = async () => {
+      const token = localStorage.getItem("directus_token");
+      if (token) {
+        const userData = await fetchMe();
+        if (userData) {
+          setUser(userData);
+        } else {
+          // Token invalid
+          localStorage.removeItem("directus_token");
+        }
       }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
       setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    };
+    initAuth();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error as Error | null };
+    try {
+      const res = await fetch(`${import.meta.env.VITE_DIRECTUS_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.errors?.[0]?.message || "Login failed");
+      }
+
+      const token = data.data.access_token;
+      localStorage.setItem("directus_token", token);
+
+      // Fetch user details
+      const userData = await fetchMe();
+      setUser(userData);
+
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-    return { error: error as Error | null };
+    // Directus usually doesn't have public registration open by default like Supabase
+    // We will implement a basic creation if allowed or return error
+    return { error: new Error("Registo público desativado. Contacte o administrador.") };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem("directus_token");
+    setUser(null);
+    // Optional: Call /auth/logout if using refresh tokens
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
