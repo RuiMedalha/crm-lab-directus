@@ -599,12 +599,10 @@ export function QuotationCreator({
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[48px]">Tipo</TableHead>
-                        <TableHead className="w-[240px]">Produto / Linha</TableHead>
-                        <TableHead className="w-[180px]">SKU</TableHead>
+                        <TableHead className="w-[420px]">Produto / Linha</TableHead>
+                        <TableHead className="w-[220px]">SKU</TableHead>
                         <TableHead className="w-[80px] text-center">Qtd</TableHead>
                         <TableHead className="w-[80px] text-right">Desc %</TableHead>
-                        <TableHead className="w-[100px] text-right">P. Custo</TableHead>
-                        <TableHead className="w-[80px] text-right">Margem %</TableHead>
                         <TableHead className="w-[110px] text-right">P. Venda</TableHead>
                         <TableHead className="w-[70px] text-center">IVA %</TableHead>
                         <TableHead className="w-[110px] text-right">IVA €</TableHead>
@@ -703,29 +701,6 @@ export function QuotationCreator({
                               value={String(item.discount_percent)}
                               onChange={(e) => updateItem(item.id, 'discount_percent', Number.parseFloat(e.target.value) || 0)}
                               className="h-8 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={item.cost_price === 0 ? "" : String(item.cost_price)}
-                              onChange={(e) => updateItem(item.id, 'cost_price', Number.parseFloat(e.target.value) || 0)}
-                              placeholder="0.00"
-                              className="h-8 text-right"
-                              disabled={item.line_type === "free"}
-                            />
-                          </TableCell>
-                          <TableCell className="align-top">
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              value={String(item.margin_percent)}
-                              onChange={(e) => updateItem(item.id, 'margin_percent', Number.parseFloat(e.target.value) || 0)}
-                              className="h-8 text-right"
-                              disabled={item.line_type === "free"}
                             />
                           </TableCell>
                           <TableCell className="align-top">

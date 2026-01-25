@@ -140,9 +140,9 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           id: i.id,
           product_name: i.product_name ?? null,
           sku: i.sku ?? null,
-          quantity: i.quantity ?? null,
-          unit_price: i.unit_price ?? null,
-          line_total: i.line_total ?? null,
+          quantity: i.quantity === null || i.quantity === undefined ? null : Number(i.quantity),
+          unit_price: i.unit_price === null || i.unit_price === undefined ? null : Number(i.unit_price),
+          line_total: i.line_total === null || i.line_total === undefined ? null : Number(i.line_total),
         })),
       });
 

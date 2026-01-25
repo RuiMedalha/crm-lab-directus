@@ -20,7 +20,7 @@ function envStr(env, key, fallback = "") {
 
 function fmtMoney(value) {
   const n = Number(value || 0);
-  return n.toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+  return n.toLocaleString("pt-PT", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function safeDate(iso) {

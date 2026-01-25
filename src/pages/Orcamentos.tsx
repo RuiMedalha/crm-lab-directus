@@ -124,7 +124,7 @@ export default function Orcamentos() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Euro className="h-3 w-3" />
-                          {(Number(q.total_amount || 0) || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+                          {Number(q.total_amount || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span className="truncate">
                           {(q.customer_id && q.customer_id.company_name) ? String(q.customer_id.company_name) : "Sem cliente"}

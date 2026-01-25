@@ -111,7 +111,7 @@ export default function Pipeline() {
   };
 
   const getColumnTotal = (status: string) => {
-    return getDealsByStatus(status).reduce((sum, deal) => sum + (deal.total_amount || 0), 0);
+    return getDealsByStatus(status).reduce((sum, deal) => sum + Number((deal as any).total_amount || 0), 0);
   };
 
   const toggleColumn = (status: string) => {
@@ -160,6 +160,7 @@ export default function Pipeline() {
   // Totais gerais
   const totalDeals = filteredDeals.length;
   const totalValue = filteredDeals.reduce((sum, d) => sum + (d.total_amount || 0), 0);
+  const totalValueNum = filteredDeals.reduce((sum, d) => sum + Number((d as any).total_amount || 0), 0);
 
   return (
     <AppLayout>
@@ -168,7 +169,7 @@ export default function Pipeline() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
             <p className="text-muted-foreground">
-              {totalDeals} negócios • {totalValue.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+              {totalDeals} negócios • {totalValueNum.toLocaleString("pt-PT", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <div className="flex gap-2">
