@@ -13,6 +13,7 @@ import {
   Shield,
   LogOut,
   Building2,
+  FileText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: Inbox, label: "Entrada de Leads", path: "/inbox" },
+  { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
   { icon: Users, label: "Contactos", path: "/contactos" },
   { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
   { icon: Shield, label: "Utilizadores", path: "/utilizadores" },
@@ -79,8 +81,8 @@ export function AppSidebar() {
         {!collapsed ? (
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             {logoUrl ? (
-              <img 
-                src={logoUrl} 
+              <img
+                src={logoUrl}
                 alt={companyName}
                 className="h-8 w-auto max-w-[180px] object-contain"
                 onError={(e) => {
@@ -101,8 +103,8 @@ export function AppSidebar() {
         ) : (
           <Link to="/" className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center hover:opacity-80 transition-opacity overflow-hidden">
             {logoUrl ? (
-              <img 
-                src={logoUrl} 
+              <img
+                src={logoUrl}
                 alt={companyName}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -163,7 +165,7 @@ export function AppSidebar() {
             {user.email}
           </div>
         )}
-        
+
         {/* Logout */}
         {collapsed ? (
           <Tooltip delayDuration={0}>

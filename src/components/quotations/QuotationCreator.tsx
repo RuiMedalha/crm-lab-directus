@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Plus, Trash2, Calculator, FileText, Eye } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { directusRequest } from '@/integrations/directus/client';
 import { QuotationPreview } from './QuotationPreview';
 
 interface QuotationItem {
@@ -48,10 +48,10 @@ interface QuotationCreatorProps {
 
 const IVA_RATE = 23;
 
-export function QuotationCreator({ 
-  open, 
-  onOpenChange, 
-  contactId, 
+export function QuotationCreator({
+  open,
+  onOpenChange,
+  contactId,
   contactName,
   dealId,
   initialItems,
@@ -130,11 +130,15 @@ export function QuotationCreator({
   };
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-    const ivaTotal = items.reduce((sum, item) => {
-      const lineSubtotal = item.quantity * item.unit_price;
-      return sum + (lineSubtotal * (item.iva_percent / 100));
-    }, 0);
+    let subtotal = 0;
+    let ivaTotal = 0;
+
+    items.forEach(item => {
+      const itemSubtotal = item.quantity * item.unit_price;
+      subtotal += itemSubtotal;
+      ivaTotal += itemSubtotal * (item.iva_percent / 100);
+    });
+
     const total = subtotal + ivaTotal;
 
     return { subtotal, ivaTotal, total };
@@ -142,7 +146,7 @@ export function QuotationCreator({
 
   const handleSave = async () => {
     const validItems = items.filter(item => item.product_name.trim());
-    
+
     if (validItems.length === 0) {
       toast({ title: 'Adicione pelo menos um produto', variant: 'destructive' });
       return;
@@ -152,49 +156,47 @@ export function QuotationCreator({
     try {
       const { subtotal, total } = calculateTotals();
 
-      // Criar orçamento - quotation_number é gerado pelo trigger
-      const { data: quotation, error: quotationError } = await supabase
-        .from('quotations')
-        .insert([{
-          customer_id: contactId,
-          deal_id: dealId || null,
-          status: 'draft',
-          subtotal,
-          total_amount: total,
-          notes,
-          valid_until: validUntil || null,
-          quotation_number: '', // Será preenchido pelo trigger
-        }])
-        .select()
-        .single();
+      // Preparar payload para Directus
+      const payload = {
+        customer_id: contactId,
+        deal_id: dealId || null,
+        status: 'draft',
+        subtotal,
+        total_amount: total,
+        notes,
+        valid_until: validUntil || null,
+        items: validItems.map((item, index) => ({
+          product_name: item.product_name,
+          sku: item.sku || null,
+          quantity: item.quantity,
+          cost_price: item.cost_price,
+          unit_price: item.unit_price,
+          discount_percent: 0,
+          line_total: item.line_total,
+          sort_order: index,
+        }))
+      };
 
-      if (quotationError) throw quotationError;
+      const response = await directusRequest<{ data: { id: string; quotation_number: string } }>(
+        '/items/quotations?fields=id,quotation_number',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }
+      );
 
-      // Criar itens do orçamento
-      const quotationItems = validItems.map((item, index) => ({
-        quotation_id: quotation.id,
-        product_name: item.product_name,
-        sku: item.sku || null,
-        quantity: item.quantity,
-        cost_price: item.cost_price,
-        unit_price: item.unit_price,
-        discount_percent: 0,
-        line_total: item.line_total,
-        sort_order: index,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('quotation_items')
-        .insert(quotationItems);
-
-      if (itemsError) throw itemsError;
+      const quotation = response.data;
 
       setQuotationId(quotation.id);
-      toast({ title: `Orçamento ${quotation.quotation_number} criado com sucesso!` });
+      toast({ title: `Orçamento ${quotation.quotation_number || 'criado'} com sucesso!` });
       setShowPreview(true);
     } catch (error) {
       console.error('Erro ao criar orçamento:', error);
-      toast({ title: 'Erro ao criar orçamento', variant: 'destructive' });
+      toast({
+        title: 'Erro ao criar orçamento',
+        description: error instanceof Error ? error.message : 'Verifique a conexão e tente novamente.',
+        variant: 'destructive'
+      });
     } finally {
       setSaving(false);
     }

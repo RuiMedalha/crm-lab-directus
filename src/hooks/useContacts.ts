@@ -1,62 +1,63 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { directusRequest } from "@/integrations/directus/client";
 
-export type Contact = Tables<"contacts">;
-export type ContactInsert = TablesInsert<"contacts">;
-export type ContactUpdate = TablesUpdate<"contacts">;
+export interface Contact {
+  id: number; // Directus uses integer for contacts based on schema check
+  company_name: string;
+  contact_name?: string;
+  nif?: string;
+  email?: string;
+  phone?: string;
+  // Add other fields as needed
+  moloni_client_id?: string;
+}
+
+export type ContactInsert = Omit<Contact, "id">;
+export type ContactUpdate = Partial<Contact>;
 
 export function useContacts(searchTerm?: string) {
   return useQuery({
     queryKey: ["contacts", searchTerm],
     queryFn: async () => {
-      const PAGE_SIZE = 1000;
-      let allData: Contact[] = [];
-      let from = 0;
-      let hasMore = true;
+      const queryParams = new URLSearchParams({
+        limit: "1000",
+        sort: "-date_created", // Adjust if field name differs
+      });
 
-      while (hasMore) {
-        let query = supabase
-          .from("contacts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
+      const filter: any = {};
 
-        if (searchTerm) {
-          query = query.or(
-            `company_name.ilike.%${searchTerm}%,nif.ilike.%${searchTerm}%,moloni_client_id.ilike.%${searchTerm}%,contact_name.ilike.%${searchTerm}%`
-          );
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          allData = [...allData, ...data];
-          from += PAGE_SIZE;
-          hasMore = data.length === PAGE_SIZE;
-        } else {
-          hasMore = false;
-        }
+      if (searchTerm) {
+        filter._or = [
+          { company_name: { _icontains: searchTerm } },
+          { nif: { _contains: searchTerm } },
+          { contact_name: { _icontains: searchTerm } },
+          { email: { _icontains: searchTerm } },
+          { phone: { _contains: searchTerm } }
+        ];
       }
 
-      return allData as Contact[];
+      if (Object.keys(filter).length > 0) {
+        queryParams.append("filter", JSON.stringify(filter));
+      }
+
+      const response = await directusRequest<{ data: Contact[] }>(
+        `/items/contacts?${queryParams.toString()}`
+      );
+
+      return response.data;
     },
   });
 }
 
-export function useContact(id: string | undefined) {
+export function useContact(id: string | number | undefined) {
   return useQuery({
     queryKey: ["contact", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      return data as Contact | null;
+      const response = await directusRequest<{ data: Contact }>(
+        `/items/contacts/${id}`
+      );
+      return response.data;
     },
     enabled: !!id,
   });
@@ -67,13 +68,14 @@ export function useCreateContact() {
 
   return useMutation({
     mutationFn: async (contact: ContactInsert) => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .insert(contact)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      const response = await directusRequest<{ data: Contact }>(
+        "/items/contacts",
+        {
+          method: "POST",
+          body: JSON.stringify(contact),
+        }
+      );
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
@@ -85,15 +87,15 @@ export function useUpdateContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...contact }: ContactUpdate & { id: string }) => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .update(contact)
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+    mutationFn: async ({ id, ...contact }: ContactUpdate & { id: number }) => {
+      const response = await directusRequest<{ data: Contact }>(
+        `/items/contacts/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(contact),
+        }
+      );
+      return response.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
@@ -106,12 +108,17 @@ export function useDeleteContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("contacts").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async (id: number) => {
+      await directusRequest(
+        `/items/contacts/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
 }
+

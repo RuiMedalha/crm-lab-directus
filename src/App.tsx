@@ -11,6 +11,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import Dashboard from "./pages/Dashboard";
 import Pipeline from "./pages/Pipeline";
 import Inbox from "./pages/Inbox";
+import Orcamentos from "./pages/Orcamentos";
 import Contactos from "./pages/Contactos";
 import ContactoDetalhe from "./pages/ContactoDetalhe";
 import ContactoNovo from "./pages/ContactoNovo";
@@ -36,6 +37,7 @@ const AppContent = () => {
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+        <Route path="/orcamentos" element={<ProtectedRoute><Orcamentos /></ProtectedRoute>} />
         <Route path="/contactos" element={<ProtectedRoute><Contactos /></ProtectedRoute>} />
         <Route path="/contactos/novo" element={<ProtectedRoute><ContactoNovo /></ProtectedRoute>} />
         <Route path="/contactos/:id" element={<ProtectedRoute><ContactoDetalhe /></ProtectedRoute>} />
