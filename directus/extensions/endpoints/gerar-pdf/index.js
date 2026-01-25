@@ -1,6 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { PDFDocument } from "pdf-lib";
 import puppeteer from "puppeteer";
 
 /**
@@ -46,9 +43,15 @@ function extractAssetId(url) {
   }
 }
 
-export default (router, { services, exceptions, env, getSchema }) => {
+export default (router, { services, exceptions, env, getSchema, logger }) => {
   const { ItemsService, FilesService } = services;
   const { ForbiddenException, InvalidPayloadException, ServiceUnavailableException } = exceptions;
+
+  try {
+    logger?.info?.(`[gerar-pdf] endpoint carregado (EXTENSIONS_PATH=${String(process.env.EXTENSIONS_PATH || "")})`);
+  } catch {
+    // ignore
+  }
 
   router.post("/:quotationId", async (req, res) => {
     const { quotationId } = req.params;
@@ -245,60 +248,9 @@ td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; vertical-ali
       if (browser) await browser.close().catch(() => undefined);
     }
 
-    // 2) Append technical sheets (PDFs) if available
-    const uploadsRoot =
-      envStr(env, "PDF_UPLOADS_ROOT") ||
-      envStr(env, "STORAGE_LOCAL_ROOT") ||
-      "/directus/uploads";
-
-    const toAppend = [];
-    for (const it of items || []) {
-      const url = it.ficha_tecnica_url;
-      if (!url) continue;
-      // Prefer local read for Directus assets
-      const assetId = extractAssetId(url);
-      if (assetId) {
-        try {
-          const file = await files.readOne(assetId, { fields: ["id", "storage", "filename_disk", "type"] });
-          if (file?.storage === "local" && file?.filename_disk && String(file.type || "").includes("pdf")) {
-            const p = path.join(uploadsRoot, file.filename_disk);
-            const bytes = await fs.readFile(p);
-            toAppend.push({ name: it.product_name || assetId, bytes });
-            continue;
-          }
-        } catch {
-          // fallthrough to remote fetch
-        }
-      }
-      // Fallback: fetch remote URL (slower)
-      try {
-        const r = await fetch(url);
-        if (r.ok) {
-          const ab = await r.arrayBuffer();
-          toAppend.push({ name: it.product_name || url, bytes: new Uint8Array(ab) });
-        }
-      } catch {
-        // ignore a single sheet failure
-      }
-    }
-
-    let merged = pdfBuffer;
-    if (toAppend.length) {
-      const out = await PDFDocument.create();
-      const base = await PDFDocument.load(pdfBuffer);
-      const basePages = await out.copyPages(base, base.getPageIndices());
-      basePages.forEach((p) => out.addPage(p));
-      for (const sheet of toAppend) {
-        try {
-          const d = await PDFDocument.load(sheet.bytes);
-          const pages = await out.copyPages(d, d.getPageIndices());
-          pages.forEach((p) => out.addPage(p));
-        } catch {
-          // ignore invalid PDFs
-        }
-      }
-      merged = await out.save();
-    }
+    // 2) Anexos (fichas técnicas) desativados por compatibilidade.
+    // Mantemos o PDF base (Puppeteer) para garantir que o endpoint carrega e funciona.
+    const merged = pdfBuffer;
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="${q.quotation_number || q.id}.pdf"`);
