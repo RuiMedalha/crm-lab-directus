@@ -1,0 +1,132 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: crm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: directus
+      POSTGRES_USER: directus
+      POSTGRES_PASSWORD: directus_password_change_me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crm_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - crm_net
+
+  directus:
+    image: directus/directus:11.14.0
+    container_name: directus-hotelequip
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      # Obrigatório (muda estes valores)
+      KEY: change-me-key
+      SECRET: change-me-secret
+
+      # DB
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: directus
+      DB_USER: directus
+      DB_PASSWORD: directus_password_change_me
+
+      # Cache (recomendado)
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+
+      # Admin bootstrap (opcional — usado só no 1º arranque)
+      # ADMIN_EMAIL: admin@exemplo.pt
+      # ADMIN_PASSWORD: change-me-admin-password
+
+      # Uploads (opcional)
+      STORAGE_LOCATIONS: local
+      STORAGE_LOCAL_ROOT: /directus/uploads
+
+      # Extensions (se quiseres continuar a tentar; não é necessário para o workaround do pdf-service)
+      EXTENSIONS_PATH: /directus/extensions
+
+      # Outras boas práticas
+      WEBSOCKETS_ENABLED: "true"
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: "true"
+
+    ports:
+      - "8055:8055"
+    volumes:
+      - directus_uploads:/directus/uploads
+      - directus_extensions:/directus/extensions
+    networks:
+      - crm_net
+
+  pdf-service:
+    build:
+      context: ../services/pdf-service
+      dockerfile: Dockerfile
+    container_name: crm-pdf-service
+    restart: unless-stopped
+    environment:
+      # aqui deve apontar para o Directus "por dentro" da rede docker
+      DIRECTUS_URL: http://directus:8055
+
+      # Cria um token no Directus (Static Token) com permissões de ler:
+      # quotations, quotation_items, contacts, company_settings, directus_files (se precisares upload via n8n)
+      DIRECTUS_TOKEN: change-me-directus-static-token
+
+      # Opcional: logo hardcoded para o PDF (senão usa company_settings.logo_url)
+      # PDF_LOGO_URL: https://exemplo.com/logo.png
+    ports:
+      - "3001:3001"
+    networks:
+      - crm_net
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: crm-n8n
+    restart: unless-stopped
+    environment:
+      # Ajusta para o teu domínio
+      N8N_HOST: n8n.hotelequip.pt
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: https://n8n.hotelequip.pt/
+      N8N_ENCRYPTION_KEY: change-me-n8n-encryption-key
+      GENERIC_TIMEZONE: Europe/Lisbon
+      # Se usares SMTP dentro do n8n:
+      # N8N_EMAIL_MODE: smtp
+      # N8N_SMTP_HOST: ...
+      # N8N_SMTP_PORT: "587"
+      # N8N_SMTP_USER: ...
+      # N8N_SMTP_PASS: ...
+      # N8N_SMTP_SENDER: ...
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - crm_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  directus_uploads:
+  directus_extensions:
+  n8n_data:
+
+networks:
+  crm_net:
+    driver: bridge
+
