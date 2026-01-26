@@ -169,6 +169,10 @@ export default function Orcamentos() {
         }}
       >
         <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
+            <DialogDescription>Janela para ver o orçamento em detalhe.</DialogDescription>
+          </DialogHeader>
           {openId ? (
             <QuotationPreview
               open={true}

@@ -149,6 +149,35 @@ function buildHtml({ q, customer, settingsRow, items }) {
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
+// CORS (para o CRM conseguir fazer fetch do PDF)
+const corsAllow = envStr(
+  "CORS_ORIGIN",
+  "https://crm.hotelequip.pt,http://localhost:5173,http://localhost:8080,http://localhost:8081"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const corsAllowAll = corsAllow.includes("*");
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin ? String(req.headers.origin) : "";
+  if (corsAllowAll) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  } else if (origin && corsAllow.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
+
+app.options("*", (_req, res) => {
+  res.status(204).send("");
+});
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.post("/gerar-pdf/:quotationId", async (req, res) => {
