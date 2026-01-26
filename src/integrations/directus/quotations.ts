@@ -203,19 +203,19 @@ export async function deleteQuotation(id: string) {
 }
 
 export async function fetchQuotationPdf(quotationId: string): Promise<Blob> {
-  const token = getDirectusTokenForRequest();
-  if (!token) throw new Error("Sem sessão. Faça login para continuar.");
-
   const res = await fetch(directusApiUrl(`/gerar-pdf/${encodeURIComponent(quotationId)}`), {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   });
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new Error(txt || `Falha ao gerar PDF (${res.status})`);
+  }
+
+  const ct = String(res.headers.get("content-type") || "").toLowerCase();
+  if (!ct.includes("application/pdf")) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || "Resposta inesperada ao gerar PDF (não é PDF).");
   }
 
   return await res.blob();

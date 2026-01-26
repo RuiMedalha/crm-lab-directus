@@ -182,7 +182,7 @@ app.options("*", (_req, res) => res.status(204).send(""));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-app.post("/gerar-pdf/:quotationId", async (req, res) => {
+async function handleGerarPdf(req, res) {
   try {
     const quotationId = String(req.params.quotationId || "").trim();
     if (!quotationId) return res.status(400).json({ error: "quotationId em falta" });
@@ -207,16 +207,23 @@ app.post("/gerar-pdf/:quotationId", async (req, res) => {
         printBackground: true,
         margin: { top: "12mm", bottom: "12mm", left: "10mm", right: "10mm" },
       });
+      const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
       res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", String(buf.length));
+      res.setHeader("Cache-Control", "no-store");
       res.setHeader("Content-Disposition", `inline; filename="${(q?.quotation_number || quotationId)}.pdf"`);
-      res.send(pdf);
+      res.end(buf);
     } finally {
       await browser.close().catch(() => undefined);
     }
   } catch (e) {
     res.status(500).json({ error: String(e?.message || e) });
   }
-});
+}
+
+// aceita GET e POST (GET evita preflight em alguns cenários)
+app.post("/gerar-pdf/:quotationId", handleGerarPdf);
+app.get("/gerar-pdf/:quotationId", handleGerarPdf);
 
 const port = Number(envStr("PORT", "3001")) || 3001;
 app.listen(port, () => {
