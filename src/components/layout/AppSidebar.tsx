@@ -28,6 +28,7 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanySettings } from "@/hooks/useSettings";
+import { isSuperAdminEmail } from "@/lib/superadmin";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
@@ -50,7 +51,8 @@ export function AppSidebar() {
   const { data: settings } = useCompanySettings();
   const logoUrl = (settings as any)?.logo_url || "/logo-hotelequip-light.svg";
   const companyName = (settings as any)?.name || "CRM Hotelequip";
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const isSuperAdmin = isSuperAdminEmail(user?.email);
 
   return (
     <aside
@@ -81,7 +83,9 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-thin">
-        {navItems.map((item) => {
+        {navItems
+          .filter((item) => (item.path === "/integracoes" ? isSuperAdmin : true))
+          .map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
 

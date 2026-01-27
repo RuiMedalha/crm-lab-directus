@@ -31,8 +31,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { isSuperAdminEmail } from "@/lib/superadmin";
 
 const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
+  const { user } = useAuth();
+  const isSuperAdmin = isSuperAdminEmail(user?.email);
   const { data: settings, isLoading } = useCompanySettings();
   const updateSettings = useUpdateCompanySettings();
 
@@ -213,6 +217,20 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
           <p className="text-muted-foreground">Configure as ligações externas do sistema</p>
         </div>
 
+        {!isSuperAdmin ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso restrito</CardTitle>
+              <CardDescription>
+                Apenas o <strong>Superadmin</strong> pode alterar integrações. Os restantes utilizadores usam as integrações já configuradas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Se precisares de alterações, pede ao Superadmin para atualizar esta página.
+            </CardContent>
+          </Card>
+        ) : null}
+
         <div className="grid gap-6 md:grid-cols-2">
           {/* Moloni */}
           <Card>
@@ -250,7 +268,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="Chave API"
                 />
               </div>
-              <Button onClick={handleSaveMoloni} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveMoloni} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -293,7 +311,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="cs_..."
                 />
               </div>
-              <Button onClick={handleSaveWoocommerce} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveWoocommerce} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -327,7 +345,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="Token de acesso"
                 />
               </div>
-              <Button onClick={handleSaveChatwoot} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveChatwoot} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -361,7 +379,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="Token de acesso"
                 />
               </div>
-              <Button onClick={handleSaveTypebot} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveTypebot} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -386,7 +404,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="https://n8n.../webhook/whatsapp"
                 />
               </div>
-              <Button onClick={handleSaveWhatsapp} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveWhatsapp} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -436,7 +454,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                 <Button variant="outline" onClick={handleTestMeilisearch} disabled={testingMeilisearch} className="flex-1">
                   {testingMeilisearch ? <Loader2 className="h-4 w-4 animate-spin" /> : "Testar"}
                 </Button>
-                <Button onClick={handleSaveMeilisearch} className="flex-1">
+                <Button onClick={handleSaveMeilisearch} className="flex-1" disabled={!isSuperAdmin}>
                   <Save className="h-4 w-4 mr-2" />
                   Guardar
                 </Button>
@@ -493,7 +511,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
               </div>
             </div>
             <div className="flex justify-end">
-              <Button onClick={handleSaveWebhooks}>
+              <Button onClick={handleSaveWebhooks} disabled={!isSuperAdmin}>
                 <Save className="h-4 w-4 mr-2" />
                 Guardar Webhooks
               </Button>

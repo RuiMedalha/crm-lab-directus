@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Kanban, Factory, Plug, Settings, UserCog, PhoneCall, IdCard, LayoutDashboard, Users, LogOut, FileText, Mail, CalendarClock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { isSuperAdminEmail } from "@/lib/superadmin";
 
 const items = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
@@ -21,7 +22,8 @@ const items = [
 ];
 
 export default function MenuMobile() {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const isSuperAdmin = isSuperAdminEmail(user?.email);
   return (
     <AppLayout>
       <div className="space-y-4 md:hidden">
@@ -31,7 +33,9 @@ export default function MenuMobile() {
         </div>
 
         <div className="grid gap-3">
-          {items.map((it) => {
+          {items
+            .filter((it) => (it.path === "/integracoes" ? isSuperAdmin : true))
+            .map((it) => {
             const Icon = it.icon;
             return (
               <Card key={it.path}>
