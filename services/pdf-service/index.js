@@ -1,5 +1,6 @@
 import express from "express";
 import puppeteer from "puppeteer-core";
+import QRCode from "qrcode";
 
 function envStr(key, fallback = "") {
   const v = process.env[key];
@@ -42,6 +43,43 @@ function safeDateTime(iso) {
   }
 }
 
+function escHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildProductUrl({ sku, product_id }) {
+  const tpl = envStr("PDF_PRODUCT_URL_TEMPLATE", "https://hotelequip.pt/?s={sku}");
+  const safeSku = encodeURIComponent(String(sku || "").trim());
+  const safeId = encodeURIComponent(String(product_id || "").trim());
+  return tpl
+    .replace(/\{sku\}/g, safeSku)
+    .replace(/\{product_id\}/g, safeId);
+}
+
+function buildCartUrl({ quotationNumber, quotationId, rows, customer }) {
+  const items = rows
+    .map((r) => `${String(r.sku || "").trim()}:${String(r.qty || 0)}`)
+    .filter((x) => !x.startsWith(":"))
+    .join(",");
+
+  const tpl = envStr(
+    "PDF_CART_URL_TEMPLATE",
+    "https://hotelequip.pt/cart?quote={quotation_number}&items={items}&customer_nif={customer_nif}&customer_email={customer_email}"
+  );
+
+  return tpl
+    .replace(/\{quotation_number\}/g, encodeURIComponent(String(quotationNumber || "")))
+    .replace(/\{quotation_id\}/g, encodeURIComponent(String(quotationId || "")))
+    .replace(/\{items\}/g, encodeURIComponent(items))
+    .replace(/\{customer_nif\}/g, encodeURIComponent(String(customer?.nif || "")))
+    .replace(/\{customer_email\}/g, encodeURIComponent(String(customer?.email || "")));
+}
+
 async function directusGet(path) {
   const base = envStr("DIRECTUS_URL").replace(/\/+$/, "");
   const token = envStr("DIRECTUS_TOKEN");
@@ -57,15 +95,15 @@ async function directusGet(path) {
   return json?.data;
 }
 
-function buildHtml({ q, customer, settingsRow, items }) {
+function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl }) {
   const css = `
   * { box-sizing: border-box; }
   body { margin: 0; }
   .pdf { padding: 28px 32px; font-family: Helvetica, Arial, sans-serif; color: #111827; }
   .top { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-  .brand img { max-width: 240px; max-height: 70px; object-fit: contain; }
+  .brand img { max-width: 320px; max-height: 96px; object-fit: contain; }
   .muted { color: #6b7280; font-size: 12px; }
-  .block-title { font-weight: 800; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .02em; }
+  .block-title { font-weight: 900; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
   .box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; }
   .line { font-size: 12px; line-height: 1.4; }
   .h1 { font-size: 18px; font-weight: 800; }
@@ -84,6 +122,8 @@ function buildHtml({ q, customer, settingsRow, items }) {
   .product-img { width: 46px; height: 46px; object-fit: contain; border-radius: 6px; background: #f3f4f6; border: 1px solid #e5e7eb; }
   .desc-wrap { display: flex; gap: 10px; align-items: flex-start; }
   .desc-text { min-width: 0; }
+  a, a:visited { color: inherit; text-decoration: none; }
+  a.underline { text-decoration: underline; }
 
   .summary { margin-top: 14px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
   .totals { margin-left: auto; width: 340px; }
@@ -91,35 +131,38 @@ function buildHtml({ q, customer, settingsRow, items }) {
   .totals .row strong { font-size: 13px; }
   .totals .final { border-top: 2px solid #111827; margin-top: 8px; padding-top: 10px; }
   .footer { margin-top: 16px; font-size: 11px; color: #6b7280; }
+  .terms-page { page-break-before: always; padding-top: 6px; }
+  .terms-title { font-size: 14px; font-weight: 900; margin-bottom: 8px; }
+  .terms-body { font-size: 11px; color: #111827; line-height: 1.5; }
+  .qr { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
+  .qr img { width: 96px; height: 96px; }
   `;
 
   const logoUrl = envStr("PDF_LOGO_URL", settingsRow?.logo_url || "");
-  const nowIso = new Date().toISOString();
   const issueDate = safeDate(q.date_created);
-  const prodDateTime = safeDateTime(nowIso);
 
-  // Totais: assumir que line_total é SEM IVA. Se vier vazio, calcula quantity*unit_price.
+  // Totais: usar SEM IVA (ignorando line_total do Directus, que pode vir com IVA).
   const rows = (Array.isArray(items) ? items : []).map((it) => {
     const qty = Number(it.quantity ?? 0) || 0;
     const unit = Number(it.unit_price ?? 0) || 0;
-    const base = Number(it.line_total ?? qty * unit) || 0;
+    const base = qty * unit;
     const ivaPct = Number(it.iva_percent ?? 0) || 0;
     const iva = base * (ivaPct / 100);
     return { ...it, qty, unit, base, ivaPct, iva };
   });
 
-  const subtotal =
-    Number(q.subtotal ?? 0) && Number.isFinite(Number(q.subtotal)) && Number(q.subtotal) > 0
-      ? Number(q.subtotal)
-      : rows.reduce((s, r) => s + r.base, 0);
+  const subtotal = rows.reduce((s, r) => s + (Number(r.base) || 0), 0);
   const ivaTotal = rows.reduce((s, r) => s + r.iva, 0);
   const total = subtotal + ivaTotal;
 
-  const companyName = settingsRow?.name || "Hotelequip.pt";
-  const companyVat = settingsRow?.vat_number || settingsRow?.vat || settingsRow?.nif || "—";
-  const companyPhone = settingsRow?.phone || "—";
-  const companyEmail = settingsRow?.email || "—";
-  const companyAddress = settingsRow?.address || settingsRow?.morada || "";
+  // Empresa fixa (podes sobrescrever por env no stack)
+  const companyTitle = envStr("PDF_COMPANY_TITLE", "HOTELEQUIP.PT");
+  const companyName = envStr("PDF_COMPANY_NAME", settingsRow?.name || "Hotelequip.pt");
+  const companyVat = envStr("PDF_COMPANY_VAT", settingsRow?.vat_number || settingsRow?.vat || settingsRow?.nif || "—");
+  const companyPhone = envStr("PDF_COMPANY_PHONE", settingsRow?.phone || "—");
+  const companyEmail = envStr("PDF_COMPANY_EMAIL", settingsRow?.email || "—");
+  const companyAddress = envStr("PDF_COMPANY_ADDRESS", settingsRow?.address || settingsRow?.morada || "");
+  const companyWebsite = envStr("PDF_COMPANY_WEBSITE", "https://hotelequip.pt");
 
   const customerName = customer?.company_name || customer?.contact_name || "—";
   const customerVat = customer?.nif || "—";
@@ -129,6 +172,8 @@ function buildHtml({ q, customer, settingsRow, items }) {
   const customerCityLine =
     (customer?.postal_code || customer?.city) ? `${customer?.postal_code || ""} ${customer?.city || ""}`.trim() : "";
 
+  const termsHtml = envStr("PDF_TERMS_HTML", "") || (q.terms_conditions ? String(q.terms_conditions) : "");
+
   const html = `<!doctype html>
   <html><head><meta charset="utf-8"/><style>${css}</style></head>
   <body>
@@ -136,15 +181,16 @@ function buildHtml({ q, customer, settingsRow, items }) {
       <div class="top">
         <div>
           <div class="brand">
-            ${logoUrl ? `<img src="${logoUrl}" />` : `<div class="h1">${companyName}</div>`}
+            ${logoUrl ? `<a href="${escHtml(companyWebsite)}" class="underline"><img src="${escHtml(logoUrl)}" /></a>` : `<div class="h1">${escHtml(companyName)}</div>`}
           </div>
           <div class="box" style="margin-top:10px;">
-            <div class="block-title">Empresa</div>
-            <div class="line"><strong>${companyName}</strong></div>
-            ${companyAddress ? `<div class="line">${companyAddress}</div>` : ``}
-            <div class="line">NIF: ${companyVat}</div>
-            <div class="line">Telefone: ${companyPhone}</div>
-            <div class="line">Email: ${companyEmail}</div>
+            <div class="block-title">${escHtml(companyTitle)}</div>
+            <div class="line"><strong>${escHtml(companyName)}</strong></div>
+            ${companyAddress ? `<div class="line">${escHtml(companyAddress)}</div>` : ``}
+            <div class="line">NIF: ${escHtml(companyVat)}</div>
+            <div class="line">Telefone: ${escHtml(companyPhone)}</div>
+            <div class="line">Email: ${escHtml(companyEmail)}</div>
+            <div class="line">Site: <a class="underline" href="${escHtml(companyWebsite)}">${escHtml(companyWebsite)}</a></div>
           </div>
         </div>
 
@@ -153,18 +199,18 @@ function buildHtml({ q, customer, settingsRow, items }) {
           <div class="muted">N.º ${String(q.quotation_number || q.id || "")}</div>
           <div class="kv">
             <div class="k">Data de emissão</div><div class="v">${issueDate || "—"}</div>
-            <div class="k">Data de produção</div><div class="v">${prodDateTime || "—"}</div>
             ${q.valid_until ? `<div class="k">Válido até</div><div class="v">${safeDate(q.valid_until) || "—"}</div>` : ``}
           </div>
 
           <div class="box" style="margin-top:10px; text-align:left;">
             <div class="block-title">Cliente</div>
-            <div class="line"><strong>${customerName}</strong></div>
-            ${customerAddress ? `<div class="line">${customerAddress}</div>` : ``}
-            ${customerCityLine ? `<div class="line">${customerCityLine}</div>` : ``}
-            <div class="line">NIF: ${customerVat}</div>
-            <div class="line">Telefone: ${customerPhone}</div>
-            <div class="line">Email: ${customerEmail}</div>
+            <div class="line"><strong>${escHtml(customerName)}</strong></div>
+            ${customerAddress ? `<div class="line">${escHtml(customerAddress)}</div>` : ``}
+            ${customerCityLine ? `<div class="line">${escHtml(customerCityLine)}</div>` : ``}
+            <div class="line">NIF: ${escHtml(customerVat)}</div>
+            <div class="line">Telefone: ${escHtml(customerPhone)}</div>
+            <div class="line">Email: ${escHtml(customerEmail)}</div>
+            ${qrDataUrl && cartUrl ? `<div class="qr"><img src="${escHtml(qrDataUrl)}" /><div class="muted">QR Code: abrir carrinho no site</div></div>` : ``}
           </div>
         </div>
       </div>
@@ -190,14 +236,15 @@ function buildHtml({ q, customer, settingsRow, items }) {
                 : ``;
               const title = String(it.product_name || "—");
               const sku = it.sku ? String(it.sku) : "";
+              const href = buildProductUrl({ sku, product_id: it.product_id });
               return `
               <tr>
                 <td>${img}</td>
                 <td>
                   <div class="desc-wrap">
                     <div class="desc-text">
-                      <div class="product">${title}</div>
-                      ${sku ? `<div class="sku">Ref: ${sku}</div>` : ``}
+                      <div class="product"><a href="${escHtml(href)}" class="underline">${escHtml(title)}</a></div>
+                      ${sku ? `<div class="sku">Ref: ${escHtml(sku)}</div>` : ``}
                     </div>
                   </div>
                 </td>
@@ -214,8 +261,7 @@ function buildHtml({ q, customer, settingsRow, items }) {
 
       <div class="summary">
         <div>
-          ${q.notes ? `<div class="footer"><strong>Notas:</strong> ${String(q.notes).replace(/\n/g, "<br/>")}</div>` : ``}
-          ${q.terms_conditions ? `<div class="footer"><strong>Condições:</strong> ${String(q.terms_conditions).replace(/\n/g, "<br/>")}</div>` : ``}
+          ${q.notes ? `<div class="footer"><strong>Notas:</strong> ${escHtml(String(q.notes)).replace(/\n/g, "<br/>")}</div>` : ``}
         </div>
         <div class="totals box">
           <div class="block-title">Resumo</div>
@@ -224,6 +270,15 @@ function buildHtml({ q, customer, settingsRow, items }) {
           <div class="row final"><strong>Total</strong><strong>${fmtMoney(total)}</strong></div>
         </div>
       </div>
+
+      ${
+        termsHtml
+          ? `<div class="terms-page">
+              <div class="terms-title">Termos e Condições</div>
+              <div class="terms-body">${String(termsHtml).replace(/\n/g, "<br/>")}</div>
+            </div>`
+          : ``
+      }
     </div>
   </body></html>`;
 
@@ -276,7 +331,29 @@ async function handleGerarPdf(req, res) {
     const customer = q?.customer_id ? await directusGet(`/items/contacts/${encodeURIComponent(String(q.customer_id))}?fields=*`).catch(() => null) : null;
     const settings = await directusGet(`/items/company_settings?limit=1&sort=-id&fields=*`).then((arr) => (Array.isArray(arr) ? arr[0] : arr)).catch(() => null);
 
-    const html = buildHtml({ q, customer, settingsRow: settings, items: Array.isArray(items) ? items : [] });
+    // Preparar QR code para “abrir carrinho” (o site precisa suportar este URL)
+    const rows = (Array.isArray(items) ? items : []).map((it) => ({
+      sku: it?.sku ?? "",
+      qty: Number(it?.quantity ?? 0) || 0,
+    }));
+    const cartUrl = buildCartUrl({
+      quotationNumber: q?.quotation_number || "",
+      quotationId,
+      rows,
+      customer,
+    });
+    const qrDataUrl = cartUrl
+      ? await QRCode.toDataURL(String(cartUrl), { margin: 1, width: 256 })
+      : "";
+
+    const html = buildHtml({
+      q,
+      customer,
+      settingsRow: settings,
+      items: Array.isArray(items) ? items : [],
+      qrDataUrl,
+      cartUrl,
+    });
 
     const executablePath = envStr("PUPPETEER_EXECUTABLE_PATH", "/usr/bin/chromium");
     const browser = await puppeteer.launch({
