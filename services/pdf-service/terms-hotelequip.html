@@ -2,392 +2,218 @@
 <html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Termos & Condições (Resumo) — Hotelequip</title>
-    
+    <title>Termos & Condições (Resumo) — HotelEquip</title>
     <style>
-        @page {
-            size: A4;
-            margin: 15mm;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        @page { size: A4; margin: 10mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: Arial, sans-serif;
-            font-size: 9pt;
-            line-height: 1.3;
-            color: #333;
-            background: white;
+            font-size: 7.5pt;
+            line-height: 1.2;
+            color: #000;
         }
-        
-        .container {
-            width: 210mm;
-            min-height: 297mm;
-            max-height: 297mm;
-            margin: 0 auto;
-            padding: 15mm;
-            background: white;
-        }
-        
+
         .header {
-            background: linear-gradient(135deg, #003366 0%, #0066cc 100%);
+            background: #003366;
             color: white;
-            padding: 8px 12px;
-            margin: -15mm -15mm 8px -15mm;
+            padding: 4mm;
+            text-align: center;
+            margin-bottom: 3mm;
+        }
+
+        .header h1 { font-size: 11pt; margin-bottom: 1mm; }
+        .header p { font-size: 6pt; }
+
+        .aviso {
+            background: #ffffcc;
+            border: 1px solid #999;
+            padding: 3mm;
+            margin-bottom: 3mm;
             text-align: center;
         }
-        
-        .header h1 {
-            font-size: 14pt;
-            margin-bottom: 3px;
+
+        .aviso h3 { font-size: 8pt; margin-bottom: 2mm; color: #c00; }
+        .aviso p { font-size: 6.5pt; }
+        .aviso img { width: 22mm; height: 22mm; margin: 2mm 0; }
+
+        .cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4mm;
         }
-        
-        .header p {
-            font-size: 7pt;
-        }
-        
-        .company-info {
-            background: #f8f9fa;
-            padding: 6px 10px;
-            margin-bottom: 8px;
-            font-size: 7pt;
-            border-left: 3px solid #003366;
-        }
-        
-        .company-info p {
-            margin: 2px 0;
-        }
-        
-        .aviso-completo {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            padding: 8px;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        
-        .aviso-completo h3 {
-            color: #d32f2f;
-            font-size: 10pt;
-            margin-bottom: 4px;
-        }
-        
-        .aviso-completo p {
-            font-size: 8pt;
-            margin: 3px 0;
-        }
-        
-        .aviso-completo .qr-container {
-            margin-top: 6px;
-        }
-        
-        .aviso-completo .qr-container img {
-            width: 60px;
-            height: 60px;
-            border: 2px solid #003366;
-            border-radius: 6px;
-            padding: 3px;
-            background: white;
-        }
-        
+
         h2 {
-            color: #003366;
-            font-size: 10pt;
-            margin: 8px 0 4px 0;
-            padding-bottom: 2px;
-            border-bottom: 1.5px solid #003366;
-        }
-        
-        .secao {
-            margin-bottom: 6px;
-        }
-        
-        .secao p {
-            margin: 3px 0;
-            text-align: justify;
-        }
-        
-        .secao ul {
-            margin: 3px 0 3px 15px;
-            padding: 0;
-        }
-        
-        .secao li {
-            margin: 2px 0;
-        }
-        
-        .critical-box {
-            background: #ffebee;
-            border-left: 3px solid #d32f2f;
-            padding: 5px 8px;
-            margin: 4px 0;
-        }
-        
-        .critical-box h4 {
-            color: #d32f2f;
-            font-size: 9pt;
-            margin-bottom: 3px;
-        }
-        
-        .critical-box p, .critical-box ul {
             font-size: 8pt;
-        }
-        
-        .important-box {
-            background: #e3f2fd;
-            border-left: 3px solid #0066cc;
-            padding: 5px 8px;
-            margin: 4px 0;
-        }
-        
-        .important-box h4 {
-            color: #0066cc;
-            font-size: 9pt;
-            margin-bottom: 3px;
-        }
-        
-        .important-box p, .important-box ul {
-            font-size: 8pt;
-        }
-        
-        .red-text {
-            color: #d32f2f;
-            font-weight: bold;
-        }
-        
-        .blue-text {
             color: #003366;
-            font-weight: bold;
+            margin: 2mm 0 1mm 0;
+            padding-bottom: 0.5mm;
+            border-bottom: 1px solid #003366;
         }
-        
+
+        p { margin: 1mm 0; text-align: justify; }
+        ul { margin: 1mm 0 1mm 3mm; padding: 0; }
+        li { margin: 0.5mm 0; }
+
+        .box {
+            background: #f5f5f5;
+            border-left: 2px solid #003366;
+            padding: 2mm;
+            margin: 1mm 0;
+        }
+
+        .box h4 { font-size: 7pt; margin-bottom: 1mm; }
+        .box p, .box ul { font-size: 6.5pt; }
+
+        .red { color: #c00; font-weight: bold; }
+        .blue { color: #003366; font-weight: bold; }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 4px 0;
-            font-size: 7.5pt;
+            margin: 1mm 0;
+            font-size: 6pt;
         }
-        
+
         table th {
             background: #003366;
             color: white;
-            padding: 3px 5px;
+            padding: 1mm;
             text-align: left;
         }
-        
+
         table td {
             border: 1px solid #ddd;
-            padding: 3px 5px;
+            padding: 1mm;
         }
-        
+
         .footer {
-            margin-top: 8px;
-            padding-top: 6px;
-            border-top: 1px solid #ddd;
+            margin-top: 2mm;
+            padding-top: 2mm;
+            border-top: 1px solid #000;
             text-align: center;
-            font-size: 7pt;
-            color: #666;
+            font-size: 6pt;
         }
-        
-        .duas-colunas {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin: 6px 0;
-        }
-        
+
         @media print {
-            body {
-                print-color-adjust: exact;
-                -webkit-print-color-adjust: exact;
-            }
-            
-            .container {
-                page-break-after: avoid;
-            }
-            
-            .secao {
-                page-break-inside: avoid;
-            }
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>TERMOS E CONDIÇÕES DE VENDA (RESUMO)</h1>
-            <p>Nov Ousado, Unipessoal Lda. | HotelEquip.pt | NIF: 515208566</p>
-            <p>Atualização: 08/01/2026</p>
-        </div>
+    <div class="header">
+        <h1>TERMOS E CONDIÇÕES DE VENDA (RESUMO)</h1>
+        <p>Nov Ousado, Unipessoal Lda. | NIF: 515208566 | geral@hotelequip.pt | +351 916 542 211</p>
+    </div>
 
-        <!-- Company Info -->
-        <div class="company-info">
-            <p><strong>Sede:</strong> Rua Dr. Botelho Moniz 10A, 2500-188 Caldas da Rainha | <strong>Loja:</strong> Rua Empresarial 8-A, 2510-752 Gaeiras-Óbidos</p>
-            <p><strong>Contactos:</strong> geral@hotelequip.pt | +351 916 542 211 | www.hotelequip.pt</p>
-        </div>
+    <div class="aviso">
+        <h3>VERSÃO RESUMIDA - CONSULTE VERSÃO COMPLETA</h3>
+        <p>Termos e Condições COMPLETOS disponíveis em: <strong>www.hotelequip.pt/termos-e-condicoes/</strong></p>
+        <img src="https://novoteste.palamenta.com.pt/wp-content/uploads/2026/01/qr_termos.png" alt="QR Termos" />
+        <p>Ao efetuar compra, aceita integralmente os Termos e Condições completos.</p>
+    </div>
 
-        <!-- Aviso Versão Completa -->
-        <div class="aviso-completo">
-            <h3>⚠️ VERSÃO RESUMIDA - CONSULTE A VERSÃO COMPLETA</h3>
-            <p><strong>Este documento apresenta apenas os pontos mais críticos.</strong></p>
-            <p>Os <strong>Termos e Condições COMPLETOS</strong> estão disponíveis em:</p>
-            <p style="font-weight: bold; color: #0066cc; font-size: 9pt; margin: 4px 0;">www.hotelequip.pt/termos-e-condicoes/</p>
-            <div class="qr-container">
-                <img src="https://novoteste.palamenta.com.pt/wp-content/uploads/2026/01/qr_termos.png" alt="QR Termos Completos">
+    <div class="cols">
+        <div>
+            <h2>1. ÂMBITO B2B</h2>
+            <p>Vendas exclusivas para profissionais (hotéis, restaurantes). <span class="red">Não aplicável direito livre resolução 14 dias.</span></p>
+
+            <h2>2. PREÇOS</h2>
+            <ul>
+                <li><strong>SEM IVA</strong> (23% acrescido na fatura)</li>
+                <li>Válidos no momento confirmação pagamento</li>
+                <li>Montagem/instalação NÃO incluídos</li>
+            </ul>
+
+            <h2>3. PAGAMENTO</h2>
+            <p><span class="blue">100% pago ANTES expedição.</span> Aceites: MB WAY, Multibanco (ref. 3 dias), Transferência, Numerário (presencial).</p>
+
+            <h2>4. ENTREGA</h2>
+            <div class="box">
+                <h4>KERBSIDE (Nível Solo EXTERIOR)</h4>
+                <p><span class="red">NÃO INCLUI:</span> subida escadas, andares superiores, interior edifício, desembalamento, montagem, instalação, ligações.</p>
             </div>
-            <p style="font-size: 7pt; margin-top: 3px;">Ao efetuar uma compra, aceita integralmente os Termos e Condições completos.</p>
-        </div>
+            <p><strong>Prazos:</strong> Continente 3-5 dias | Ilhas: até transitário (5-8 dias)<br>
+            <strong>Custos:</strong> www.hotelequip.pt/condicoes-de-envio/</p>
 
-        <!-- Conteúdo em Duas Colunas -->
-        <div class="duas-colunas">
-            <!-- COLUNA 1 -->
-            <div>
-                <h2>1. ÂMBITO B2B</h2>
-                <div class="secao">
-                    <p>Vendas exclusivamente para <strong>profissionais</strong> (hotéis, restaurantes, cafetarias). <span class="red-text">Não aplicável direito de livre resolução 14 dias.</span></p>
-                </div>
-
-                <h2>2. PREÇOS</h2>
-                <div class="secao">
-                    <ul>
-                        <li><strong>SEM IVA</strong> (23% adicionado na fatura)</li>
-                        <li>Válidos no momento de <strong>confirmação pagamento</strong></li>
-                        <li>Montagem/instalação <strong>NÃO incluídos</strong></li>
-                    </ul>
-                </div>
-
-                <h2>3. PAGAMENTO</h2>
-                <div class="secao">
-                    <p><span class="blue-text">100% pago ANTES da expedição.</span></p>
-                    <p><strong>Aceites:</strong> MB WAY, Multibanco (3 dias), Transferência, Numerário (presencial).</p>
-                </div>
-
-                <h2>4. ENTREGA</h2>
-                <div class="critical-box">
-                    <h4>🚨 KERBSIDE (Nível Solo)</h4>
-                    <ul style="margin-left: 12px;">
-                        <li>❌ NÃO sobe escadas/andares</li>
-                        <li>❌ NÃO entra interior edifício</li>
-                        <li>❌ NÃO desembala/monta</li>
-                    </ul>
-                </div>
-                <div class="secao">
-                    <p><strong>Prazos:</strong> Portugal Continental 3-5 dias úteis | Ilhas: até transitário cliente (5-8 dias)</p>
-                    <p><strong>Custos:</strong> Ver detalhes em <strong>www.hotelequip.pt/condicoes-de-envio/</strong></p>
-                </div>
-
-                <h2>5. RECEÇÃO OBRIGATÓRIA</h2>
-                <div class="critical-box">
-                    <h4>🔴 NA PRESENÇA DO TRANSPORTADOR:</h4>
-                    <ul style="margin-left: 12px;">
-                        <li>1. Contar volumes</li>
-                        <li>2. Verificar embalagens</li>
-                        <li>3. Abrir se suspeita dano</li>
-                        <li>4. Fotografar problemas</li>
-                        <li>5. <span class="red-text">Registar NA GUIA antes assinar</span></li>
-                        <li>6. Recusar se dano grave</li>
-                    </ul>
-                    <p style="margin-top: 3px;"><strong>Após assinar sem ressalvas: mercadoria aceite.</strong> Reclamações posteriores NÃO aceites.</p>
-                </div>
-
-                <h2>6. GARANTIAS</h2>
-                <div class="secao">
-                    <table>
-                        <tr>
-                            <th>Tipo</th>
-                            <th>Prazo</th>
-                        </tr>
-                        <tr>
-                            <td>Legal B2B</td>
-                            <td>6 meses</td>
-                        </tr>
-                        <tr>
-                            <td>Comercial Fabricante</td>
-                            <td>12 meses* (regra geral)</td>
-                        </tr>
-                    </table>
-                    <p style="font-size: 7pt; margin-top: 2px;">*Alguns produtos têm 24/36 meses (indicado na fatura). Prazos NÃO cumulativos.</p>
-                    
-                    <p style="margin-top: 3px;"><strong>EXCLUI:</strong> desgaste normal, uso indevido, instalação incorreta, falta manutenção, oscilações elétricas, limpeza inadequada.</p>
-                </div>
+            <h2>5. RECEÇÃO OBRIGATÓRIA</h2>
+            <div class="box">
+                <h4>NA PRESENÇA TRANSPORTADOR:</h4>
+                <p>1) Contar volumes 2) Verificar embalagens 3) Abrir se suspeita 4) Fotografar 5) <span class="red">Registar NA GUIA antes assinar</span> 6) Recusar se grave 7) Comunicar 48h</p>
+                <p style="margin-top:1mm;"><span class="red">Após assinar sem ressalvas: mercadoria aceite. Reclamações posteriores NÃO aceites.</span></p>
             </div>
 
-            <!-- COLUNA 2 -->
-            <div>
-                <h2>7. DEVOLUÇÕES (B2B)</h2>
-                <div class="critical-box">
-                    <h4>⚠️ REGRA GERAL</h4>
-                    <p><span class="red-text">NÃO são aceites devoluções</span> (produtos profissionais específicos).</p>
-                </div>
-                <div class="important-box">
-                    <h4>Exceções (apenas com autorização prévia):</h4>
-                    <ul style="margin-left: 12px;">
-                        <li>✓ Defeito fabricação</li>
-                        <li>✓ Erro expedição</li>
-                        <li>✓ Danos transporte (reportados)</li>
-                        <li>✓ Não conformidade técnica</li>
-                    </ul>
-                    <p style="margin-top: 3px;">Contactar <strong>devolucoes@hotelequip.pt</strong> em 48h. <span class="red-text">NÃO devolver sem autorização.</span></p>
-                </div>
+            <h2>6. GARANTIAS</h2>
+            <table>
+                <tr><th>Tipo</th><th>Prazo</th></tr>
+                <tr><td>Legal B2B</td><td>6 meses</td></tr>
+                <tr><td>Comercial Fabricante</td><td>12 meses (standard)</td></tr>
+            </table>
+            <p style="font-size:6pt;">Alguns produtos: 24/36 meses (indicado fatura). Prazos NÃO cumulativos.</p>
+            <p><strong>EXCLUI:</strong> desgaste normal, uso indevido, instalação incorreta, falta manutenção, oscilações elétricas, limpeza inadequada.</p>
 
-                <h2>8. PROTEÇÃO DADOS (RGPD)</h2>
-                <div class="secao">
-                    <p><strong>Dados:</strong> Nome, NIF, email, telefone, morada (faturação/entrega).</p>
-                    <p><strong>Finalidade:</strong> Processamento encomendas, faturação, envio.</p>
-                    <p><strong>Conservação:</strong> 10 anos (obrigações fiscais).</p>
-                    <p><strong>Direitos:</strong> Acesso, retificação, eliminação, portabilidade.</p>
-                    <p><strong>Contacto:</strong> protecao_dados@hotelequip.pt</p>
-                    <p style="font-size: 7pt;">Política Privacidade completa: <strong>www.hotelequip.pt/politica-de-privacidade/</strong></p>
-                </div>
-
-                <h2>9. RESPONSABILIDADE</h2>
-                <div class="secao">
-                    <p><strong>Cliente assume:</strong> competência técnica, instalação correta, manutenção adequada.</p>
-                    <p><strong>Empresa responsável:</strong> conformidade produto, garantias, proteção dados, todas encomendas (próprias ou dropshipping).</p>
-                    <p><strong>Limitação:</strong> Danos diretos até valor produto.</p>
-                </div>
-
-                <h2>10. RECLAMAÇÕES</h2>
-                <div class="secao">
-                    <p><strong>Email:</strong> reclamacoes@hotelequip.pt (30 dias)</p>
-                    <p><strong>Livro Reclamações:</strong> www.livroreclamacoes.pt</p>
-                    <p><strong>Resolução Litígios:</strong> CNIACC (www.cniacc.pt)</p>
-                </div>
-
-                <h2>11. RESERVA PROPRIEDADE</h2>
-                <div class="secao">
-                    <p>Equipamento é propriedade Empresa até <strong>pagamento integral</strong>. Risco transfere-se na entrega.</p>
-                </div>
-
-                <h2>12. LEI APLICÁVEL</h2>
-                <div class="secao">
-                    <p><strong>Lei portuguesa.</strong> Foro: Tribunais Comarca Caldas da Rainha.</p>
-                </div>
-
-                <h2>13. DROPSHIPPING</h2>
-                <div class="important-box">
-                    <h4>Expedição Direta Fornecedor</h4>
-                    <p>Alguns produtos enviados diretamente do fabricante. <strong>Responsabilidade sempre da HotelEquip.pt</strong> - contactar apenas a Empresa para garantias/reclamações.</p>
-                </div>
-
-                <h2>14. PRODUTOS POR ENCOMENDA</h2>
-                <div class="secao">
-                    <p>Customizados (dimensões, cores especiais): <span class="red-text">NÃO admitem devolução</span> (exceto defeito fabricação).</p>
-                </div>
+            <h2>7. DEVOLUÇÕES B2B</h2>
+            <div class="box">
+                <p class="red">NÃO aceites devoluções (produtos profissionais específicos).</p>
+                <p><strong>Exceções (autorização prévia):</strong> Defeito fabricação, Erro expedição, Danos transporte (reportados), Não conformidade técnica.</p>
+                <p>Contactar devolucoes@hotelequip.pt em 48h. <span class="red">NÃO devolver sem autorização.</span></p>
             </div>
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            <p><strong>IMPORTANTE:</strong> Esta é uma versão resumida. Os <strong>Termos e Condições COMPLETOS</strong> (14 cláusulas detalhadas) prevalecem e estão disponíveis em:</p>
-            <p style="font-weight: bold; color: #0066cc; margin: 2px 0;">www.hotelequip.pt/termos-e-condicoes/</p>
-            <p style="margin-top: 4px;">© 2026 Nov Ousado, Unipessoal Lda. | Capital Social: €170.000,00 | Todos os direitos reservados.</p>
+        <div>
+            <h2>8. PROTEÇÃO DADOS (RGPD)</h2>
+            <p><strong>Dados:</strong> Nome, NIF, email, telefone, morada<br>
+            <strong>Finalidade:</strong> Encomendas, faturação, envio<br>
+            <strong>Conservação:</strong> 10 anos (fiscal)<br>
+            <strong>Direitos:</strong> Acesso, retificação, eliminação, portabilidade<br>
+            <strong>Contacto:</strong> protecao_dados@hotelequip.pt</p>
+
+            <h2>9. RESPONSABILIDADE</h2>
+            <p><strong>Cliente:</strong> competência técnica, instalação, manutenção<br>
+            <strong>Empresa:</strong> conformidade, garantias, proteção dados, todas encomendas (dropshipping incluído)<br>
+            <strong>Limitação:</strong> Danos diretos até valor produto</p>
+
+            <h2>10. RECLAMAÇÕES</h2>
+            <p>reclamacoes@hotelequip.pt (30 dias)<br>
+            Livro Reclamações: www.livroreclamacoes.pt<br>
+            Resolução Litígios: CNIACC (www.cniacc.pt)</p>
+
+            <h2>11. RESERVA PROPRIEDADE</h2>
+            <p>Equipamento propriedade Empresa até <strong>pagamento integral</strong>. Risco transfere-se na entrega.</p>
+
+            <h2>12. LEI APLICÁVEL</h2>
+            <p><strong>Lei portuguesa.</strong> Foro: Tribunais Caldas da Rainha.</p>
+
+            <h2>13. DROPSHIPPING</h2>
+            <p>Alguns produtos expedidos diretamente fornecedor. <strong>Responsabilidade sempre HotelEquip.pt</strong> - contactar apenas Empresa.</p>
+
+            <h2>14. PRODUTOS POR ENCOMENDA</h2>
+            <p>Customizados (dimensões, cores especiais): <span class="red">NÃO admitem devolução</span> (exceto defeito fabricação).</p>
+
+            <h2>15. PRAZO ENTREGA LEGAL</h2>
+            <div class="box">
+                <h4>Limite 30 Dias</h4>
+                <p>Prazo máximo: 30 dias. Se ultrapassar: produto equivalente, novo prazo acordado ou reembolso integral (14 dias).</p>
+            </div>
+
+            <h2>16. DROPSHIPPING - EXPEDIÇÕES</h2>
+            <p>Guia transporte pode conter identificação fornecedor. Responsabilidade sempre Nov Ousado, Unipessoal Lda.</p>
+
+            <h2>17. CONTACTOS</h2>
+            <p style="font-size:6.5pt;">
+            <strong>Geral:</strong> geral@hotelequip.pt<br>
+            <strong>Reclamações:</strong> reclamacoes@hotelequip.pt<br>
+            <strong>Devoluções:</strong> devolucoes@hotelequip.pt<br>
+            <strong>Garantias:</strong> garantias@hotelequip.pt<br>
+            <strong>Dados:</strong> protecao_dados@hotelequip.pt<br>
+            <strong>Telefone:</strong> +351 916 542 211 (úteis, 9h-18h)
+            </p>
         </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>IMPORTANTE:</strong> Versão resumida. Termos e Condições COMPLETOS prevalecem: <strong>www.hotelequip.pt/termos-e-condicoes/</strong></p>
+        <p>© 2026 Nov Ousado, Unipessoal Lda. | NIF: 515208566 | Capital Social: €170.000,00</p>
     </div>
 </body>
 </html>

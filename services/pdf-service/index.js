@@ -192,7 +192,7 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl, termsH
   body { margin: 0; }
   .pdf { padding: 28px 32px; font-family: Helvetica, Arial, sans-serif; color: #111827; }
   .top { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-  .brand img { max-width: 360px; max-height: 110px; object-fit: contain; }
+  .brand img { max-width: 460px; max-height: 140px; object-fit: contain; }
   .muted { color: #6b7280; font-size: 12px; }
   .block-title { font-weight: 900; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
   .box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; }
@@ -223,6 +223,12 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl, termsH
   .totals .final { border-top: 2px solid #111827; margin-top: 8px; padding-top: 10px; }
   .footer { margin-top: 16px; font-size: 11px; color: #6b7280; }
   .terms-page { page-break-before: always; padding-top: 6px; }
+  .terms-scope { 
+    --terms-scale: ${Number(envStr("PDF_TERMS_SCALE", "0.92")) || 0.92};
+    transform: scale(var(--terms-scale));
+    transform-origin: top left;
+    width: calc(100% / var(--terms-scale));
+  }
   .terms-title { font-size: 14px; font-weight: 900; margin-bottom: 8px; }
   .terms-body { font-size: 11px; color: #111827; line-height: 1.5; }
   .qr { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
