@@ -17,8 +17,54 @@ type DirectusRefreshResponse = {
 
 const DEFAULT_DIRECTUS_URL = "http://localhost:8055";
 
-export const DIRECTUS_URL: string =
-  import.meta.env.VITE_DIRECTUS_URL || DEFAULT_DIRECTUS_URL;
+function normalizeBaseUrl(url: string) {
+  return String(url || "").trim().replace(/\/+$/, "");
+}
+
+function inferDirectusUrlFromLocation(): string | null {
+  try {
+    const host = window.location?.hostname || "";
+    if (!host) return null;
+    // Local dev
+    if (host === "localhost" || host === "127.0.0.1") return null;
+
+    // Prefer "api." sibling when app runs on "crm."
+    if (host.startsWith("crm.")) return `https://${host.replace(/^crm\./, "api.")}`;
+
+    // Known prod domain fallback
+    if (host.endsWith("hotelequip.pt")) return "https://api.hotelequip.pt";
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getRuntimeDirectusUrl(): string {
+  // Allow manual override for debugging
+  try {
+    const override = localStorage.getItem("directus_url_override") || "";
+    if (override.trim()) return normalizeBaseUrl(override);
+  } catch {
+    // ignore
+  }
+
+  const envUrl = normalizeBaseUrl(import.meta.env.VITE_DIRECTUS_URL || "");
+  const inferred = inferDirectusUrlFromLocation();
+
+  // If env is missing OR points to localhost in production, prefer inferred URL.
+  const envLooksLocal =
+    !envUrl ||
+    envUrl === "http://localhost:8055" ||
+    envUrl === "http://127.0.0.1:8055" ||
+    envUrl === "https://localhost:8055" ||
+    envUrl === "https://127.0.0.1:8055";
+
+  if (envLooksLocal && inferred) return inferred;
+  return envUrl || DEFAULT_DIRECTUS_URL;
+}
+
+export const DIRECTUS_URL: string = getRuntimeDirectusUrl();
 
 // Optional fallback token (service-token mode). Prefer user session token.
 const DIRECTUS_FALLBACK_TOKEN: string = import.meta.env.VITE_DIRECTUS_TOKEN || "";
