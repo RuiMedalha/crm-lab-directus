@@ -139,20 +139,33 @@ let cachedTerms = null;
 async function getTermsTemplate() {
   if (cachedTerms) return cachedTerms;
 
-  const fromEnv = envStr("PDF_TERMS_HTML", "").trim();
-  if (fromEnv) {
-    cachedTerms = { html: fromEnv, css: "" };
-    return cachedTerms;
-  }
+  const forceFile = String(envStr("PDF_TERMS_FORCE_FILE", "1")).trim() === "1";
+  const fromEnvRaw = envStr("PDF_TERMS_HTML", "").trim();
+  const fromEnvLooksPlaceholder =
+    !fromEnvRaw ||
+    fromEnvRaw.includes("Aqui os teus termos") ||
+    fromEnvRaw.includes("Linha 2") ||
+    fromEnvRaw.includes("Linha 3");
 
   const filePath = envStr("PDF_TERMS_FILE", "/app/terms-hotelequip.html").trim();
   try {
     const full = await readFile(filePath, "utf-8");
     const css = extractBetween(full, "style");
     const bodyInner = extractBodyInner(full);
+    // Se o env vier com placeholder, ignora e usa ficheiro.
+    // Se forceFile=1, usa sempre ficheiro (mais “profissional” e estável).
+    if (!forceFile && fromEnvRaw && !fromEnvLooksPlaceholder) {
+      cachedTerms = { html: fromEnvRaw, css: "" };
+      return cachedTerms;
+    }
     cachedTerms = { html: bodyInner, css };
     return cachedTerms;
   } catch {
+    // Se não houver ficheiro, cai para env (se existir)
+    if (fromEnvRaw && !fromEnvLooksPlaceholder) {
+      cachedTerms = { html: fromEnvRaw, css: "" };
+      return cachedTerms;
+    }
     cachedTerms = { html: "", css: "" };
     return cachedTerms;
   }
@@ -179,7 +192,7 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl, termsH
   body { margin: 0; }
   .pdf { padding: 28px 32px; font-family: Helvetica, Arial, sans-serif; color: #111827; }
   .top { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-  .brand img { max-width: 320px; max-height: 96px; object-fit: contain; }
+  .brand img { max-width: 360px; max-height: 110px; object-fit: contain; }
   .muted { color: #6b7280; font-size: 12px; }
   .block-title { font-weight: 900; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
   .box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; }
@@ -217,7 +230,7 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl, termsH
   `;
 
   const logoUrl = envStr("PDF_LOGO_URL", settingsRow?.logo_url || "");
-  const issueDate = safeDate(q.date_created);
+  const issueDate = safeDate(q.date_created || q.date_updated || q.created_at || new Date().toISOString());
 
   // Totais: usar SEM IVA (ignorando line_total do Directus, que pode vir com IVA).
   const rows = (Array.isArray(items) ? items : []).map((it) => {
@@ -410,20 +423,25 @@ async function handleGerarPdf(req, res) {
     const customer = q?.customer_id ? await directusGet(`/items/contacts/${encodeURIComponent(String(q.customer_id))}?fields=*`).catch(() => null) : null;
     const settings = await directusGet(`/items/company_settings?limit=1&sort=-id&fields=*`).then((arr) => (Array.isArray(arr) ? arr[0] : arr)).catch(() => null);
 
-    // Preparar QR code para “abrir carrinho” (o site precisa suportar este URL)
-    const rows = (Array.isArray(items) ? items : []).map((it) => ({
-      sku: it?.sku ?? "",
-      qty: Number(it?.quantity ?? 0) || 0,
-    }));
-    const cartUrl = buildCartUrl({
-      quotationNumber: q?.quotation_number || "",
-      quotationId,
-      rows,
-      customer,
-    });
-    const qrDataUrl = cartUrl
-      ? await QRCode.toDataURL(String(cartUrl), { margin: 1, width: 256 })
-      : "";
+    // QR code (desligado por defeito até ficar “perfeito”)
+    const enableCartQr = String(envStr("PDF_ENABLE_CART_QR", "0")).trim() === "1";
+    let cartUrl = "";
+    let qrDataUrl = "";
+    if (enableCartQr) {
+      const rows = (Array.isArray(items) ? items : []).map((it) => ({
+        sku: it?.sku ?? "",
+        qty: Number(it?.quantity ?? 0) || 0,
+      }));
+      cartUrl = buildCartUrl({
+        quotationNumber: q?.quotation_number || "",
+        quotationId,
+        rows,
+        customer,
+      });
+      qrDataUrl = cartUrl
+        ? await QRCode.toDataURL(String(cartUrl), { margin: 1, width: 256 })
+        : "";
+    }
 
     const tpl = await getTermsTemplate();
     const scopedCss = (() => {
@@ -431,9 +449,7 @@ async function handleGerarPdf(req, res) {
       const scoped = scopeCssByLine(rawCss, "terms-scope");
       return scoped.trim();
     })();
-    const termsHtml = envStr("PDF_TERMS_HTML", "").trim()
-      ? envStr("PDF_TERMS_HTML", "")
-      : String(tpl?.html || "");
+    const termsHtml = String(tpl?.html || "");
     const termsCss = scopedCss;
 
     const html = buildHtml({
@@ -487,7 +503,8 @@ app.get("/debug/terms", async (_req, res) => {
     res.json({
       ok: true,
       file: envStr("PDF_TERMS_FILE", "/app/terms-hotelequip.html"),
-      fromEnv: !!envStr("PDF_TERMS_HTML", "").trim(),
+      forceFile: String(envStr("PDF_TERMS_FORCE_FILE", "1")).trim() === "1",
+      envProvided: !!envStr("PDF_TERMS_HTML", "").trim(),
       html_chars: String(tpl?.html || "").length,
       css_chars: String(tpl?.css || "").length,
       scoped_css_chars: String(scoped || "").length,
