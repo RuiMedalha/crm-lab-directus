@@ -44,6 +44,7 @@ COPY package.json /app/package.json
 RUN npm install --omit=dev
 
 COPY index.js /app/index.js
+COPY terms-hotelequip.html /app/terms-hotelequip.html
 
 ENV PORT=3001
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium

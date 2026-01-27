@@ -1,6 +1,7 @@
 import express from "express";
 import puppeteer from "puppeteer-core";
 import QRCode from "qrcode";
+import { readFile } from "node:fs/promises";
 
 function envStr(key, fallback = "") {
   const v = process.env[key];
@@ -78,6 +79,83 @@ function buildCartUrl({ quotationNumber, quotationId, rows, customer }) {
     .replace(/\{items\}/g, encodeURIComponent(items))
     .replace(/\{customer_nif\}/g, encodeURIComponent(String(customer?.nif || "")))
     .replace(/\{customer_email\}/g, encodeURIComponent(String(customer?.email || "")));
+}
+
+function extractBetween(html, tagName) {
+  const re = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i");
+  const m = String(html || "").match(re);
+  return m ? String(m[1] || "") : "";
+}
+
+function extractBodyInner(fullHtml) {
+  const body = extractBetween(fullHtml, "body");
+  if (body) return body;
+  return String(fullHtml || "");
+}
+
+function stripPageAndBodyCss(css) {
+  let out = String(css || "");
+  // remove @page blocks
+  out = out.replace(/@page[\s\S]*?\}\s*/gi, "");
+  // remove body { ... } blocks (don't affect page 1)
+  out = out.replace(/body\s*\{[\s\S]*?\}\s*/gi, "");
+  return out;
+}
+
+function scopeCssByLine(css, scopeClass) {
+  const scope = `.${scopeClass}`;
+  const lines = String(css || "").split("\n");
+  const out = [];
+  for (const raw of lines) {
+    const line = raw;
+    const trimmed = line.trim();
+    // keep @-rules untouched
+    if (trimmed.startsWith("@")) {
+      out.push(line);
+      continue;
+    }
+    // selector lines usually contain "{" and not ":" before "{"
+    const braceIdx = line.indexOf("{");
+    if (braceIdx >= 0) {
+      const before = line.slice(0, braceIdx);
+      if (!before.includes(":")) {
+        const selectors = before
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((s) => `${scope} ${s}`)
+          .join(", ");
+        out.push(`${line.slice(0, 0)}${selectors} ${line.slice(braceIdx)}`);
+        continue;
+      }
+    }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
+let cachedTerms = null;
+
+async function getTermsTemplate() {
+  if (cachedTerms) return cachedTerms;
+
+  const fromEnv = envStr("PDF_TERMS_HTML", "").trim();
+  if (fromEnv) {
+    cachedTerms = { html: fromEnv, css: "" };
+    return cachedTerms;
+  }
+
+  const filePath = envStr("PDF_TERMS_FILE", "/app/terms-hotelequip.html").trim();
+  try {
+    const full = await readFile(filePath, "utf-8");
+    const css = extractBetween(full, "style");
+    const bodyInner = extractBodyInner(full);
+    cachedTerms = { html: bodyInner, css };
+    return cachedTerms;
+  } catch {
+    cachedTerms = { html: "", css: "" };
+    return cachedTerms;
+  }
 }
 
 async function directusGet(path) {
@@ -172,7 +250,8 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl }) {
   const customerCityLine =
     (customer?.postal_code || customer?.city) ? `${customer?.postal_code || ""} ${customer?.city || ""}`.trim() : "";
 
-  const termsHtml = envStr("PDF_TERMS_HTML", "") || (q.terms_conditions ? String(q.terms_conditions) : "");
+  const termsHtml = String(envStr("PDF_TERMS_HTML", "") || (q.terms_conditions ? String(q.terms_conditions) : "") || "");
+  const termsScopedCss = envStr("PDF_TERMS_SCOPED_CSS", "");
 
   const html = `<!doctype html>
   <html><head><meta charset="utf-8"/><style>${css}</style></head>
@@ -272,10 +351,10 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl }) {
       </div>
 
       ${
-        termsHtml
+        (termsHtml || termsScopedCss)
           ? `<div class="terms-page">
-              <div class="terms-title">Termos e Condições</div>
-              <div class="terms-body">${String(termsHtml).replace(/\n/g, "<br/>")}</div>
+              ${termsScopedCss ? `<style>${termsScopedCss}</style>` : ``}
+              <div class="terms-scope">${termsHtml}</div>
             </div>`
           : ``
       }
@@ -345,6 +424,20 @@ async function handleGerarPdf(req, res) {
     const qrDataUrl = cartUrl
       ? await QRCode.toDataURL(String(cartUrl), { margin: 1, width: 256 })
       : "";
+
+    const tpl = await getTermsTemplate();
+    const scopedCss = (() => {
+      const rawCss = stripPageAndBodyCss(tpl?.css || "");
+      const scoped = scopeCssByLine(rawCss, "terms-scope");
+      return scoped.trim();
+    })();
+
+    // se vier PDF_TERMS_HTML via env, já entra no buildHtml (e pode ser simples)
+    // se não vier, usamos o ficheiro (HTML do body) e o CSS scoping calculado
+    if (!envStr("PDF_TERMS_HTML", "").trim()) {
+      process.env.PDF_TERMS_HTML = String(tpl?.html || "");
+      process.env.PDF_TERMS_SCOPED_CSS = scopedCss;
+    }
 
     const html = buildHtml({
       q,
