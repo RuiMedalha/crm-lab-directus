@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Save,
   Webhook,
@@ -30,6 +31,23 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { isSuperAdminEmail } from "@/lib/superadmin";
+
+const DEFAULT_EMAIL_SUBJECT = "Orçamento {{quotation_number}} — HOTELEQUIP.PT";
+
+const DEFAULT_EMAIL_HTML = `<!doctype html>
+<html>
+  <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #111;">
+    <div style="max-width: 680px; margin: 0 auto;">
+      <p>Olá {{company_name}},</p>
+      <p>Segue em anexo o orçamento <strong>{{quotation_number}}</strong>.</p>
+      <p>
+        Link do PDF (caso necessário):
+        <a href="{{pdf_link}}">{{pdf_link}}</a>
+      </p>
+      <p>Obrigado,<br/>HOTELEQUIP.PT</p>
+    </div>
+  </body>
+</html>`;
 
 const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
   const { user } = useAuth();
@@ -68,6 +86,8 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
     webhook_moloni_sync: "",
     webhook_woo_checkout: "",
     technical_pdf_base_url: "",
+    email_template_subject: "",
+    email_template_html: "",
   });
 
   const [meilisearch, setMeilisearch] = useState<MeilisearchSettings>({
@@ -107,6 +127,8 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
         webhook_moloni_sync: String((settings as any).webhook_moloni_sync || ""),
         webhook_woo_checkout: String((settings as any).webhook_woo_checkout || ""),
         technical_pdf_base_url: String((settings as any).technical_pdf_base_url || ""),
+        email_template_subject: String((settings as any).email_template_subject || "") || DEFAULT_EMAIL_SUBJECT,
+        email_template_html: String((settings as any).email_template_html || "") || DEFAULT_EMAIL_HTML,
       });
     }
     setMeilisearch(getMeilisearchSettings());
@@ -531,6 +553,35 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                 />
                 <p className="text-xs text-muted-foreground">
                   O CRM vai gerar automaticamente: <code>/?generate_hotelequip_pdf=SKU</code>
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2 md:col-span-3">
+                <Label className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  Email (assunto)
+                </Label>
+                <Input
+                  value={webhooks.email_template_subject || ""}
+                  onChange={(e) => setWebhooks((prev) => ({ ...prev, email_template_subject: e.target.value }))}
+                  placeholder="Ex: Orçamento {{quotation_number}} — HOTELEQUIP.PT"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-3">
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Email (HTML)
+                </Label>
+                <Textarea
+                  value={webhooks.email_template_html || ""}
+                  onChange={(e) => setWebhooks((prev) => ({ ...prev, email_template_html: e.target.value }))}
+                  placeholder="Cole aqui o HTML do email (será usado pelo n8n)"
+                  className="min-h-[260px] font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Variáveis suportadas: <code>{"{{company_name}}"}</code>, <code>{"{{contact_name}}"}</code>,{" "}
+                  <code>{"{{quotation_number}}"}</code>, <code>{"{{pdf_link}}"}</code>.
                 </p>
               </div>
             </div>

@@ -315,6 +315,8 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           customer: quotation.customer || null,
           items: quotation.items || [],
           technical_pdfs,
+          email_template_subject: String(companySettings?.email_template_subject || ""),
+          email_template_html: String(companySettings?.email_template_html || ""),
         };
 
         const res = await fetch(webhookUrl, {

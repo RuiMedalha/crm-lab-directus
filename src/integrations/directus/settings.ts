@@ -36,6 +36,9 @@ export interface CompanySettingsItem {
   webhook_moloni_sync?: string | null;
   webhook_woo_checkout?: string | null;
   technical_pdf_base_url?: string | null;
+
+  email_template_subject?: string | null;
+  email_template_html?: string | null;
 }
 
 const FIELDS = [
@@ -66,6 +69,8 @@ const FIELDS = [
   "webhook_moloni_sync",
   "webhook_woo_checkout",
   "technical_pdf_base_url",
+  "email_template_subject",
+  "email_template_html",
 ].join(",");
 
 const SAFE_FIELDS = [
@@ -91,6 +96,8 @@ const SAFE_FIELDS = [
   "webhook_moloni_sync",
   "webhook_woo_checkout",
   "technical_pdf_base_url",
+  "email_template_subject",
+  "email_template_html",
 ].join(",");
 
 async function getCompanySettingsFields(): Promise<Set<string> | null> {
