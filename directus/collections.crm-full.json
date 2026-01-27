@@ -310,7 +310,12 @@
         { "field": "moloni_api_key", "type": "string", "meta": { "interface": "input", "display_name": "Moloni API Key" } },
         { "field": "woo_url", "type": "string", "meta": { "interface": "input", "display_name": "Woo URL" } },
         { "field": "woo_consumer_key", "type": "string", "meta": { "interface": "input", "display_name": "Woo Consumer Key" } },
-        { "field": "woo_consumer_secret", "type": "string", "meta": { "interface": "input", "display_name": "Woo Consumer Secret" } }
+        { "field": "woo_consumer_secret", "type": "string", "meta": { "interface": "input", "display_name": "Woo Consumer Secret" } },
+
+        { "field": "webhook_proposta_pdf", "type": "string", "meta": { "interface": "input", "display_name": "n8n: Gerar/Enviar Orçamento" } },
+        { "field": "webhook_moloni_sync", "type": "string", "meta": { "interface": "input", "display_name": "n8n: Sincronizar Moloni" } },
+        { "field": "webhook_woo_checkout", "type": "string", "meta": { "interface": "input", "display_name": "n8n: Checkout WooCommerce" } },
+        { "field": "technical_pdf_base_url", "type": "string", "meta": { "interface": "input", "display_name": "Fichas técnicas (base URL)" } }
       ]
     },
     {

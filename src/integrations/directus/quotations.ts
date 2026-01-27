@@ -36,6 +36,8 @@ export interface QuotationItemRow {
   quotation_id?: any;
   product_id?: string | null;
   product_name?: string | null;
+  product_url?: string | null;
+  ficha_tecnica_url?: string | null;
   sku?: string | null;
   quantity?: number | null;
   unit_price?: number | null;
@@ -141,7 +143,8 @@ export async function getQuotationById(quotationId: string) {
     `/items/${DIRECTUS_QUOTATION_ITEMS_COLLECTION}${qs({
       limit: 1000,
       sort: "sort_order,id",
-      fields: "id,quotation_id,product_id,product_name,sku,quantity,unit_price,iva_percent,cost_price,discount_percent,notes,image_url,manual_entry,line_total,sort_order",
+      fields:
+        "id,quotation_id,product_id,product_name,product_url,ficha_tecnica_url,sku,quantity,unit_price,iva_percent,cost_price,discount_percent,notes,image_url,manual_entry,line_total,sort_order",
       "filter[quotation_id][_eq]": quotationId,
     })}`
   );

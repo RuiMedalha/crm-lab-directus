@@ -31,6 +31,11 @@ export interface CompanySettingsItem {
   woo_url?: string | null;
   woo_consumer_key?: string | null;
   woo_consumer_secret?: string | null;
+
+  webhook_proposta_pdf?: string | null;
+  webhook_moloni_sync?: string | null;
+  webhook_woo_checkout?: string | null;
+  technical_pdf_base_url?: string | null;
 }
 
 const FIELDS = [
@@ -57,6 +62,10 @@ const FIELDS = [
   "woo_url",
   "woo_consumer_key",
   "woo_consumer_secret",
+  "webhook_proposta_pdf",
+  "webhook_moloni_sync",
+  "webhook_woo_checkout",
+  "technical_pdf_base_url",
 ].join(",");
 
 const SAFE_FIELDS = [
@@ -78,6 +87,10 @@ const SAFE_FIELDS = [
   "woo_url",
   "woo_consumer_key",
   "woo_consumer_secret",
+  "webhook_proposta_pdf",
+  "webhook_moloni_sync",
+  "webhook_woo_checkout",
+  "technical_pdf_base_url",
 ].join(",");
 
 async function getCompanySettingsFields(): Promise<Set<string> | null> {

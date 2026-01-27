@@ -22,6 +22,7 @@ import { getEmployeeByEmail } from "@/integrations/directus/employees";
 import { useAuth } from "@/contexts/AuthContext";
 import { createFollowUp } from "@/integrations/directus/follow-ups";
 import { useCreateInteraction } from "@/hooks/useInteractions";
+import { directusApiUrl } from "@/integrations/directus/client";
 
 interface QuotationPreviewProps {
   open: boolean;
@@ -61,6 +62,8 @@ interface QuotationData {
     product_name: string | null;
     sku: string | null;
     image_url?: string | null;
+    product_url?: string | null;
+    ficha_tecnica_url?: string | null;
     quantity: number | null;
     unit_price: number | null;
     line_total: number | null;
@@ -144,6 +147,8 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
           product_name: i.product_name ?? null,
           sku: i.sku ?? null,
           image_url: i.image_url ?? null,
+          product_url: i.product_url ?? null,
+          ficha_tecnica_url: i.ficha_tecnica_url ?? null,
           quantity: i.quantity === null || i.quantity === undefined ? null : Number(i.quantity),
           unit_price: i.unit_price === null || i.unit_price === undefined ? null : Number(i.unit_price),
           line_total: i.line_total === null || i.line_total === undefined ? null : Number(i.line_total),
@@ -271,6 +276,62 @@ export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: Qu
         }
       } catch {
         // best-effort
+      }
+
+      // disparar n8n (gera PDF + envia email)
+      try {
+        const companySettings = settings as any;
+        const webhookUrl = String(companySettings?.webhook_proposta_pdf || "").trim();
+        if (!webhookUrl) {
+          throw new Error("Webhook n8n não configurado (Integrações → Webhooks n8n → Gerar Proposta PDF).");
+        }
+
+        const technicalBase = String(
+          companySettings?.technical_pdf_base_url ||
+            companySettings?.woo_url ||
+            "https://www.hotelequip.pt"
+        ).replace(/\/+$/, "");
+
+        const technical_pdfs = (quotation.items || [])
+          .map((it) => {
+            const sku = String(it?.sku || "").trim();
+            const url =
+              String(it?.ficha_tecnica_url || "").trim() ||
+              (sku ? `${technicalBase}/?generate_hotelequip_pdf=${encodeURIComponent(sku)}` : "");
+            return sku && url ? { sku, url } : null;
+          })
+          .filter(Boolean);
+
+        const payload = {
+          public_url: window.location.origin,
+          pdf_url: directusApiUrl(`/gerar-pdf/${encodeURIComponent(String(quotationId))}`),
+          quotation: {
+            id: quotation.id,
+            quotation_number: quotation.quotation_number,
+            status: "sent",
+            sent_to_email: email,
+            sent_at: now,
+          },
+          customer: quotation.customer || null,
+          items: quotation.items || [],
+          technical_pdfs,
+        };
+
+        const res = await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(txt || `Webhook n8n falhou (${res.status})`);
+        }
+      } catch (e: any) {
+        toast({
+          title: "Aviso: n8n não disparou",
+          description: String(e?.message || e),
+          variant: "destructive",
+        });
       }
 
       toast({ title: "Marcado como enviado", description: "O n8n vai gerar o PDF e enviar o email." });

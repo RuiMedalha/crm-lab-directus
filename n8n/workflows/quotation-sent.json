@@ -143,7 +143,7 @@
         "fromEmail": "={{ $env.SMTP_FROM || 'crm@hotelequip.pt' }}",
         "toEmail": "={{ $node['Set (ids + link)'].json.toEmail }}",
         "subject": "={{ 'Orçamento ' + ($json.quotation.quotation_number || $json.quotation.id) }}",
-        "text": "={{ 'Olá ' + ($node['Set (ids + link)'].json.companyName || '') + '\\n\\nSegue o link do orçamento em PDF: ' + $node['Set (ids + link)'].json.pdfLink + '\\n\\nObrigado.' }}"
+        "text": "={{\n  'Olá ' + ($node['Set (ids + link)'].json.companyName || '') +\n  '\\n\\nSegue o orçamento em PDF: ' + $node['Set (ids + link)'].json.pdfLink +\n  '\\n\\nFichas técnicas (download):\\n' +\n  (((($json.technical_pdfs || [])).map((t) => '- ' + (t.sku || '') + ': ' + (t.url || '')).join('\\n')) || '—') +\n  '\\n\\nObrigado.'\n}}"
       },
       "id": "SendEmail",
       "name": "Email - Enviar (configurar credenciais SMTP no n8n)",

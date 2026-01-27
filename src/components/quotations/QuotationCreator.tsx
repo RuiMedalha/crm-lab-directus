@@ -75,6 +75,9 @@ export function QuotationCreator({
   const createInteraction = useCreateInteraction();
   const { data: companySettings } = useCompanySettings();
   const wooUrl = String((companySettings as any)?.woo_url || "").replace(/\/+$/, "");
+  const technicalBaseUrl = String(
+    (companySettings as any)?.technical_pdf_base_url || wooUrl || "https://www.hotelequip.pt"
+  ).replace(/\/+$/, "");
   const [items, setItems] = useState<QuotationItem[]>([]);
   // Visível ao cliente (vai para PDF)
   const [notes, setNotes] = useState('');
@@ -141,6 +144,8 @@ export function QuotationCreator({
               line_type: it.manual_entry ? "free" : "product",
               product_id: it.product_id ?? null,
               image_url: it.image_url ?? null,
+              product_url: it.product_url ?? null,
+              ficha_tecnica_url: it.ficha_tecnica_url ?? null,
               product_name: it.product_name || "",
               sku: it.sku || "",
               quantity: Number(it.quantity || 1),
@@ -301,8 +306,11 @@ export function QuotationCreator({
         const image_url = normalizeImageUrl(getProductImage(product));
         const p = product as unknown as Record<string, any>;
         const product_url = String(product.link || p.url || p.product_url || p.permalink || "").trim() || null;
-        const ficha_tecnica_url =
+        const ficha_tecnica_url_raw =
           String(p.ficha_tecnica_url || p.technical_sheet_url || p.technical_details_url || "").trim() || null;
+        const ficha_tecnica_url =
+          ficha_tecnica_url_raw ||
+          (sku ? `${technicalBaseUrl}/?generate_hotelequip_pdf=${encodeURIComponent(String(sku))}` : null);
         const margin_percent =
           cost_price > 0 ? Math.max(0, ((unit_price / cost_price) - 1) * 100) : item.margin_percent;
 

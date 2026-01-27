@@ -3,9 +3,6 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import {
   useCompanySettings,
   useUpdateCompanySettings,
-  getWebhookSettings,
-  saveWebhookSettings,
-  WebhookSettings,
   getMeilisearchSettings,
   saveMeilisearchSettings,
   MeilisearchSettings,
@@ -66,10 +63,11 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
     whatsapp_api_url: "",
   });
 
-  const [webhooks, setWebhooks] = useState<WebhookSettings>({
+  const [webhooks, setWebhooks] = useState({
     webhook_proposta_pdf: "",
     webhook_moloni_sync: "",
     webhook_woo_checkout: "",
+    technical_pdf_base_url: "",
   });
 
   const [meilisearch, setMeilisearch] = useState<MeilisearchSettings>({
@@ -103,8 +101,14 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
       setWhatsapp({
         whatsapp_api_url: (settings as any).whatsapp_api_url || "",
       });
+
+      setWebhooks({
+        webhook_proposta_pdf: String((settings as any).webhook_proposta_pdf || ""),
+        webhook_moloni_sync: String((settings as any).webhook_moloni_sync || ""),
+        webhook_woo_checkout: String((settings as any).webhook_woo_checkout || ""),
+        technical_pdf_base_url: String((settings as any).technical_pdf_base_url || ""),
+      });
     }
-    setWebhooks(getWebhookSettings());
     setMeilisearch(getMeilisearchSettings());
   }, [settings]);
 
@@ -153,9 +157,13 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
     }
   };
 
-  const handleSaveWebhooks = () => {
-    saveWebhookSettings(webhooks);
-    toast({ title: "Webhooks guardados" });
+  const handleSaveWebhooks = async () => {
+    try {
+      await updateSettings.mutateAsync(webhooks as any);
+      toast({ title: "Webhooks guardados" });
+    } catch (error) {
+      toast({ title: "Erro ao guardar", variant: "destructive" });
+    }
   };
 
   const handleSaveMeilisearch = () => {
@@ -508,6 +516,22 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   onChange={(e) => setWebhooks((prev) => ({ ...prev, webhook_woo_checkout: e.target.value }))}
                   placeholder="https://n8n.../webhook/..."
                 />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2 md:col-span-2">
+                <Label className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Fichas técnicas (base URL)
+                </Label>
+                <Input
+                  value={webhooks.technical_pdf_base_url || ""}
+                  onChange={(e) => setWebhooks((prev) => ({ ...prev, technical_pdf_base_url: e.target.value }))}
+                  placeholder="https://www.hotelequip.pt"
+                />
+                <p className="text-xs text-muted-foreground">
+                  O CRM vai gerar automaticamente: <code>/?generate_hotelequip_pdf=SKU</code>
+                </p>
               </div>
             </div>
             <div className="flex justify-end">
