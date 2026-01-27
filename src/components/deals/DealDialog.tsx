@@ -364,14 +364,16 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
               <div className="space-y-2">
                 <Label>Responsável</Label>
                 <Select
-                  value={formData.assigned_employee_id}
-                  onValueChange={(value) => handleChange("assigned_employee_id", value)}
+                  value={formData.assigned_employee_id || "__none__"}
+                  onValueChange={(value) =>
+                    handleChange("assigned_employee_id", value === "__none__" ? "" : value)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecionar responsável" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">—</SelectItem>
+                    <SelectItem value="__none__">—</SelectItem>
                     {employees.map((e) => (
                       <SelectItem key={String(e.id)} value={String(e.id)}>
                         {String(e.full_name || e.email || e.id)}

@@ -877,11 +877,17 @@ export default function Dashboard360() {
                         </div>
                       </div>
                       <div className="w-[260px] max-w-full">
+                        {(() => {
+                          const NONE = "__none__";
+                          const current = String(getValue("assigned_employee_id") || "");
+                          const selectValue = current ? current : NONE;
+                          return (
                         <Select
-                          value={String(getValue("assigned_employee_id") || "")}
+                          value={selectValue}
                           onValueChange={(v) => {
                             // guardar apenas o id (uuid) no contacto
-                            handleChange("assigned_employee_id", v || null);
+                            const next = v === NONE ? null : v;
+                            handleChange("assigned_employee_id", next);
                             handleChange("assigned_by_employee_id", meEmp?.id ? String(meEmp.id) : null);
                             handleChange("assigned_at", new Date().toISOString());
                           }}
@@ -890,7 +896,7 @@ export default function Dashboard360() {
                             <SelectValue placeholder="—" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">—</SelectItem>
+                            <SelectItem value={NONE}>—</SelectItem>
                             {employees.map((e) => (
                               <SelectItem key={String(e.id)} value={String(e.id)}>
                                 {String(e.full_name || e.email || e.id)}
@@ -898,6 +904,8 @@ export default function Dashboard360() {
                             ))}
                           </SelectContent>
                         </Select>
+                          );
+                        })()}
                       </div>
                     </div>
                     {meEmp?.id ? (
