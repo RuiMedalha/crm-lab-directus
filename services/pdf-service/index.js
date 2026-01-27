@@ -173,7 +173,7 @@ async function directusGet(path) {
   return json?.data;
 }
 
-function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl }) {
+function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl, termsHtml, termsScopedCss }) {
   const css = `
   * { box-sizing: border-box; }
   body { margin: 0; }
@@ -250,8 +250,8 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl }) {
   const customerCityLine =
     (customer?.postal_code || customer?.city) ? `${customer?.postal_code || ""} ${customer?.city || ""}`.trim() : "";
 
-  const termsHtml = String(envStr("PDF_TERMS_HTML", "") || (q.terms_conditions ? String(q.terms_conditions) : "") || "");
-  const termsScopedCss = envStr("PDF_TERMS_SCOPED_CSS", "");
+  const termsHtmlSafe = String(termsHtml || "");
+  const termsScopedCssSafe = String(termsScopedCss || "");
 
   const html = `<!doctype html>
   <html><head><meta charset="utf-8"/><style>${css}</style></head>
@@ -351,10 +351,10 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl }) {
       </div>
 
       ${
-        (termsHtml || termsScopedCss)
+        (termsHtmlSafe || termsScopedCssSafe)
           ? `<div class="terms-page">
-              ${termsScopedCss ? `<style>${termsScopedCss}</style>` : ``}
-              <div class="terms-scope">${termsHtml}</div>
+              ${termsScopedCssSafe ? `<style>${termsScopedCssSafe}</style>` : ``}
+              <div class="terms-scope">${termsHtmlSafe}</div>
             </div>`
           : ``
       }
@@ -431,13 +431,10 @@ async function handleGerarPdf(req, res) {
       const scoped = scopeCssByLine(rawCss, "terms-scope");
       return scoped.trim();
     })();
-
-    // se vier PDF_TERMS_HTML via env, já entra no buildHtml (e pode ser simples)
-    // se não vier, usamos o ficheiro (HTML do body) e o CSS scoping calculado
-    if (!envStr("PDF_TERMS_HTML", "").trim()) {
-      process.env.PDF_TERMS_HTML = String(tpl?.html || "");
-      process.env.PDF_TERMS_SCOPED_CSS = scopedCss;
-    }
+    const termsHtml = envStr("PDF_TERMS_HTML", "").trim()
+      ? envStr("PDF_TERMS_HTML", "")
+      : String(tpl?.html || "");
+    const termsCss = scopedCss;
 
     const html = buildHtml({
       q,
@@ -446,6 +443,8 @@ async function handleGerarPdf(req, res) {
       items: Array.isArray(items) ? items : [],
       qrDataUrl,
       cartUrl,
+      termsHtml,
+      termsScopedCss: termsCss,
     });
 
     const executablePath = envStr("PUPPETEER_EXECUTABLE_PATH", "/usr/bin/chromium");
@@ -478,6 +477,26 @@ async function handleGerarPdf(req, res) {
 // aceita GET e POST (GET evita preflight em alguns cenários)
 app.post("/gerar-pdf/:quotationId", handleGerarPdf);
 app.get("/gerar-pdf/:quotationId", handleGerarPdf);
+
+// Debug rápido para confirmar que o template de termos existe no container
+app.get("/debug/terms", async (_req, res) => {
+  try {
+    const tpl = await getTermsTemplate();
+    const rawCss = stripPageAndBodyCss(tpl?.css || "");
+    const scoped = scopeCssByLine(rawCss, "terms-scope").trim();
+    res.json({
+      ok: true,
+      file: envStr("PDF_TERMS_FILE", "/app/terms-hotelequip.html"),
+      fromEnv: !!envStr("PDF_TERMS_HTML", "").trim(),
+      html_chars: String(tpl?.html || "").length,
+      css_chars: String(tpl?.css || "").length,
+      scoped_css_chars: String(scoped || "").length,
+      html_preview: String(tpl?.html || "").slice(0, 200),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+});
 
 const port = Number(envStr("PORT", "3001")) || 3001;
 app.listen(port, () => {
