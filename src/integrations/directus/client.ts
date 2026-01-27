@@ -71,6 +71,16 @@ const DIRECTUS_FALLBACK_TOKEN: string = import.meta.env.VITE_DIRECTUS_TOKEN || "
 
 const DIRECTUS_ACCESS_TOKEN_STORAGE_KEY = "directus_access_token";
 const DIRECTUS_REFRESH_TOKEN_STORAGE_KEY = "directus_refresh_token";
+const DIRECTUS_ACCESS_EXPIRES_AT_STORAGE_KEY = "directus_access_expires_at";
+
+function toEpochMsFromExpires(expires: unknown): number | null {
+  const n = Number(expires);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  // Directus costuma devolver "expires" como segundos até expirar.
+  // Se vier em ms, será muito maior.
+  const ms = n > 1e10 ? n : n * 1000;
+  return Date.now() + ms;
+}
 
 export function getDirectusAccessToken(): string {
   try {
@@ -86,6 +96,26 @@ export function setDirectusAccessToken(token: string) {
     localStorage.setItem(DIRECTUS_ACCESS_TOKEN_STORAGE_KEY, token);
   } catch {
     // ignore
+  }
+}
+
+export function setDirectusAccessExpiresAt(expires: unknown) {
+  try {
+    const epoch = toEpochMsFromExpires(expires);
+    if (!epoch) return;
+    localStorage.setItem(DIRECTUS_ACCESS_EXPIRES_AT_STORAGE_KEY, String(epoch));
+  } catch {
+    // ignore
+  }
+}
+
+export function getDirectusAccessExpiresAt(): number | null {
+  try {
+    const raw = localStorage.getItem(DIRECTUS_ACCESS_EXPIRES_AT_STORAGE_KEY) || "";
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
   }
 }
 
@@ -125,6 +155,11 @@ export function clearDirectusRefreshToken() {
 export function clearDirectusSession() {
   clearDirectusAccessToken();
   clearDirectusRefreshToken();
+  try {
+    localStorage.removeItem(DIRECTUS_ACCESS_EXPIRES_AT_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function getDirectusTokenForRequest(): string {

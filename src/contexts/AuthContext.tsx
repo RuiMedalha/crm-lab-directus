@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
-import { getDirectusTokenForRequest } from "@/integrations/directus/client";
-import { directusLogin, directusLogout, directusMe } from "@/integrations/directus/auth";
+import { getDirectusTokenForRequest, getDirectusRefreshToken } from "@/integrations/directus/client";
+import { directusLogin, directusLogout, directusMe, directusRefreshSession } from "@/integrations/directus/auth";
 
 interface AuthContextType {
   user: { id: string; email?: string | null; first_name?: string | null; last_name?: string | null; role?: string | null } | null;
@@ -39,6 +39,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
     };
   }, []);
+
+  // Keep session alive while the tab is open (prevents random logouts).
+  useEffect(() => {
+    let active = true;
+    let interval: any = null;
+
+    const tick = async () => {
+      try {
+        if (!active) return;
+        if (!user) return;
+        const rt = getDirectusRefreshToken();
+        if (!rt) return;
+
+        // pause when tab hidden
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+        await directusRefreshSession();
+      } catch {
+        // best-effort: não forçar logout aqui (rede pode falhar)
+      }
+    };
+
+    const onFocus = () => tick();
+    const onVisibility = () => tick();
+
+    // a cada 10 min é suficiente (access token costuma ser curto)
+    if (user) {
+      tick();
+      interval = setInterval(tick, 10 * 60 * 1000);
+      window.addEventListener("focus", onFocus);
+      window.addEventListener("visibilitychange", onVisibility);
+    }
+
+    return () => {
+      active = false;
+      if (interval) clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [user]);
 
   const signIn: AuthContextType["signIn"] = async (email, password) => {
     try {

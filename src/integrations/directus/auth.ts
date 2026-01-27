@@ -3,6 +3,7 @@ import {
   directusRequest,
   getDirectusRefreshToken,
   setDirectusAccessToken,
+  setDirectusAccessExpiresAt,
   setDirectusRefreshToken,
 } from "@/integrations/directus/client";
 
@@ -28,7 +29,8 @@ export async function directusLogin(email: string, password: string) {
   const res = await directusRequest<DirectusLoginResponse>("/auth/login", {
     method: "POST",
     skipAuth: true,
-    body: JSON.stringify({ email, password }),
+    // força modo JSON (tokens no body) para evitar depender de cookies
+    body: JSON.stringify({ email, password, mode: "json" }),
   });
 
   const access = res?.data?.access_token || "";
@@ -36,9 +38,29 @@ export async function directusLogin(email: string, password: string) {
   if (!access) throw new Error("Login falhou (token em falta).");
 
   setDirectusAccessToken(access);
+  setDirectusAccessExpiresAt(res?.data?.expires);
   if (refresh) setDirectusRefreshToken(refresh);
 
   return res;
+}
+
+export async function directusRefreshSession(): Promise<{ access_token: string } | null> {
+  const refresh_token = getDirectusRefreshToken();
+  if (!refresh_token) return null;
+
+  // não usa Authorization; depende apenas do refresh_token
+  const res = await directusRequest<DirectusLoginResponse>("/auth/refresh", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ refresh_token, mode: "json" }),
+  });
+
+  const access = String(res?.data?.access_token || "").trim();
+  const refresh = String(res?.data?.refresh_token || "").trim();
+  if (access) setDirectusAccessToken(access);
+  setDirectusAccessExpiresAt(res?.data?.expires);
+  if (refresh) setDirectusRefreshToken(refresh);
+  return access ? { access_token: access } : null;
 }
 
 export async function directusLogout() {
