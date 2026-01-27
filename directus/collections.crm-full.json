@@ -415,6 +415,7 @@
         { "field": "product_name", "type": "string", "meta": { "interface": "input", "display_name": "Produto" } },
         { "field": "technical_details", "type": "text", "meta": { "interface": "textarea", "display_name": "Detalhes técnicos" } },
         { "field": "image_url", "type": "string", "meta": { "interface": "input", "display_name": "Imagem (URL)" } },
+        { "field": "product_url", "type": "string", "meta": { "interface": "input", "display_name": "Produto (URL)" } },
         { "field": "sku", "type": "string", "meta": { "interface": "input", "display_name": "SKU" } },
         { "field": "quantity", "type": "integer", "meta": { "interface": "input", "display_name": "Quantidade" } },
         { "field": "unit_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Preço" } },

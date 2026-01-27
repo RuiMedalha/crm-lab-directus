@@ -34,6 +34,8 @@ interface QuotationItem {
   line_type: "product" | "free";
   product_id?: string | null;
   image_url?: string | null;
+  product_url?: string | null;
+  ficha_tecnica_url?: string | null;
   product_name: string;
   sku: string;
   quantity: number;
@@ -297,6 +299,10 @@ export function QuotationCreator({
         const unit_price = round2(product.price || 0);
         const cost_price = round2(product.cost || 0);
         const image_url = normalizeImageUrl(getProductImage(product));
+        const p = product as unknown as Record<string, any>;
+        const product_url = String(product.link || p.url || p.product_url || p.permalink || "").trim() || null;
+        const ficha_tecnica_url =
+          String(p.ficha_tecnica_url || p.technical_sheet_url || p.technical_details_url || "").trim() || null;
         const margin_percent =
           cost_price > 0 ? Math.max(0, ((unit_price / cost_price) - 1) * 100) : item.margin_percent;
 
@@ -305,6 +311,8 @@ export function QuotationCreator({
           line_type: "product",
           product_id: String(product.id || ""),
           image_url: image_url ? String(image_url) : null,
+          product_url,
+          ficha_tecnica_url,
           product_name: name,
           sku,
           unit_price,
@@ -373,6 +381,8 @@ export function QuotationCreator({
         line_total: round2(item.line_total),
         notes: item.notes || undefined,
         image_url: item.image_url || null,
+        product_url: item.product_url || null,
+        ficha_tecnica_url: item.ficha_tecnica_url || null,
         manual_entry: item.line_type === "free",
         sort_order: index,
       }));

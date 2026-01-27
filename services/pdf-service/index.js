@@ -53,7 +53,9 @@ function escHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
-function buildProductUrl({ sku, product_id }) {
+function buildProductUrl({ sku, product_id, product_url }) {
+  const direct = String(product_url || "").trim();
+  if (direct) return direct;
   const tpl = envStr("PDF_PRODUCT_URL_TEMPLATE", "https://hotelequip.pt/?s={sku}");
   const safeSku = encodeURIComponent(String(sku || "").trim());
   const safeId = encodeURIComponent(String(product_id || "").trim());
@@ -334,7 +336,7 @@ function buildHtml({ q, customer, settingsRow, items, qrDataUrl, cartUrl, termsH
                 : ``;
               const title = String(it.product_name || "—");
               const sku = it.sku ? String(it.sku) : "";
-              const href = buildProductUrl({ sku, product_id: it.product_id });
+              const href = buildProductUrl({ sku, product_id: it.product_id, product_url: it.product_url });
               return `
               <tr>
                 <td>${img}</td>
