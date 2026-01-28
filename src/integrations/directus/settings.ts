@@ -141,6 +141,8 @@ export async function getCompanySettings(): Promise<CompanySettingsItem | null> 
 
   const shouldFallback = (msg: string) =>
     msg.includes("permission to access fields") ||
+    msg.toLowerCase().includes("forbidden") ||
+    msg.toLowerCase().includes("you don't have permission") ||
     msg.includes("does not exist") ||
     msg.includes("Invalid query") ||
     msg.includes("Invalid field");
