@@ -203,7 +203,8 @@ export async function directusRequest<T>(
     const res = await fetch(directusApiUrl("/auth/refresh"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token }),
+      // força modo JSON para devolver tokens no body
+      body: JSON.stringify({ refresh_token, mode: "json" }),
     });
     const contentType = res.headers.get("content-type") || "";
     const isJson = contentType.includes("application/json");
@@ -214,6 +215,7 @@ export async function directusRequest<T>(
     const nextRefresh = String(data?.data?.refresh_token || "").trim();
     if (nextAccess) setDirectusAccessToken(nextAccess);
     if (nextRefresh) setDirectusRefreshToken(nextRefresh);
+    if (data?.data?.expires !== undefined) setDirectusAccessExpiresAt(data.data.expires);
     return nextAccess || null;
   };
 

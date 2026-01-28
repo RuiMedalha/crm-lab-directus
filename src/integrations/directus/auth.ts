@@ -4,6 +4,7 @@ import {
   getDirectusRefreshToken,
   setDirectusAccessToken,
   setDirectusAccessExpiresAt,
+  clearDirectusRefreshToken,
   setDirectusRefreshToken,
 } from "@/integrations/directus/client";
 
@@ -48,19 +49,29 @@ export async function directusRefreshSession(): Promise<{ access_token: string }
   const refresh_token = getDirectusRefreshToken();
   if (!refresh_token) return null;
 
-  // não usa Authorization; depende apenas do refresh_token
-  const res = await directusRequest<DirectusLoginResponse>("/auth/refresh", {
-    method: "POST",
-    skipAuth: true,
-    body: JSON.stringify({ refresh_token, mode: "json" }),
-  });
+  try {
+    // não usa Authorization; depende apenas do refresh_token
+    const res = await directusRequest<DirectusLoginResponse>("/auth/refresh", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({ refresh_token, mode: "json" }),
+    });
 
-  const access = String(res?.data?.access_token || "").trim();
-  const refresh = String(res?.data?.refresh_token || "").trim();
-  if (access) setDirectusAccessToken(access);
-  setDirectusAccessExpiresAt(res?.data?.expires);
-  if (refresh) setDirectusRefreshToken(refresh);
-  return access ? { access_token: access } : null;
+    const access = String(res?.data?.access_token || "").trim();
+    const refresh = String(res?.data?.refresh_token || "").trim();
+    if (access) setDirectusAccessToken(access);
+    setDirectusAccessExpiresAt(res?.data?.expires);
+    if (refresh) setDirectusRefreshToken(refresh);
+    return access ? { access_token: access } : null;
+  } catch (e: any) {
+    // Se o refresh token expirou/invalidou, para de tentar (evita spam de 401 no console)
+    const msg = String(e?.message || "");
+    if (msg.toLowerCase().includes("unauthorized") || msg.includes("401")) {
+      clearDirectusRefreshToken();
+      return null;
+    }
+    throw e;
+  }
 }
 
 export async function directusLogout() {
