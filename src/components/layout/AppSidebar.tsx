@@ -13,6 +13,10 @@ import {
   IdCard,
   PhoneCall,
   UserCog,
+  LogOut,
+  FileText,
+  Mail,
+  CalendarClock,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,13 +26,19 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCompanySettings } from "@/hooks/useSettings";
+import { isSuperAdminEmail } from "@/lib/superadmin";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
   { icon: IdCard, label: "Card 360", path: "/dashboard360" },
   { icon: PhoneCall, label: "Leads não atendidas", path: "/leads360" },
   { icon: Users, label: "Contactos", path: "/contactos" },
+  { icon: Mail, label: "Newsletter", path: "/newsletter" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
+  { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
+  { icon: CalendarClock, label: "Agenda", path: "/agenda" },
   { icon: Factory, label: "Fornecedores", path: "/fornecedores" },
   { icon: Plug, label: "Integrações", path: "/integracoes" },
   { icon: Settings, label: "Definições", path: "/definicoes" },
@@ -38,8 +48,11 @@ const navItems = [
 export function AppSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const logoUrl = "/logo-hotelequip-light.svg";
-  const companyName = "CRM Hotelequip";
+  const { data: settings } = useCompanySettings();
+  const logoUrl = (settings as any)?.logo_url || "/logo-hotelequip-light.svg";
+  const companyName = (settings as any)?.name || "CRM Hotelequip";
+  const { signOut, user } = useAuth();
+  const isSuperAdmin = isSuperAdminEmail(user?.email);
 
   return (
     <aside
@@ -59,14 +72,20 @@ export function AppSidebar() {
           </Link>
         ) : (
           <Link to="/" className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center hover:opacity-80 transition-opacity overflow-hidden">
-            <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
+            {logoUrl ? (
+              <img src={logoUrl} alt={companyName} className="h-5 w-5 object-contain" />
+            ) : (
+              <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
+            )}
           </Link>
         )}
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-thin">
-        {navItems.map((item) => {
+        {navItems
+          .filter((item) => (item.path === "/integracoes" ? isSuperAdmin : true))
+          .map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
 
@@ -104,6 +123,27 @@ export function AppSidebar() {
       {/* User Info, Theme Toggle and Collapse */}
       <div className="p-2 border-t border-sidebar-border space-y-1">
         <ThemeToggle collapsed={collapsed} />
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => signOut()}
+          className={cn(
+            "w-full text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent",
+            collapsed ? "justify-center" : "justify-start"
+          )}
+          title="Sair"
+        >
+          {collapsed ? (
+            <LogOut className="w-4 h-4" />
+          ) : (
+            <>
+              <LogOut className="w-4 h-4 mr-2" />
+              <span className="text-sm">Sair</span>
+            </>
+          )}
+        </Button>
+
         <Button
           variant="ghost"
           size="sm"

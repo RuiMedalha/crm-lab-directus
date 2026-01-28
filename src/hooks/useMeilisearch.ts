@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { directusRequest } from "@/integrations/directus/client";
 
 export interface MeilisearchSettings {
   meilisearch_host?: string;
@@ -20,6 +21,11 @@ export interface MeilisearchProduct {
   featured_media_url?: string;
   media_url?: string;
   link?: string;
+  // Extra (depends on index schema) - helps resolve images
+  images?: any;
+  image?: any;
+  featured_media?: any;
+  featured_media_id?: any;
 }
 
 const MEILISEARCH_STORAGE_KEY = "hotelequip_meilisearch_settings";
@@ -38,6 +44,29 @@ export function useMeilisearch() {
   const [results, setResults] = useState<MeilisearchProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const shouldUseDirectusProxy = (settings: MeilisearchSettings) => {
+    const host = (settings.meilisearch_host || "").trim();
+    if (!host) return true; // allow proxy mode without exposing host/api key to browser
+    // If user configured localhost/127.0.0.1, the browser can't reach it on their own machine.
+    if (host.includes("127.0.0.1") || host.includes("localhost")) return true;
+    // Allow an explicit "directus" pseudo-host
+    if (host.startsWith("directus://") || host === "directus") return true;
+    return false;
+  };
+
+  async function searchViaDirectusProxy(query: string): Promise<MeilisearchProduct[]> {
+    const res = await directusRequest<{ data?: MeilisearchProduct[]; hits?: MeilisearchProduct[] }>(
+      "/product-search",
+      {
+        method: "POST",
+        body: JSON.stringify({ q: query, limit: 20 }),
+      }
+    );
+    const products = (res?.data || res?.hits || []) as MeilisearchProduct[];
+    setResults(products);
+    return products;
+  }
+
   const search = useCallback(async (query: string): Promise<MeilisearchProduct[]> => {
     if (!query.trim()) {
       setResults([]);
@@ -45,16 +74,15 @@ export function useMeilisearch() {
     }
 
     const settings = getMeilisearchSettings();
-    
-    if (!settings.meilisearch_host) {
-      setError("Meilisearch não configurado. Configure nas Definições.");
-      return [];
-    }
 
     setIsSearching(true);
     setError(null);
 
     try {
+      if (shouldUseDirectusProxy(settings)) {
+        return await searchViaDirectusProxy(query);
+      }
+
       const indexName = settings.meilisearch_index || "products_stage";
       const url = `${settings.meilisearch_host}/indexes/${indexName}/search`;
       
@@ -72,7 +100,30 @@ export function useMeilisearch() {
         body: JSON.stringify({
           q: query,
           limit: 20,
-          attributesToRetrieve: ["id", "name", "title", "sku", "price", "cost", "description", "content", "category", "image_url", "featured_media_url", "media_url", "link"],
+          attributesToRetrieve: [
+            "id",
+            "name",
+            "title",
+            "sku",
+            "price",
+            "cost",
+            "description",
+            "content",
+            "category",
+            "image_url",
+            "featured_media_url",
+            "media_url",
+            "link",
+            // common variants used by Woo-based indexes
+            "images",
+            "image",
+            "featured_media",
+            "featured_media_id",
+            "thumbnail",
+            "thumb",
+            "imageId",
+            "mediaId",
+          ],
         }),
       });
 
@@ -87,7 +138,20 @@ export function useMeilisearch() {
       return products;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro na pesquisa";
-      setError(errorMessage);
+      // If direct Meilisearch call failed (CORS/network), try Directus proxy as fallback.
+      const settings2 = getMeilisearchSettings();
+      if (!shouldUseDirectusProxy(settings2)) {
+        try {
+          return await searchViaDirectusProxy(query);
+        } catch {
+          // fallthrough to show original error
+        }
+      }
+      setError(
+        errorMessage.includes("Failed to fetch")
+          ? "Não consegui aceder ao Meilisearch no browser (CORS/host). Usa o proxy via Directus ou mete o Meilisearch com URL pública e CORS."
+          : errorMessage
+      );
       console.error("Meilisearch search error:", err);
       return [];
     } finally {

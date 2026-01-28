@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMeilisearch, getMeilisearchSettings, type MeilisearchProduct } from "@/hooks/useMeilisearch";
-import { useQuotationBuilder } from "@/contexts/QuotationBuilderContext";
+import { useQuotationBuilderOptional } from "@/contexts/QuotationBuilderContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +23,8 @@ export function ProductSearchTab({ clientPhone, showAddToQuotation = false }: Pr
   const { data: settings } = useCompanySettings();
   const wooUrl = (settings as any)?.woo_url || "";
   
-  // Only use quotation builder when in quotation mode
-  const quotationBuilder = showAddToQuotation ? useQuotationBuilder() : null;
+  // Pode ser usado fora do provider (ex: tab Comercial na ficha)
+  const quotationBuilder = useQuotationBuilderOptional();
 
   const meilisearchSettings = getMeilisearchSettings();
   const isConfigured = !!meilisearchSettings.meilisearch_host;
@@ -56,7 +56,18 @@ export function ProductSearchTab({ clientPhone, showAddToQuotation = false }: Pr
   };
 
   const getProductImage = (product: MeilisearchProduct) => {
-    return product.featured_media_url || product.image_url || product.media_url || null;
+    const p: any = product as any;
+    return (
+      p.featured_media_url ||
+      p.image_url ||
+      p.media_url ||
+      p.thumbnail ||
+      p.thumb ||
+      (Array.isArray(p.images) ? p.images?.[0]?.src || p.images?.[0]?.url : null) ||
+      (p.image ? p.image.src || p.image.url : null) ||
+      (p.featured_media ? p.featured_media.src || p.featured_media.url : null) ||
+      null
+    );
   };
 
   const getProductName = (product: MeilisearchProduct) => {
@@ -96,7 +107,7 @@ export function ProductSearchTab({ clientPhone, showAddToQuotation = false }: Pr
   };
 
   const handleAddToQuotation = (product: MeilisearchProduct) => {
-    if (quotationBuilder) {
+    if (showAddToQuotation && quotationBuilder) {
       quotationBuilder.addItem(product);
       setAddedItems(prev => new Set(prev).add(product.id));
       toast({ title: `${product.title || product.name} adicionado ao orçamento` });
@@ -169,7 +180,8 @@ export function ProductSearchTab({ clientPhone, showAddToQuotation = false }: Pr
                   <img
                     src={imageUrl}
                     alt={getProductName(product)}
-                    className="w-full h-24 object-cover rounded-md mb-2"
+                    className="w-full h-24 object-contain bg-muted rounded-md mb-2"
+                    loading="lazy"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/placeholder.svg";
                     }}

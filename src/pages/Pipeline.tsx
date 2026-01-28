@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useDeals, useUpdateDeal, DEAL_STATUSES } from "@/hooks/useDeals";
 import { useContacts } from "@/hooks/useContacts";
@@ -27,8 +27,10 @@ import { DealDialog } from "@/components/deals/DealDialog";
 import { DealCard } from "@/components/deals/DealCard";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { toast } from "@/hooks/use-toast";
+import { useSearchParams } from "react-router-dom";
 
 export default function Pipeline() {
+  const [searchParams] = useSearchParams();
   const { data: deals, isLoading } = useDeals();
   const { data: contacts } = useContacts();
   const { data: manufacturers } = useManufacturers();
@@ -46,6 +48,12 @@ export default function Pipeline() {
     minValue: "",
     maxValue: "",
   });
+
+  // Deep-link: /pipeline?dealId=...
+  useEffect(() => {
+    const dealId = searchParams.get("dealId");
+    if (dealId) setSelectedDealId(String(dealId));
+  }, [searchParams]);
 
   // Aplicar filtros
   const filteredDeals = useMemo(() => {
@@ -103,7 +111,7 @@ export default function Pipeline() {
   };
 
   const getColumnTotal = (status: string) => {
-    return getDealsByStatus(status).reduce((sum, deal) => sum + (deal.total_amount || 0), 0);
+    return getDealsByStatus(status).reduce((sum, deal) => sum + Number((deal as any).total_amount || 0), 0);
   };
 
   const toggleColumn = (status: string) => {
@@ -135,7 +143,8 @@ export default function Pipeline() {
         const statusLabel = DEAL_STATUSES.find((s) => s.value === newStatus)?.label || newStatus;
         toast({ title: `Movido para ${statusLabel}` });
       } catch (error) {
-        toast({ title: "Erro ao mover negócio", variant: "destructive" });
+        const msg = String((error as any)?.message || error || "");
+        toast({ title: "Erro ao mover negócio", description: msg || undefined, variant: "destructive" });
       }
     }
   }, [deals, updateDeal]);
@@ -152,6 +161,7 @@ export default function Pipeline() {
   // Totais gerais
   const totalDeals = filteredDeals.length;
   const totalValue = filteredDeals.reduce((sum, d) => sum + (d.total_amount || 0), 0);
+  const totalValueNum = filteredDeals.reduce((sum, d) => sum + Number((d as any).total_amount || 0), 0);
 
   return (
     <AppLayout>
@@ -160,7 +170,7 @@ export default function Pipeline() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
             <p className="text-muted-foreground">
-              {totalDeals} negócios • {totalValue.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+              {totalDeals} negócios • {totalValueNum.toLocaleString("pt-PT", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <div className="flex gap-2">
@@ -286,6 +296,31 @@ export default function Pipeline() {
         </Collapsible>
 
         {/* Kanban Board with DnD */}
+        {/* Resumo por coluna */}
+        <div className="hidden md:flex gap-2 overflow-x-auto pb-1">
+          {DEAL_STATUSES.map((s) => {
+            const n = getDealsByStatus(s.value).length;
+            const total = getColumnTotal(s.value);
+            return (
+              <Button
+                key={s.value}
+                variant="outline"
+                className="h-9 px-3 text-xs flex items-center gap-2"
+                onClick={() => toggleColumn(s.value)}
+                title="Colapsar/expandir coluna"
+              >
+                <span className="font-medium">{s.label}</span>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {n}
+                </Badge>
+                <span className="text-muted-foreground">
+                  {total.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+                </span>
+              </Button>
+            );
+          })}
+        </div>
+
         {/* Mobile: lista (sem drag & drop, mais estável no touch) */}
         <div className="md:hidden space-y-3">
           {isLoading ? (
@@ -386,7 +421,7 @@ export default function Pipeline() {
                             {status.label}
                           </div>
                           <div className="text-xs font-medium text-primary mt-auto">
-                            {(columnTotal / 1000).toFixed(0)}k
+                            {columnTotal.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
                           </div>
                         </CardContent>
                       </Card>
@@ -420,7 +455,8 @@ export default function Pipeline() {
                           {columnTotal.toLocaleString("pt-PT", {
                             style: "currency",
                             currency: "EUR",
-                            maximumFractionDigits: 0,
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
                           })}
                         </div>
                       </CardHeader>

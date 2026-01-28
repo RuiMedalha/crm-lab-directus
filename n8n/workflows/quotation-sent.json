@@ -1,0 +1,261 @@
+{
+  "name": "CRM - Quotation SENT (PDF + Email + Chatwoot + Directus log)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/quotation-sent",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "Webhook",
+      "name": "Webhook (quotation sent)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        320,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            { "name": "DIRECTUS_URL", "value": "={{ $env.DIRECTUS_URL || $json.public_url || '' }}" },
+            { "name": "DIRECTUS_TOKEN", "value": "={{ $env.DIRECTUS_TOKEN }}" },
+            { "name": "CHATWOOT_URL", "value": "={{ $env.CHATWOOT_URL }}" },
+            { "name": "CHATWOOT_TOKEN", "value": "={{ $env.CHATWOOT_TOKEN }}" },
+            { "name": "CHATWOOT_ACCOUNT_ID", "value": "={{ $env.CHATWOOT_ACCOUNT_ID }}" },
+            { "name": "CHATWOOT_INBOX_ID", "value": "={{ $env.CHATWOOT_INBOX_ID }}" }
+          ]
+        }
+      },
+      "id": "SetEnv",
+      "name": "Set (env)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        540,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.pdf_url }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" }
+          ]
+        },
+        "responseFormat": "file",
+        "binaryPropertyName": "pdf"
+      },
+      "id": "GenPdf",
+      "name": "HTTP - Gerar PDF (Directus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        760,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/files' }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "title", "value": "={{ 'Orçamento ' + ($json.quotation.quotation_number || $json.quotation.id) }}" }
+          ]
+        },
+        "sendBinaryData": true,
+        "binaryPropertyName": "pdf",
+        "options": {}
+      },
+      "id": "UploadPdf",
+      "name": "HTTP - Upload PDF (Directus files)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        980,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            { "name": "quotationId", "value": "={{ $json.quotation.id }}" },
+            { "name": "customerId", "value": "={{ $json.customer && $json.customer.id ? $json.customer.id : '' }}" },
+            { "name": "fileId", "value": "={{ $json.data && $json.data.id ? $json.data.id : ($json.id || '') }}" },
+            { "name": "pdfLink", "value": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/assets/' + ($json.data && $json.data.id ? $json.data.id : $json.id) + '?download=1' }}" },
+            { "name": "toEmail", "value": "={{ ($json.quotation.sent_to_email || ($json.customer && $json.customer.email) || '') }}" },
+            { "name": "companyName", "value": "={{ ($json.customer && $json.customer.company_name) || '' }}" }
+          ]
+        }
+      },
+      "id": "SetIds",
+      "name": "Set (ids + link)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/quotations/' + encodeURIComponent($node['Set (ids + link)'].json.quotationId) }}",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ { pdf_file: $node['Set (ids + link)'].json.fileId, pdf_link: $node['Set (ids + link)'].json.pdfLink } }}"
+      },
+      "id": "PatchQuotation",
+      "name": "HTTP - Patch quotation (pdf_link/pdf_file)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1420,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst json = item.json || {};\n\nfunction safe(s) {\n  return String(s ?? '').trim();\n}\n\nfunction applyVars(template, vars) {\n  let out = String(template || '');\n  for (const [k, v] of Object.entries(vars)) {\n    out = out.split(`{{${k}}}`).join(String(v ?? ''));\n  }\n  return out;\n}\n\nconst quotation = json.quotation || {};\nconst customer = json.customer || {};\nconst quotationNumber = safe(quotation.quotation_number) || safe(quotation.id);\n\nconst pdfLink = safe($node['Set (ids + link)'].json.pdfLink);\nconst toEmail = safe($node['Set (ids + link)'].json.toEmail);\n\nconst vars = {\n  company_name: safe(customer.company_name),\n  contact_name: safe(customer.contact_name),\n  quotation_number: quotationNumber,\n  pdf_link: pdfLink,\n};\n\nconst defaultSubject = `Orçamento ${quotationNumber} — HOTELEQUIP.PT`;\nconst subjectTpl = safe(json.email_template_subject) || defaultSubject;\n\nconst defaultHtml = `<!doctype html>\n<html>\n  <body style=\"font-family:Arial,sans-serif;line-height:1.5;color:#111\">\n    <p>Olá ${vars.company_name || vars.contact_name || ''},</p>\n    <p>Segue em anexo o orçamento <strong>${quotationNumber}</strong>.</p>\n    ${pdfLink ? `<p>Link do PDF: <a href=\"${pdfLink}\">${pdfLink}</a></p>` : ''}\n    <p>Obrigado,<br/>HOTELEQUIP.PT</p>\n  </body>\n</html>`;\n\nconst htmlTpl = safe(json.email_template_html) || defaultHtml;\n\n// --- Attachments ---\n// 1) Download orçamento PDF (a partir do link de assets do Directus, com token)\ntry {\n  const pdfBuf = await this.helpers.httpRequest({\n    method: 'GET',\n    url: pdfLink,\n    encoding: null,\n    followRedirect: true,\n    timeout: 120000,\n    headers: {\n      Authorization: 'Bearer ' + String($node['Set (env)'].json.DIRECTUS_TOKEN || ''),\n      Accept: 'application/pdf,application/octet-stream;q=0.9,*/*;q=0.8',\n      'User-Agent': 'CRM-HOTELEQUIP (n8n)',\n    },\n  });\n  const buf = Buffer.isBuffer(pdfBuf) ? pdfBuf : Buffer.from(pdfBuf);\n  item.binary = item.binary || {};\n  item.binary.pdf = await this.helpers.prepareBinaryData(buf, `Orcamento-${quotationNumber}.pdf`);\n} catch (e) {\n  // se falhar, o email segue sem anexo do orçamento (mas continua com pdfLink)\n}\n\n// 2) Download fichas técnicas (sem auth)\nconst list = Array.isArray(json.technical_pdfs) ? json.technical_pdfs : [];\nfor (let i = 0; i < list.length; i++) {\n  const t = list[i] || {};\n  const url = safe(t.url);\n  const sku = safe(t.sku);\n  if (!url) continue;\n\n  try {\n    const resp = await this.helpers.httpRequest({\n      method: 'GET',\n      url,\n      encoding: null,\n      followRedirect: true,\n      timeout: 120000,\n      headers: {\n        'User-Agent': 'CRM-HOTELEQUIP (n8n)',\n        Accept: 'application/pdf,application/octet-stream;q=0.9,*/*;q=0.8',\n      },\n    });\n    const data = Buffer.isBuffer(resp) ? resp : Buffer.from(resp);\n    const binName = `tech_${(sku || String(i + 1)).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)}`;\n    const fileName = `${sku || `ficha-tecnica-${i + 1}`}.pdf`;\n    item.binary = item.binary || {};\n    item.binary[binName] = await this.helpers.prepareBinaryData(data, fileName);\n  } catch {\n    // best-effort\n  }\n}\n\nitem.json = {\n  ...json,\n  email_to: toEmail,\n  email_subject: applyVars(subjectTpl, vars),\n  email_html: applyVars(htmlTpl, vars),\n  pdf_link: pdfLink,\n};\n\nreturn [item];"
+      },
+      "id": "PrepareEmail",
+      "name": "Code - Preparar email + anexos (PDF + fichas)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'crm@hotelequip.pt' }}",
+        "toEmail": "={{ $json.email_to || $node['Set (ids + link)'].json.toEmail }}",
+        "subject": "={{ $json.email_subject || ('Orçamento ' + ($json.quotation.quotation_number || $json.quotation.id)) }}",
+        "html": "={{ $json.email_html || '' }}",
+        "attachments": "={{ Object.keys($binary || {}).join(',') }}"
+      },
+      "id": "SendEmail",
+      "name": "Email - Enviar (configurar credenciais SMTP no n8n)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/interactions' }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ { type: 'email', direction: 'out', status: 'done', source: 'n8n', occurred_at: new Date().toISOString(), contact_id: $node['Set (ids + link)'].json.customerId || null, email: $node['Set (ids + link)'].json.toEmail || null, summary: 'Orçamento enviado (n8n)', payload: { quotation_id: $node['Set (ids + link)'].json.quotationId, pdf_link: $node['Set (ids + link)'].json.pdfLink } } }}"
+      },
+      "id": "LogInteraction",
+      "name": "HTTP - Log interaction (Directus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2080,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (quotation sent)": {
+      "main": [
+        [
+          { "node": "Set (env)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Set (env)": {
+      "main": [
+        [
+          { "node": "HTTP - Gerar PDF (Directus)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Gerar PDF (Directus)": {
+      "main": [
+        [
+          { "node": "HTTP - Upload PDF (Directus files)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Upload PDF (Directus files)": {
+      "main": [
+        [
+          { "node": "Set (ids + link)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Set (ids + link)": {
+      "main": [
+        [
+          { "node": "HTTP - Patch quotation (pdf_link/pdf_file)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Patch quotation (pdf_link/pdf_file)": {
+      "main": [
+        [
+          { "node": "Code - Preparar email + anexos (PDF + fichas)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Preparar email + anexos (PDF + fichas)": {
+      "main": [
+        [
+          { "node": "Email - Enviar (configurar credenciais SMTP no n8n)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Email - Enviar (configurar credenciais SMTP no n8n)": {
+      "main": [
+        [
+          { "node": "HTTP - Log interaction (Directus)", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 600
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsNotice": "Configura no n8n: DIRECTUS_URL, DIRECTUS_TOKEN, SMTP, e (opcional) variáveis CHATWOOT_*."
+  }
+}

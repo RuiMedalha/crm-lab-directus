@@ -1,0 +1,97 @@
+{
+  "name": "CRM - Email inbound -> Directus interactions",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/email-inbound",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "Webhook",
+      "name": "Webhook (email inbound)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 260]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "DIRECTUS_URL", "value": "={{ $env.DIRECTUS_URL }}" },
+            { "name": "DIRECTUS_TOKEN", "value": "={{ $env.DIRECTUS_TOKEN }}" },
+            { "name": "from", "value": "={{ ($json.from || $json.sender || $json.mail?.from || '').toString().trim().toLowerCase() }}" },
+            { "name": "to", "value": "={{ ($json.to || $json.recipient || $json.mail?.to || '').toString().trim().toLowerCase() }}" },
+            { "name": "subject", "value": "={{ ($json.subject || $json.mail?.subject || 'Email recebido').toString() }}" },
+            { "name": "text", "value": "={{ ($json.text || $json.body || $json.mail?.text || '').toString() }}" },
+            { "name": "occurredAt", "value": "={{ $json.date ? new Date($json.date).toISOString() : new Date().toISOString() }}" }
+          ]
+        }
+      },
+      "id": "Set",
+      "name": "Set (extract)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [520, 260]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (extract)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/contacts' }}",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (extract)'].json.DIRECTUS_TOKEN }}" }
+          ]
+        },
+        "queryParameters": {
+          "parameters": [
+            { "name": "limit", "value": "1" },
+            { "name": "fields", "value": "id,company_name,email" },
+            { "name": "filter[email][_eq]", "value": "={{ $node['Set (extract)'].json.from }}" }
+          ]
+        }
+      },
+      "id": "FindContact",
+      "name": "HTTP - Find contact by email (from)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [760, 260]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (extract)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/interactions' }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (extract)'].json.DIRECTUS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ { type: 'email', direction: 'in', status: 'done', source: 'email', occurred_at: $node['Set (extract)'].json.occurredAt, contact_id: ($json.data && $json.data[0] && $json.data[0].id) ? $json.data[0].id : null, email: $node['Set (extract)'].json.from, summary: ($node['Set (extract)'].json.subject || 'Email recebido').slice(0,240), payload: { to: $node['Set (extract)'].json.to, subject: $node['Set (extract)'].json.subject, text: $node['Set (extract)'].json.text, raw: $node['Webhook (email inbound)'].json } } }}"
+      },
+      "id": "CreateInteraction",
+      "name": "HTTP - Create interaction (Directus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 260]
+    }
+  ],
+  "connections": {
+    "Webhook (email inbound)": {
+      "main": [[{ "node": "Set (extract)", "type": "main", "index": 0 }]]
+    },
+    "Set (extract)": {
+      "main": [[{ "node": "HTTP - Find contact by email (from)", "type": "main", "index": 0 }]]
+    },
+    "HTTP - Find contact by email (from)": {
+      "main": [[{ "node": "HTTP - Create interaction (Directus)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionTimeout": 300 },
+  "versionId": "1"
+}

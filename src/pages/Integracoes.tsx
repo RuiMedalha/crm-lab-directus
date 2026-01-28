@@ -3,9 +3,6 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import {
   useCompanySettings,
   useUpdateCompanySettings,
-  getWebhookSettings,
-  saveWebhookSettings,
-  WebhookSettings,
   getMeilisearchSettings,
   saveMeilisearchSettings,
   MeilisearchSettings,
@@ -16,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Save,
   Webhook,
@@ -31,8 +29,29 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { isSuperAdminEmail } from "@/lib/superadmin";
+
+const DEFAULT_EMAIL_SUBJECT = "Orçamento {{quotation_number}} — HOTELEQUIP.PT";
+
+const DEFAULT_EMAIL_HTML = `<!doctype html>
+<html>
+  <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #111;">
+    <div style="max-width: 680px; margin: 0 auto;">
+      <p>Olá {{company_name}},</p>
+      <p>Segue em anexo o orçamento <strong>{{quotation_number}}</strong>.</p>
+      <p>
+        Link do PDF (caso necessário):
+        <a href="{{pdf_link}}">{{pdf_link}}</a>
+      </p>
+      <p>Obrigado,<br/>HOTELEQUIP.PT</p>
+    </div>
+  </body>
+</html>`;
 
 const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
+  const { user } = useAuth();
+  const isSuperAdmin = isSuperAdminEmail(user?.email);
   const { data: settings, isLoading } = useCompanySettings();
   const updateSettings = useUpdateCompanySettings();
 
@@ -62,10 +81,13 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
     whatsapp_api_url: "",
   });
 
-  const [webhooks, setWebhooks] = useState<WebhookSettings>({
+  const [webhooks, setWebhooks] = useState({
     webhook_proposta_pdf: "",
     webhook_moloni_sync: "",
     webhook_woo_checkout: "",
+    technical_pdf_base_url: "",
+    email_template_subject: "",
+    email_template_html: "",
   });
 
   const [meilisearch, setMeilisearch] = useState<MeilisearchSettings>({
@@ -99,8 +121,16 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
       setWhatsapp({
         whatsapp_api_url: (settings as any).whatsapp_api_url || "",
       });
+
+      setWebhooks({
+        webhook_proposta_pdf: String((settings as any).webhook_proposta_pdf || ""),
+        webhook_moloni_sync: String((settings as any).webhook_moloni_sync || ""),
+        webhook_woo_checkout: String((settings as any).webhook_woo_checkout || ""),
+        technical_pdf_base_url: String((settings as any).technical_pdf_base_url || ""),
+        email_template_subject: String((settings as any).email_template_subject || "") || DEFAULT_EMAIL_SUBJECT,
+        email_template_html: String((settings as any).email_template_html || "") || DEFAULT_EMAIL_HTML,
+      });
     }
-    setWebhooks(getWebhookSettings());
     setMeilisearch(getMeilisearchSettings());
   }, [settings]);
 
@@ -149,9 +179,13 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
     }
   };
 
-  const handleSaveWebhooks = () => {
-    saveWebhookSettings(webhooks);
-    toast({ title: "Webhooks guardados" });
+  const handleSaveWebhooks = async () => {
+    try {
+      await updateSettings.mutateAsync(webhooks as any);
+      toast({ title: "Webhooks guardados" });
+    } catch (error) {
+      toast({ title: "Erro ao guardar", variant: "destructive" });
+    }
   };
 
   const handleSaveMeilisearch = () => {
@@ -213,6 +247,20 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
           <p className="text-muted-foreground">Configure as ligações externas do sistema</p>
         </div>
 
+        {!isSuperAdmin ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso restrito</CardTitle>
+              <CardDescription>
+                Apenas o <strong>Superadmin</strong> pode alterar integrações. Os restantes utilizadores usam as integrações já configuradas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Se precisares de alterações, pede ao Superadmin para atualizar esta página.
+            </CardContent>
+          </Card>
+        ) : null}
+
         <div className="grid gap-6 md:grid-cols-2">
           {/* Moloni */}
           <Card>
@@ -250,7 +298,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="Chave API"
                 />
               </div>
-              <Button onClick={handleSaveMoloni} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveMoloni} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -293,7 +341,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="cs_..."
                 />
               </div>
-              <Button onClick={handleSaveWoocommerce} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveWoocommerce} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -327,7 +375,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="Token de acesso"
                 />
               </div>
-              <Button onClick={handleSaveChatwoot} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveChatwoot} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -361,7 +409,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="Token de acesso"
                 />
               </div>
-              <Button onClick={handleSaveTypebot} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveTypebot} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -386,7 +434,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                   placeholder="https://n8n.../webhook/whatsapp"
                 />
               </div>
-              <Button onClick={handleSaveWhatsapp} disabled={updateSettings.isPending} className="w-full">
+              <Button onClick={handleSaveWhatsapp} disabled={!isSuperAdmin || updateSettings.isPending} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </Button>
@@ -436,7 +484,7 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                 <Button variant="outline" onClick={handleTestMeilisearch} disabled={testingMeilisearch} className="flex-1">
                   {testingMeilisearch ? <Loader2 className="h-4 w-4 animate-spin" /> : "Testar"}
                 </Button>
-                <Button onClick={handleSaveMeilisearch} className="flex-1">
+                <Button onClick={handleSaveMeilisearch} className="flex-1" disabled={!isSuperAdmin}>
                   <Save className="h-4 w-4 mr-2" />
                   Guardar
                 </Button>
@@ -492,8 +540,53 @@ const Integracoes = forwardRef<HTMLDivElement>(function Integracoes(_, ref) {
                 />
               </div>
             </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2 md:col-span-2">
+                <Label className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Fichas técnicas (base URL)
+                </Label>
+                <Input
+                  value={webhooks.technical_pdf_base_url || ""}
+                  onChange={(e) => setWebhooks((prev) => ({ ...prev, technical_pdf_base_url: e.target.value }))}
+                  placeholder="https://www.hotelequip.pt"
+                />
+                <p className="text-xs text-muted-foreground">
+                  O CRM vai gerar automaticamente: <code>/?generate_hotelequip_pdf=SKU</code>
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2 md:col-span-3">
+                <Label className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  Email (assunto)
+                </Label>
+                <Input
+                  value={webhooks.email_template_subject || ""}
+                  onChange={(e) => setWebhooks((prev) => ({ ...prev, email_template_subject: e.target.value }))}
+                  placeholder="Ex: Orçamento {{quotation_number}} — HOTELEQUIP.PT"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-3">
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Email (HTML)
+                </Label>
+                <Textarea
+                  value={webhooks.email_template_html || ""}
+                  onChange={(e) => setWebhooks((prev) => ({ ...prev, email_template_html: e.target.value }))}
+                  placeholder="Cole aqui o HTML do email (será usado pelo n8n)"
+                  className="min-h-[260px] font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Variáveis suportadas: <code>{"{{company_name}}"}</code>, <code>{"{{contact_name}}"}</code>,{" "}
+                  <code>{"{{quotation_number}}"}</code>, <code>{"{{pdf_link}}"}</code>.
+                </p>
+              </div>
+            </div>
             <div className="flex justify-end">
-              <Button onClick={handleSaveWebhooks}>
+              <Button onClick={handleSaveWebhooks} disabled={!isSuperAdmin}>
                 <Save className="h-4 w-4 mr-2" />
                 Guardar Webhooks
               </Button>

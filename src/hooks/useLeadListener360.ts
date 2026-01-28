@@ -12,24 +12,43 @@ export function useLeadListener360() {
   const [isVisible, setIsVisible] = useState(false);
   const dismissedRef = useRef<Set<string>>(new Set());
   const warnedRef = useRef(false);
+  const incomingIdRef = useRef<string | null>(null);
+
+  // Configurável via env (Vite) — default 15s para evitar spam de requests
+  const pollMs = (() => {
+    const raw = (import.meta as any)?.env?.VITE_LEADS_INCOMING_POLL_MS;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 3000 ? n : 15000;
+  })();
 
   const pushLead = useCallback((lead: LeadItem) => {
     if (!lead?.id) return;
     if (dismissedRef.current.has(lead.id)) return;
-    if (incomingLead?.id === lead.id) return;
+    if (incomingIdRef.current === lead.id) return;
+    incomingIdRef.current = lead.id;
     setIncomingLead(lead);
     setIsVisible(true);
-  }, [incomingLead?.id]);
+  }, []);
 
   const dismissLead = useCallback((leadId?: string) => {
-    const id = leadId || incomingLead?.id;
+    const id = leadId || incomingIdRef.current || undefined;
     if (id) dismissedRef.current.add(id);
     setIsVisible(false);
     setTimeout(() => setIncomingLead(null), 250);
-  }, [incomingLead?.id]);
+  }, []);
 
   useEffect(() => {
     let active = true;
+    let interval: any = null;
+
+    const isPageVisible = () => {
+      // document pode não existir em SSR, mas aqui é SPA
+      try {
+        return typeof document !== "undefined" ? document.visibilityState === "visible" : true;
+      } catch {
+        return true;
+      }
+    };
 
     const tick = async () => {
       try {
@@ -37,7 +56,7 @@ export function useLeadListener360() {
         if (!active) return;
         if (!lead) return;
         if (dismissedRef.current.has(lead.id)) return;
-        if (incomingLead?.id === lead.id) return;
+        if (incomingIdRef.current === lead.id) return;
 
         pushLead(lead);
       } catch (e) {
@@ -54,13 +73,29 @@ export function useLeadListener360() {
       }
     };
 
-    tick();
-    const interval = setInterval(tick, 3000);
+    const schedule = () => {
+      if (interval) clearInterval(interval);
+      interval = null;
+      if (!active) return;
+      if (!isPageVisible()) return; // pausa quando o tab não está visível
+      tick();
+      interval = setInterval(tick, pollMs);
+    };
+
+    const onVisibility = () => schedule();
+    const onFocus = () => schedule();
+
+    schedule();
+    window.addEventListener("visibilitychange", onVisibility as any);
+    window.addEventListener("focus", onFocus as any);
+
     return () => {
       active = false;
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
+      window.removeEventListener("visibilitychange", onVisibility as any);
+      window.removeEventListener("focus", onFocus as any);
     };
-  }, [incomingLead?.id, pushLead]);
+  }, [pollMs, pushLead]);
 
   return { incomingLead, isVisible, dismissLead, pushLead };
 }

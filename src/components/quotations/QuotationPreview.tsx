@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from "react-router-dom";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -8,27 +9,45 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
-import { FileText, Download, Send, Loader2, Printer } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { FileText, Download, Send, Loader2, Printer, Pencil, MessageCircle, Copy } from 'lucide-react';
 import { useCompanySettings } from '@/hooks/useSettings';
+import { fetchQuotationPdf, getQuotationById, patchQuotation } from '@/integrations/directus/quotations';
+import { toast } from "@/hooks/use-toast";
+import { createDeal, listDeals, patchDeal } from "@/integrations/directus/deals";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { getEmployeeByEmail } from "@/integrations/directus/employees";
+import { useAuth } from "@/contexts/AuthContext";
+import { createFollowUp } from "@/integrations/directus/follow-ups";
+import { useCreateInteraction } from "@/hooks/useInteractions";
+import { directusApiUrl } from "@/integrations/directus/client";
 
 interface QuotationPreviewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   quotationId: string;
+  onEdit?: (quotationId: string, customerId?: string | number | null) => void;
 }
 
 interface QuotationData {
   id: string;
   quotation_number: string;
   status: string;
+  deal_id?: any;
   subtotal: number;
   total_amount: number;
   notes: string | null;
+  terms_conditions?: string | null;
+  internal_notes?: string | null;
+  sent_to_email?: string | null;
+  sent_at?: string | null;
+  pdf_link?: string | null;
   valid_until: string | null;
   created_at: string;
   customer: {
+    id?: string | number | null;
     company_name: string;
     contact_name: string | null;
     address: string | null;
@@ -42,16 +61,46 @@ interface QuotationData {
     id: string;
     product_name: string | null;
     sku: string | null;
+    image_url?: string | null;
+    product_url?: string | null;
+    ficha_tecnica_url?: string | null;
     quantity: number | null;
     unit_price: number | null;
     line_total: number | null;
   }[];
 }
 
-export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationPreviewProps) {
+export function QuotationPreview({ open, onOpenChange, quotationId, onEdit }: QuotationPreviewProps) {
+  const navigate = useNavigate();
+  const createInteraction = useCreateInteraction();
   const [quotation, setQuotation] = useState<QuotationData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendEmail, setSendEmail] = useState<string>("");
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
+  const [dealSearch, setDealSearch] = useState("");
+  const [dealResults, setDealResults] = useState<any[]>([]);
+  const [dealLoading, setDealLoading] = useState(false);
+  const [followUpAt, setFollowUpAt] = useState<string>("");
+  const [followUpType, setFollowUpType] = useState<string>("call");
   const { data: settings } = useCompanySettings();
+  const { user } = useAuth();
+  const [meEmpId, setMeEmpId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!user?.email) return;
+      const emp = await getEmployeeByEmail(String(user.email)).catch(() => null);
+      if (!active) return;
+      setMeEmpId(emp?.id ? String(emp.id) : null);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.email]);
 
   useEffect(() => {
     if (open && quotationId) {
@@ -62,30 +111,58 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
   const fetchQuotation = async () => {
     setLoading(true);
     try {
-      const { data: quotationData, error: quotationError } = await supabase
-        .from('quotations')
-        .select(`
-          *,
-          customer:contacts(company_name, contact_name, address, postal_code, city, nif, email, phone)
-        `)
-        .eq('id', quotationId)
-        .single();
-
-      if (quotationError) throw quotationError;
-
-      const { data: items, error: itemsError } = await supabase
-        .from('quotation_items')
-        .select('*')
-        .eq('quotation_id', quotationId)
-        .order('sort_order');
-
-      if (itemsError) throw itemsError;
+      const { quotation: q, items } = await getQuotationById(quotationId);
+      if (!q) throw new Error("Orçamento não encontrado");
 
       setQuotation({
-        ...quotationData,
-        customer: quotationData.customer,
-        items: items || [],
+        id: q.id,
+        quotation_number: String(q.quotation_number || ""),
+        status: String(q.status || "draft"),
+        deal_id: (q as any).deal_id ?? null,
+        subtotal: Number(q.subtotal || 0),
+        total_amount: Number(q.total_amount || 0),
+        notes: (q.notes as any) ?? null,
+        terms_conditions: (q.terms_conditions as any) ?? null,
+        internal_notes: (q.internal_notes as any) ?? null,
+        sent_to_email: (q.sent_to_email as any) ?? null,
+        sent_at: (q.sent_at as any) ?? null,
+        pdf_link: (q.pdf_link as any) ?? null,
+        valid_until: (q.valid_until as any) ?? null,
+        created_at: String(q.date_created || ""),
+        customer: (q as any).customer_id
+          ? {
+              id: (q as any).customer_id.id ?? null,
+              company_name: (q as any).customer_id.company_name || "",
+              contact_name: (q as any).customer_id.contact_name || null,
+              address: (q as any).customer_id.address || null,
+              postal_code: (q as any).customer_id.postal_code || null,
+              city: (q as any).customer_id.city || null,
+              nif: (q as any).customer_id.nif || null,
+              email: (q as any).customer_id.email || null,
+              phone: (q as any).customer_id.phone || null,
+            }
+          : null,
+        items: (items || []).map((i: any) => ({
+          id: i.id,
+          product_name: i.product_name ?? null,
+          sku: i.sku ?? null,
+          image_url: i.image_url ?? null,
+          product_url: i.product_url ?? null,
+          ficha_tecnica_url: i.ficha_tecnica_url ?? null,
+          quantity: i.quantity === null || i.quantity === undefined ? null : Number(i.quantity),
+          unit_price: i.unit_price === null || i.unit_price === undefined ? null : Number(i.unit_price),
+          line_total: i.line_total === null || i.line_total === undefined ? null : Number(i.line_total),
+        })),
       });
+
+      // default recipient for n8n send
+      const defaultEmail = (q as any)?.customer_id?.email || "";
+      setSendEmail(String(defaultEmail || (q.sent_to_email as any) || ""));
+
+      // default follow-up (2 dias)
+      const d = new Date();
+      d.setDate(d.getDate() + 2);
+      setFollowUpAt(d.toISOString().slice(0, 16)); // datetime-local
     } catch (error) {
       console.error('Erro ao carregar orçamento:', error);
     } finally {
@@ -94,13 +171,292 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
   };
 
   const handlePrint = () => {
-    window.print();
+    // Imprimir o PDF (mais fiável do que imprimir a página React)
+    handleOpenPdf(true).catch(() => undefined);
+  };
+
+  const handleOpenPdf = async (_forPrint?: boolean) => {
+    if (!quotationId) return;
+    setPdfBusy(true);
+    try {
+      const blob = await fetchQuotationPdf(String(quotationId));
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank");
+      if (!w) {
+        toast({ title: "Popup bloqueado", description: "Permite popups para abrir o PDF.", variant: "destructive" });
+        return;
+      }
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!quotationId) return;
+    setPdfBusy(true);
+    try {
+      const blob = await fetchQuotationPdf(String(quotationId));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${quotation?.quotation_number || quotationId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const normalizeCustomerId = (cid: any) => {
+    const s = String(cid ?? "");
+    return /^\d+$/.test(s) ? Number(s) : s;
+  };
+
+  const handleOpenSendDialog = () => {
+    setSendDialogOpen(true);
+  };
+
+  const handleSendViaN8n = async () => {
+    if (!quotation) return;
+    const email = String(sendEmail || "").trim();
+    if (!email) {
+      toast({ title: "Email em falta", description: "Indica o email do destinatário.", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    try {
+      const now = new Date().toISOString();
+      await patchQuotation(String(quotationId), {
+        status: "sent",
+        sent_to_email: email,
+        sent_at: now,
+      } as any);
+
+      // criar follow-up (agenda) opcional
+      if (meEmpId && followUpAt) {
+        await createFollowUp({
+          status: "open",
+          type: followUpType,
+          due_at: new Date(followUpAt).toISOString(),
+          title: `Follow-up ${quotation.quotation_number || quotationId}`,
+          contact_id: quotation.customer?.id ? normalizeCustomerId(quotation.customer.id) : null,
+          quotation_id: /^\d+$/.test(String(quotationId)) ? Number(quotationId) : quotationId,
+          deal_id: quotation.deal_id ? String(quotation.deal_id) : null,
+          assigned_employee_id: meEmpId,
+          created_by_employee_id: meEmpId,
+          notes: `Enviar: ${email}`,
+        } as any);
+      }
+
+      // registar no histórico do cliente (interactions)
+      try {
+        if (quotation.customer?.id) {
+          await createInteraction.mutateAsync({
+            type: "email",
+            direction: "out",
+            status: "done",
+            source: "crm",
+            occurred_at: now,
+            contact_id: normalizeCustomerId(quotation.customer.id),
+            email,
+            summary: `Orçamento enviado: ${String(quotation.quotation_number || quotationId)}`,
+            payload: {
+              kind: "quotation_sent",
+              quotation_id: String(quotationId),
+              quotation_number: String(quotation.quotation_number || ""),
+              pdf_link: String(quotation.pdf_link || ""),
+            },
+          } as any);
+        }
+      } catch {
+        // best-effort
+      }
+
+      // disparar n8n (gera PDF + envia email)
+      try {
+        const companySettings = settings as any;
+        const webhookUrl = String(companySettings?.webhook_proposta_pdf || "").trim();
+        if (!webhookUrl) {
+          throw new Error("Webhook n8n não configurado (Integrações → Webhooks n8n → Gerar Proposta PDF).");
+        }
+
+        const technicalBase = String(
+          companySettings?.technical_pdf_base_url ||
+            companySettings?.woo_url ||
+            "https://www.hotelequip.pt"
+        ).replace(/\/+$/, "");
+
+        const technical_pdfs = (quotation.items || [])
+          .map((it) => {
+            const sku = String(it?.sku || "").trim();
+            const url =
+              String(it?.ficha_tecnica_url || "").trim() ||
+              (sku ? `${technicalBase}/?generate_hotelequip_pdf=${encodeURIComponent(sku)}` : "");
+            return sku && url ? { sku, url } : null;
+          })
+          .filter(Boolean);
+
+        const payload = {
+          public_url: window.location.origin,
+          pdf_url: directusApiUrl(`/gerar-pdf/${encodeURIComponent(String(quotationId))}`),
+          quotation: {
+            id: quotation.id,
+            quotation_number: quotation.quotation_number,
+            status: "sent",
+            sent_to_email: email,
+            sent_at: now,
+          },
+          customer: quotation.customer || null,
+          items: quotation.items || [],
+          technical_pdfs,
+          email_template_subject: String(companySettings?.email_template_subject || ""),
+          email_template_html: String(companySettings?.email_template_html || ""),
+        };
+
+        const res = await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(txt || `Webhook n8n falhou (${res.status})`);
+        }
+      } catch (e: any) {
+        toast({
+          title: "Aviso: n8n não disparou",
+          description: String(e?.message || e),
+          variant: "destructive",
+        });
+      }
+
+      toast({ title: "Marcado como enviado", description: "O n8n vai gerar o PDF e enviar o email." });
+      setSendDialogOpen(false);
+      await fetchQuotation();
+    } catch (e: any) {
+      toast({ title: "Erro ao marcar como enviado", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const getCustomerPhoneE164ish = () => {
+    const raw = String(quotation?.customer?.phone || "").trim();
+    const digits = raw.replace(/\D/g, "");
+    return digits || "";
+  };
+
+  const getPdfShareLink = () => {
+    const link = String(quotation?.pdf_link || "").trim();
+    return link || "";
+  };
+
+  const handleCopyPdfLink = async () => {
+    const link = getPdfShareLink();
+    if (!link) {
+      toast({ title: "Sem link do PDF", description: "Gera o PDF/automação e guarda um link público em `pdf_link`.", variant: "destructive" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      toast({ title: "Link copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const handleSendWhatsApp = () => {
+    const phone = getCustomerPhoneE164ish();
+    const link = getPdfShareLink();
+    if (!link) {
+      toast({ title: "Sem link do PDF", description: "Gera o PDF/automação e guarda um link público em `pdf_link`.", variant: "destructive" });
+      return;
+    }
+    const msg = encodeURIComponent(`Olá! Segue o orçamento ${quotation?.quotation_number || quotationId}:\n${link}`);
+    const url = phone ? `https://wa.me/${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleOpenProposalDialog = async () => {
+    setProposalDialogOpen(true);
+    // preload some deals for linking
+    setDealLoading(true);
+    try {
+      const rows = await listDeals({ search: "", limit: 30, page: 1 });
+      setDealResults(rows || []);
+    } catch {
+      setDealResults([]);
+    } finally {
+      setDealLoading(false);
+    }
+  };
+
+  const handleSearchDeals = async (q: string) => {
+    setDealSearch(q);
+    setDealLoading(true);
+    try {
+      const rows = await listDeals({ search: q, limit: 50, page: 1 });
+      setDealResults(rows || []);
+    } catch {
+      setDealResults([]);
+    } finally {
+      setDealLoading(false);
+    }
+  };
+
+  const closeAsProposalCreateDeal = async () => {
+    if (!quotation?.customer?.id) {
+      toast({ title: "Sem cliente", variant: "destructive" });
+      return;
+    }
+    const customerId = normalizeCustomerId(quotation.customer.id);
+    const title = `Proposta - ${quotation.customer.company_name || "Cliente"} - ${quotation.quotation_number || quotationId}`;
+    try {
+      const deal = await createDeal({
+        title,
+        status: "proposta",
+        customer_id: customerId as any,
+        total_amount: Number(quotation.total_amount || 0),
+        owner_employee_id: meEmpId || undefined,
+        assigned_employee_id: meEmpId || undefined,
+        assigned_by_employee_id: meEmpId || undefined,
+        assigned_at: new Date().toISOString(),
+      } as any);
+      await patchQuotation(String(quotationId), { deal_id: (deal as any).id } as any);
+      toast({ title: "Proposta criada no pipeline" });
+      setProposalDialogOpen(false);
+      await fetchQuotation();
+    } catch (e: any) {
+      toast({ title: "Erro ao criar proposta", description: String(e?.message || e), variant: "destructive" });
+    }
+  };
+
+  const closeAsProposalLinkDeal = async (dealId: string) => {
+    try {
+      await patchDeal(String(dealId), { status: "proposta" } as any);
+      await patchQuotation(String(quotationId), { deal_id: String(dealId) } as any);
+      toast({ title: "Orçamento ligado ao negócio (proposta)" });
+      setProposalDialogOpen(false);
+      await fetchQuotation();
+    } catch (e: any) {
+      toast({ title: "Erro ao ligar proposta", description: String(e?.message || e), variant: "destructive" });
+    }
   };
 
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Pré-visualização do Orçamento</DialogTitle>
+            <DialogDescription>A carregar dados do orçamento.</DialogDescription>
+          </DialogHeader>
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -126,17 +482,149 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
               Pré-visualização do Orçamento
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Edit is handled by parent (opens QuotationCreator in edit mode)
+                  onEdit?.(String(quotationId), quotation?.customer?.id ?? null);
+                }}
+                disabled={!quotation?.customer?.id}
+                title="Editar/retomar"
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Editar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (quotation?.deal_id) {
+                    onOpenChange(false);
+                    navigate(`/pipeline?dealId=${encodeURIComponent(String(quotation.deal_id))}`);
+                    return;
+                  }
+                  handleOpenProposalDialog();
+                }}
+                disabled={!quotation?.customer?.id}
+                title={quotation?.deal_id ? "Abrir negócio no Pipeline" : "Criar/Ligar negócio no Pipeline"}
+              >
+                <Badge variant="outline" className="mr-2">{quotation?.deal_id ? "Negócio" : "Pipeline"}</Badge>
+                {quotation?.deal_id ? "Abrir no Pipeline" : "Criar/Ligar"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfBusy}>
                 <Printer className="h-4 w-4 mr-1" />
                 Imprimir
               </Button>
-              <Button size="sm">
+              <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={pdfBusy}>
+                <Download className="h-4 w-4 mr-1" />
+                PDF
+              </Button>
+              <Button size="sm" onClick={handleOpenSendDialog} disabled={sending}>
                 <Send className="h-4 w-4 mr-1" />
                 Enviar por Email
               </Button>
             </div>
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Pré-visualização e ações do orçamento (PDF, imprimir, enviar, e fechar como proposta).
+          </DialogDescription>
         </DialogHeader>
+
+        {/* Send via n8n dialog */}
+        <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Enviar (n8n)</DialogTitle>
+              <DialogDescription className="sr-only">
+                Define destinatário e follow-up e marca o orçamento como enviado.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Vai marcar como <b>sent</b> e disparar a automação no n8n.
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email do destinatário</label>
+                <Input value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="cliente@..." />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Follow-up (quando)</label>
+                  <Input type="datetime-local" value={followUpAt} onChange={(e) => setFollowUpAt(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tipo</label>
+                  <Input value={followUpType} onChange={(e) => setFollowUpType(e.target.value)} placeholder="call/email/whatsapp" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Cancelar</Button>
+                <Button variant="outline" onClick={handleCopyPdfLink} title="Copiar link do PDF (pdf_link)">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar PDF
+                </Button>
+                <Button variant="outline" onClick={handleSendWhatsApp} title="Enviar link do PDF por WhatsApp">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  WhatsApp
+                </Button>
+                <Button onClick={handleSendViaN8n} disabled={sending}>
+                  {sending ? "A enviar…" : "Confirmar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Proposal dialog */}
+        <Dialog open={proposalDialogOpen} onOpenChange={setProposalDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Criar/Ligar Negócio (Pipeline)</DialogTitle>
+              <DialogDescription className="sr-only">
+                Cria ou liga um negócio existente e atualiza o estado para proposta.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Cria um negócio novo ou liga este orçamento a um negócio existente (e move para Proposta).
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <Button onClick={closeAsProposalCreateDeal}>Criar negócio novo</Button>
+                <div className="flex-1" />
+                <Input
+                  value={dealSearch}
+                  onChange={(e) => handleSearchDeals(e.target.value)}
+                  placeholder="Pesquisar negócios existentes…"
+                />
+              </div>
+              <div className="max-h-[45vh] overflow-auto border rounded-md">
+                {dealLoading ? (
+                  <div className="p-4 text-sm text-muted-foreground">A carregar…</div>
+                ) : dealResults.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">Sem resultados</div>
+                ) : (
+                  <div className="divide-y">
+                    {dealResults.slice(0, 50).map((d: any) => (
+                      <div key={String(d.id)} className="p-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{String(d.title || d.id)}</div>
+                          <div className="text-xs text-muted-foreground flex gap-2">
+                            <span>{String(d.status || "")}</span>
+                            {d.customer_id?.company_name ? <span className="truncate">{String(d.customer_id.company_name)}</span> : null}
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => closeAsProposalLinkDeal(String(d.id))}>
+                          Ligar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <ScrollArea className="flex-1">
           {/* PDF Preview Container */}
@@ -144,14 +632,24 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
             {/* Header com Logo */}
             <div className="flex justify-between items-start mb-8">
               <div>
-                <img 
-                  src="/logo-hotelequip-dark.svg" 
-                  alt="HotelEquip" 
-                  className="h-12 mb-2"
+                <img
+                  src={String(companySettings?.logo_url || "/logo-hotelequip-dark.svg")}
+                  alt={String(companySettings?.name || "HotelEquip")}
+                  className="h-12 mb-2 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/logo-hotelequip-dark.svg";
+                  }}
                 />
                 <div className="text-sm text-gray-600 space-y-0.5">
                   <p className="font-semibold">{companySettings?.name || 'HotelEquip'}</p>
-                  <p>{companySettings?.address || 'Morada da empresa'}</p>
+                  <p>
+                    {[
+                      companySettings?.address || null,
+                      [companySettings?.postal_code || null, companySettings?.city || null].filter(Boolean).join(" "),
+                    ]
+                      .filter(Boolean)
+                      .join(" • ") || "Morada da empresa"}
+                  </p>
                   <p>NIF: {companySettings?.vat_number || '000000000'}</p>
                   <p>Tel: {companySettings?.phone || '+351 XXX XXX XXX'}</p>
                   <p>Email: {companySettings?.email || 'geral@hotelequip.pt'}</p>
@@ -203,10 +701,25 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
                 {quotation.items.map((item, index) => (
                   <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
                     <td className="py-3 text-sm">
-                      <p className="font-medium">{item.product_name}</p>
-                      {item.sku && (
-                        <p className="text-xs text-gray-500">SKU: {item.sku}</p>
-                      )}
+                      <div className="flex items-start gap-3">
+                        {item.image_url ? (
+                          <img
+                            src={String(item.image_url)}
+                            alt={String(item.product_name || item.sku || "Produto")}
+                            className="h-12 w-12 object-contain bg-gray-100 border rounded"
+                            loading="lazy"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "/placeholder.svg";
+                            }}
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <p className="font-medium">{item.product_name}</p>
+                          {item.sku && (
+                            <p className="text-xs text-gray-500">SKU: {item.sku}</p>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="py-3 text-sm text-center">{item.quantity}</td>
                     <td className="py-3 text-sm text-right">
@@ -251,17 +764,20 @@ export function QuotationPreview({ open, onOpenChange, quotationId }: QuotationP
 
             {/* Rodapé */}
             <div className="border-t-2 border-gray-200 pt-6 text-xs text-gray-500 space-y-2">
-              <p className="font-semibold">Condições de Pagamento:</p>
-              <p>• Orçamento válido por 30 dias a partir da data de emissão</p>
-              <p>• Pagamento: 50% no ato da encomenda, 50% antes da entrega</p>
-              <p>• Prazo de entrega: A combinar conforme disponibilidade de stock</p>
+              <p className="font-semibold">Condições</p>
+              <p className="whitespace-pre-wrap">
+                {quotation.terms_conditions || "• Orçamento válido por 30 dias • Pagamento/Entrega: a definir"}
+              </p>
               
               <Separator className="my-4" />
               
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-semibold">Dados Bancários:</p>
-                  <p>IBAN: PT50 0000 0000 0000 0000 0000 0</p>
+                  <p>IBAN: {companySettings?.iban || "—"}</p>
+                  {companySettings?.payment_instructions ? (
+                    <p className="whitespace-pre-wrap">{String(companySettings.payment_instructions)}</p>
+                  ) : null}
                 </div>
                 <div className="text-right">
                   <p>{companySettings?.name || 'HotelEquip'}</p>

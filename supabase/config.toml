@@ -1,7 +1,0 @@
-project_id = "hzzaoxtgyazdjvrnycux"
-
-[functions.receive-lead]
-verify_jwt = false
-
-[functions.receive-call]
-verify_jwt = false

@@ -35,6 +35,10 @@ import { useMeilisearch, MeilisearchProduct } from "@/hooks/useMeilisearch";
 import { QuotationsSection } from "./QuotationsSection";
 import { toast } from "@/hooks/use-toast";
 import { getContactById, patchContact } from "@/integrations/directus/contacts";
+import { useAuth } from "@/contexts/AuthContext";
+import { getEmployeeByEmail } from "@/integrations/directus/employees";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useQuery } from "@tanstack/react-query";
 import {
   Save,
   FileText,
@@ -59,6 +63,7 @@ const ENABLE_QUOTATIONS = String(import.meta.env.VITE_ENABLE_QUOTATIONS || "").t
 export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
   const isNew = !dealId;
   const { data: deal, isLoading } = useDeal(dealId || undefined);
+  const { user } = useAuth();
   const { data: contacts } = useContacts();
   const { data: manufacturers } = useManufacturers();
   const createDeal = useCreateDeal();
@@ -68,12 +73,23 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
 
   const { search, results, isSearching, error: searchError, clearResults } = useMeilisearch();
 
+  const meEmployeeQuery = useQuery({
+    queryKey: ["me", "employee", user?.email],
+    queryFn: async () => (user?.email ? await getEmployeeByEmail(String(user.email)) : null),
+    enabled: !!user?.email,
+  });
+  const meEmp = meEmployeeQuery.data;
+
+  const employeesQuery = useEmployees("");
+  const employees = Array.isArray(employeesQuery.data) ? employeesQuery.data.filter((e) => e?.is_active !== false) : [];
+
   const [formData, setFormData] = useState({
     title: "",
     status: "lead",
     customer_id: "",
     manufacturer_id: "",
     total_amount: 0,
+    assigned_employee_id: "",
   });
 
   const [productSearch, setProductSearch] = useState("");
@@ -81,12 +97,14 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
 
   useEffect(() => {
     if (deal) {
+      const assignedObj = (deal as any)?.assigned_employee_id && typeof (deal as any).assigned_employee_id === "object" ? (deal as any).assigned_employee_id : null;
       setFormData({
         title: deal.title || "",
         status: deal.status || "lead",
         customer_id: deal.customer_id || "",
         manufacturer_id: deal.manufacturer_id || "",
         total_amount: deal.total_amount || 0,
+        assigned_employee_id: assignedObj?.id ? String(assignedObj.id) : (typeof (deal as any).assigned_employee_id === "string" ? String((deal as any).assigned_employee_id) : ""),
       });
     } else if (isNew) {
       setFormData({
@@ -95,9 +113,10 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
         customer_id: "",
         manufacturer_id: "",
         total_amount: 0,
+        assigned_employee_id: meEmp?.id ? String(meEmp.id) : "",
       });
     }
-  }, [deal, isNew]);
+  }, [deal, isNew, meEmp?.id]);
 
   // Debounced search
   useEffect(() => {
@@ -120,18 +139,41 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
 
   const handleSave = async () => {
     try {
+      const now = new Date().toISOString();
+      const prevAssigned = (deal as any)?.assigned_employee_id?.id
+        ? String((deal as any).assigned_employee_id.id)
+        : (typeof (deal as any)?.assigned_employee_id === "string" ? String((deal as any).assigned_employee_id) : "");
+
       // Converter strings vazias para null para evitar erro de UUID
       const dataToSave = {
         ...formData,
         customer_id: formData.customer_id || null,
         manufacturer_id: formData.manufacturer_id || null,
+        assigned_employee_id: formData.assigned_employee_id || null,
       };
 
       if (isNew) {
-        await createDeal.mutateAsync(dataToSave);
+        await createDeal.mutateAsync({
+          ...dataToSave,
+          // Regra: owner é sempre quem inicia
+          owner_employee_id: meEmp?.id ? String(meEmp.id) : undefined,
+          // Atribuição inicial
+          assigned_by_employee_id: meEmp?.id ? String(meEmp.id) : undefined,
+          assigned_at: now,
+        } as any);
         toast({ title: "Negócio criado com sucesso" });
       } else if (dealId) {
-        await updateDeal.mutateAsync({ id: dealId, ...dataToSave });
+        const assignedChanged = !!formData.assigned_employee_id && formData.assigned_employee_id !== prevAssigned;
+        await updateDeal.mutateAsync({
+          id: dealId,
+          ...dataToSave,
+          ...(assignedChanged
+            ? {
+                assigned_by_employee_id: meEmp?.id ? String(meEmp.id) : undefined,
+                assigned_at: now,
+              }
+            : {}),
+        } as any);
         toast({ title: "Negócio atualizado com sucesso" });
       }
       onOpenChange(false);
@@ -318,6 +360,30 @@ export function DealDialog({ dealId, open, onOpenChange }: DealDialogProps) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Responsável</Label>
+                <Select
+                  value={formData.assigned_employee_id || "__none__"}
+                  onValueChange={(value) =>
+                    handleChange("assigned_employee_id", value === "__none__" ? "" : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar responsável" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">—</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={String(e.id)} value={String(e.id)}>
+                        {String(e.full_name || e.email || e.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-xs text-muted-foreground">
+                  Dono (início): {String((deal as any)?.owner_employee_id?.full_name || (deal as any)?.owner_employee_id?.id || "—")}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="customer">Cliente</Label>

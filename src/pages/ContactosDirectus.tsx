@@ -12,16 +12,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, Phone, Mail, MessageCircle } from "lucide-react";
+import { Plus, Search, Eye, Phone, Mail, MessageCircle, FileText, Workflow } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listContacts } from "@/integrations/directus/contacts";
+import { listNewsletterSubscriptions } from "@/integrations/directus/newsletter-subscriptions";
+import { listActiveDealsByCustomerIds } from "@/integrations/directus/deals";
+import { listActiveQuotationsByCustomerIds } from "@/integrations/directus/quotations";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function ContactosDirectus() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const renderTags = (raw: any) => {
+    const list: string[] = Array.isArray(raw)
+      ? raw.map((x) => String(x)).filter(Boolean)
+      : typeof raw === "string"
+        ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+    return list.slice(0, 3);
+  };
 
   const query = useQuery({
     queryKey: ["contacts-directus", searchTerm],
@@ -30,8 +42,80 @@ export default function ContactosDirectus() {
     },
   });
 
+  const subsQuery = useQuery({
+    queryKey: ["newsletter-subscriptions", "search", searchTerm],
+    enabled: !!searchTerm.trim(),
+    queryFn: async () => {
+      return await listNewsletterSubscriptions({ search: searchTerm, limit: 50, page: 1 });
+    },
+  });
+
   const contacts = query.data || [];
   const isLoading = query.isLoading;
+  const subs = subsQuery.data || [];
+
+  const activeSummary = useQuery({
+    queryKey: ["contacts-directus", "active-summary", contacts.map((c: any) => String(c?.id || "")).join(",")],
+    enabled: contacts.length > 0,
+    queryFn: async () => {
+      const ids = contacts.map((c: any) => String(c.id));
+      const [deals, quotations] = await Promise.all([
+        listActiveDealsByCustomerIds(ids).catch(() => []),
+        listActiveQuotationsByCustomerIds(ids).catch(() => []),
+      ]);
+
+      const dealsByCustomer: Record<string, { count: number; total: number }> = {};
+      const firstDealIdByCustomer: Record<string, string> = {};
+      for (const d of deals as any[]) {
+        const cid = d?.customer_id?.id ? String(d.customer_id.id) : d?.customer_id ? String(d.customer_id) : "";
+        if (!cid) continue;
+        const prev = dealsByCustomer[cid] || { count: 0, total: 0 };
+        dealsByCustomer[cid] = { count: prev.count + 1, total: prev.total + Number(d.total_amount || 0) };
+        if (!firstDealIdByCustomer[cid] && d?.id) firstDealIdByCustomer[cid] = String(d.id);
+      }
+
+      const quotationsByCustomer: Record<string, { count: number; total: number }> = {};
+      const firstQuotationIdByCustomer: Record<string, string> = {};
+      for (const q of quotations as any[]) {
+        const cid = q?.customer_id?.id ? String(q.customer_id.id) : q?.customer_id ? String(q.customer_id) : "";
+        if (!cid) continue;
+        const prev = quotationsByCustomer[cid] || { count: 0, total: 0 };
+        quotationsByCustomer[cid] = { count: prev.count + 1, total: prev.total + Number(q.total_amount || 0) };
+        if (!firstQuotationIdByCustomer[cid] && q?.id) firstQuotationIdByCustomer[cid] = String(q.id);
+      }
+
+      return { dealsByCustomer, quotationsByCustomer, firstDealIdByCustomer, firstQuotationIdByCustomer };
+    },
+  });
+
+  const enrichedContacts = useMemo(() => {
+    const dealsByCustomer = (activeSummary.data as any)?.dealsByCustomer || {};
+    const quotationsByCustomer = (activeSummary.data as any)?.quotationsByCustomer || {};
+    const firstDealIdByCustomer = (activeSummary.data as any)?.firstDealIdByCustomer || {};
+    const firstQuotationIdByCustomer = (activeSummary.data as any)?.firstQuotationIdByCustomer || {};
+    const withMeta = contacts.map((c: any) => {
+      const id = String(c?.id || "");
+      const d = dealsByCustomer[id] || { count: 0, total: 0 };
+      const q = quotationsByCustomer[id] || { count: 0, total: 0 };
+      const hasActive = (d.count || 0) > 0 || (q.count || 0) > 0;
+      const activeScore = (d.total || 0) + (q.total || 0);
+      return {
+        ...c,
+        __activeDeals: d,
+        __activeQuotations: q,
+        __hasActive: hasActive,
+        __activeScore: activeScore,
+        __firstDealId: firstDealIdByCustomer[id] || null,
+        __firstQuotationId: firstQuotationIdByCustomer[id] || null,
+      };
+    });
+    // Prioridade: quem tem em curso aparece primeiro; depois por valor total em curso; depois por nome
+    return withMeta.sort((a: any, b: any) => {
+      if (!!a.__hasActive !== !!b.__hasActive) return a.__hasActive ? -1 : 1;
+      if ((b.__activeScore || 0) !== (a.__activeScore || 0)) return (b.__activeScore || 0) - (a.__activeScore || 0);
+      return String(a.company_name || a.contact_name || "").localeCompare(String(b.company_name || b.contact_name || ""), "pt");
+    });
+  }, [contacts, activeSummary.data]);
 
   const count = useMemo(() => contacts.length, [contacts.length]);
 
@@ -93,8 +177,15 @@ export default function ContactosDirectus() {
               </CardContent>
             </Card>
           ) : (
-            contacts.map((c: any) => (
-              <Card key={String(c.id)}>
+            enrichedContacts.map((c: any) => (
+              <Card
+                key={String(c.id)}
+                className={[
+                  "cursor-pointer hover:bg-muted/30 transition-colors",
+                  c.__hasActive ? "border-amber-500/40 bg-amber-500/5" : "",
+                ].join(" ")}
+                onClick={() => navigate(`/dashboard360/${encodeURIComponent(String(c.id))}`)}
+              >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -105,19 +196,78 @@ export default function ContactosDirectus() {
                         {c.nif && <div>NIF: {c.nif}</div>}
                         {c.phone && <div className="font-mono">{c.phone}</div>}
                         {c.email && <div className="truncate">{c.email}</div>}
+                        {c.city && <div className="truncate">{c.city}</div>}
                       </div>
+                      {renderTags(c.tags).length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {renderTags(c.tags).map((t) => (
+                            <Badge key={t} variant="secondary" className="text-[10px]">
+                              {t}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to={`/dashboard360/${encodeURIComponent(String(c.id))}`}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Abrir
-                      </Link>
-                    </Button>
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      {c.__hasActive ? (
+                        <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-700">
+                          Em curso
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Contacto</Badge>
+                      )}
+                      {(c.__activeDeals?.count || 0) > 0 ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          Negócios: {c.__activeDeals.count}
+                        </Badge>
+                      ) : null}
+                      {(c.__activeQuotations?.count || 0) > 0 ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          Orçamentos: {c.__activeQuotations.count}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {c.__firstQuotationId ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 min-w-28"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/orcamentos?openId=${encodeURIComponent(String(c.__firstQuotationId))}`);
+                        }}
+                        title="Abrir orçamento ativo"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Orçamento
+                      </Button>
+                    ) : null}
+                    {c.__firstDealId ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 min-w-28"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/pipeline?dealId=${encodeURIComponent(String(c.__firstDealId))}`);
+                        }}
+                        title="Abrir negócio em curso no pipeline"
+                      >
+                        <Workflow className="h-4 w-4 mr-2" />
+                        Pipeline
+                      </Button>
+                    ) : null}
                     {c.phone && (
-                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-28"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <a href={`tel:${c.phone}`}>
                           <Phone className="h-4 w-4 mr-2" />
                           Ligar
@@ -125,7 +275,13 @@ export default function ContactosDirectus() {
                       </Button>
                     )}
                     {c.whatsapp_number && (
-                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-28"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <a
                           href={`https://wa.me/${String(c.whatsapp_number).replace(/\D/g, "")}`}
                           target="_blank"
@@ -137,7 +293,13 @@ export default function ContactosDirectus() {
                       </Button>
                     )}
                     {c.email && (
-                      <Button size="sm" variant="outline" className="flex-1 min-w-28" asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-28"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <a href={`mailto:${c.email}`}>
                           <Mail className="h-4 w-4 mr-2" />
                           Email
@@ -150,6 +312,41 @@ export default function ContactosDirectus() {
             ))
           )}
         </div>
+
+        {/* Newsletter-only matches (when searching) */}
+        {searchTerm.trim() && subs.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Resultados na Newsletter (ainda não são contactos)
+            </div>
+            <div className="grid gap-3">
+              {subs.map((s: any) => {
+                const label = s.full_name || s.email || s.phone || String(s.id);
+                const to = `/newsletter/${encodeURIComponent(String(s.id))}`;
+                return (
+                  <Card
+                    key={String(s.id)}
+                    className="cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => navigate(to)}
+                  >
+                    <CardContent className="p-4 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{label}</div>
+                        <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
+                          {s.email ? <span>{String(s.email)}</span> : null}
+                          {s.phone ? <span className="font-mono">{String(s.phone)}</span> : null}
+                          {s.coupon_code ? <span>Cupão: {String(s.coupon_code)}</span> : <span>Sem cupão</span>}
+                          {s.status ? <span>Estado: {String(s.status)}</span> : null}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">Newsletter</Badge>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Desktop: table */}
         <div className="hidden md:block border rounded-lg overflow-hidden">
@@ -181,32 +378,86 @@ export default function ContactosDirectus() {
                   </TableCell>
                 </TableRow>
               ) : (
-                contacts.map((c: any) => (
-                  <TableRow key={String(c.id)}>
+                enrichedContacts.map((c: any) => (
+                  <TableRow
+                    key={String(c.id)}
+                    className={[
+                      "cursor-pointer hover:bg-muted/30",
+                      c.__hasActive ? "bg-amber-500/5" : "",
+                    ].join(" ")}
+                    onClick={() => navigate(`/dashboard360/${encodeURIComponent(String(c.id))}`)}
+                  >
                     <TableCell className="font-medium">
                       {c.company_name || c.contact_name || c.email || c.phone || "-"}
+                      {c.__hasActive ? (
+                        <span className="ml-2 align-middle">
+                          <Badge variant="outline" className="text-[10px] bg-amber-500/10 border-amber-500/30 text-amber-700">
+                            Em curso • N:{c.__activeDeals?.count || 0} • O:{c.__activeQuotations?.count || 0}
+                          </Badge>
+                        </span>
+                      ) : null}
+                      {c.city ? (
+                        <div className="text-xs text-muted-foreground mt-1 truncate">{String(c.city)}</div>
+                      ) : null}
+                      {renderTags(c.tags).length ? (
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {renderTags(c.tags).map((t) => (
+                            <Badge key={t} variant="secondary" className="text-[10px]">
+                              {t}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{c.nif || "-"}</TableCell>
                     <TableCell className="hidden sm:table-cell">{c.phone || "-"}</TableCell>
                     <TableCell className="hidden lg:table-cell">{c.email || "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
+                        {c.__firstQuotationId ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/orcamentos?openId=${encodeURIComponent(String(c.__firstQuotationId))}`);
+                            }}
+                            title="Abrir orçamento ativo"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {c.__firstDealId ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/pipeline?dealId=${encodeURIComponent(String(c.__firstDealId))}`);
+                            }}
+                            title="Abrir negócio no pipeline"
+                          >
+                            <Workflow className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         {c.phone && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                             <a href={`tel:${c.phone}`}>
                               <Phone className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
                         {c.email && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                             <a href={`mailto:${c.email}`}>
                               <Mail className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
                         {c.whatsapp_number && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild onClick={(e) => e.stopPropagation()}>
                             <a
                               href={`https://wa.me/${String(c.whatsapp_number).replace(/\D/g, "")}`}
                               target="_blank"
@@ -216,11 +467,7 @@ export default function ContactosDirectus() {
                             </a>
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                          <Link to={`/dashboard360/${encodeURIComponent(String(c.id))}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
+                        <Badge variant="secondary" className="mr-1">Contacto</Badge>
                       </div>
                     </TableCell>
                   </TableRow>

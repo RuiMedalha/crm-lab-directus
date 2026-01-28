@@ -1,0 +1,96 @@
+{
+  "name": "CRM - Chatwoot inbound -> Directus interactions",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/chatwoot-inbound",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "Webhook",
+      "name": "Webhook (chatwoot inbound)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 240]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "DIRECTUS_URL", "value": "={{ $env.DIRECTUS_URL }}" },
+            { "name": "DIRECTUS_TOKEN", "value": "={{ $env.DIRECTUS_TOKEN }}" },
+            { "name": "chatwootContactId", "value": "={{ $json?.contact?.id || $json?.contact?.identifier || $json?.contact_id || '' }}" },
+            { "name": "message", "value": "={{ $json?.content || $json?.message?.content || $json?.event?.content || '' }}" },
+            { "name": "conversationId", "value": "={{ $json?.conversation?.id || $json?.conversation_id || '' }}" },
+            { "name": "occurredAt", "value": "={{ $json?.created_at ? new Date($json.created_at * 1000).toISOString() : new Date().toISOString() }}" }
+          ]
+        }
+      },
+      "id": "Set",
+      "name": "Set (extract)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [520, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (extract)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/contacts' }}",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (extract)'].json.DIRECTUS_TOKEN }}" }
+          ]
+        },
+        "queryParameters": {
+          "parameters": [
+            { "name": "limit", "value": "1" },
+            { "name": "fields", "value": "id,company_name,chatwoot_contact_id" },
+            { "name": "filter[chatwoot_contact_id][_eq]", "value": "={{ $node['Set (extract)'].json.chatwootContactId }}" }
+          ]
+        }
+      },
+      "id": "FindContact",
+      "name": "HTTP - Find contact by chatwoot_contact_id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [760, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (extract)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/interactions' }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (extract)'].json.DIRECTUS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ { type: 'whatsapp', direction: 'in', status: 'done', source: 'chatwoot', occurred_at: $node['Set (extract)'].json.occurredAt, contact_id: ($json.data && $json.data[0] && $json.data[0].id) ? $json.data[0].id : null, summary: ($node['Set (extract)'].json.message || 'Mensagem recebida').slice(0,240), payload: { chatwoot_contact_id: $node['Set (extract)'].json.chatwootContactId, conversation_id: $node['Set (extract)'].json.conversationId, raw: $node['Webhook (chatwoot inbound)'].json } } }}"
+      },
+      "id": "CreateInteraction",
+      "name": "HTTP - Create interaction (Directus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 240]
+    }
+  ],
+  "connections": {
+    "Webhook (chatwoot inbound)": {
+      "main": [[{ "node": "Set (extract)", "type": "main", "index": 0 }]]
+    },
+    "Set (extract)": {
+      "main": [[{ "node": "HTTP - Find contact by chatwoot_contact_id", "type": "main", "index": 0 }]]
+    },
+    "HTTP - Find contact by chatwoot_contact_id": {
+      "main": [[{ "node": "HTTP - Create interaction (Directus)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionTimeout": 300 },
+  "versionId": "1"
+}

@@ -18,6 +18,19 @@ export interface EmployeeItem {
 
 const FIELDS = ["id", "full_name", "email", "role", "is_active", "phone", "notes"].join(",");
 
+export async function getEmployeeByEmail(email: string): Promise<EmployeeItem | null> {
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean) return null;
+  const res = await directusRequest<{ data: EmployeeItem[] }>(
+    `/items/${DIRECTUS_EMPLOYEES_COLLECTION}${qs({
+      limit: 1,
+      fields: FIELDS,
+      "filter[email][_eq]": clean,
+    })}`
+  );
+  return res.data?.[0] || null;
+}
+
 export async function listEmployees(params?: { search?: string; limit?: number; page?: number }) {
   const search = params?.search?.trim() || "";
   const res = await directusRequest<{ data: EmployeeItem[] }>(

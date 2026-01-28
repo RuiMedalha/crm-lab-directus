@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn, UserPlus, KeyRound, ArrowLeft } from "lucide-react";
+import { directusPasswordRequest, directusPasswordReset } from "@/integrations/directus/auth";
 
 type AuthView = "login" | "register" | "forgot" | "reset";
 
@@ -21,16 +21,15 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [view, setView] = useState<AuthView>("login");
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Check for password reset token in URL
   useEffect(() => {
-    const accessToken = searchParams.get("access_token");
+    const token = searchParams.get("token") || searchParams.get("access_token");
     const type = searchParams.get("type");
-    
-    if (type === "recovery" || accessToken) {
+    if (type === "reset" || type === "recovery" || token) {
       setView("reset");
     }
   }, [searchParams]);
@@ -79,20 +78,11 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await signUp(email, password, fullName);
-
-    if (error) {
-      toast({
-        title: "Erro ao registar",
-        description: getErrorMessage(error.message),
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Conta criada!",
-        description: "Verifique o seu email para confirmar a conta.",
-      });
-    }
+    toast({
+      title: "Registo desativado",
+      description: "As contas são criadas pelo administrador (convite por email).",
+      variant: "destructive",
+    });
 
     setIsLoading(false);
   };
@@ -101,22 +91,19 @@ export default function Auth() {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth?type=recovery`,
-    });
-
-    if (error) {
-      toast({
-        title: "Erro",
-        description: getErrorMessage(error.message),
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await directusPasswordRequest(email, `${window.location.origin}/auth?type=reset`);
       toast({
         title: "Email enviado!",
-        description: "Verifique o seu email para redefinir a password.",
+        description: "Verifique o seu email para definir uma nova password.",
       });
       setView("login");
+    } catch (e: any) {
+      toast({
+        title: "Erro",
+        description: e?.message || "Não foi possível enviar email de recuperação.",
+        variant: "destructive",
+      });
     }
 
     setIsLoading(false);
@@ -146,20 +133,31 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await supabase.auth.updateUser({ password });
-
-    if (error) {
+    const token = searchParams.get("token") || searchParams.get("access_token") || "";
+    if (!token) {
       toast({
-        title: "Erro",
-        description: getErrorMessage(error.message),
+        title: "Token em falta",
+        description: "Abra novamente o link do email.",
         variant: "destructive",
       });
-    } else {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await directusPasswordReset(token, password);
       toast({
         title: "Password atualizada!",
         description: "A sua password foi alterada com sucesso.",
       });
-      navigate("/", { replace: true });
+      setView("login");
+      navigate("/auth", { replace: true });
+    } catch (e: any) {
+      toast({
+        title: "Erro",
+        description: e?.message || "Não foi possível redefinir a password.",
+        variant: "destructive",
+      });
     }
 
     setIsLoading(false);
@@ -313,9 +311,8 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-1 mb-6">
               <TabsTrigger value="login">Entrar</TabsTrigger>
-              <TabsTrigger value="register">Registar</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
@@ -380,71 +377,7 @@ export default function Auth() {
               </form>
             </TabsContent>
 
-            <TabsContent value="register">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="register-name">Nome Completo</Label>
-                  <Input
-                    id="register-name"
-                    type="text"
-                    placeholder="O seu nome"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-email">Email</Label>
-                  <Input
-                    id="register-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="register-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Mínimo 6 caracteres"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                      minLength={6}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  ) : (
-                    <>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Criar Conta
-                    </>
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
+            {/* Registo público desativado (usar convite via Directus) */}
           </Tabs>
         </CardContent>
       </Card>

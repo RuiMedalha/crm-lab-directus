@@ -235,7 +235,7 @@ export default function Dashboard() {
                   <span className="text-muted-foreground">Adicionados esta semana</span>
                   <span className="font-medium text-primary">
                     +{contacts?.filter(c => {
-                      const created = new Date(c.created_at || '');
+                      const created = new Date((c as any).date_created || '');
                       const weekAgo = new Date();
                       weekAgo.setDate(weekAgo.getDate() - 7);
                       return created > weekAgo;

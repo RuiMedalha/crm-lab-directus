@@ -44,6 +44,7 @@ export function useDeals() {
         const manufacturerObj = d.manufacturer_id && typeof d.manufacturer_id === "object" ? d.manufacturer_id : null;
         return {
           ...d,
+          total_amount: Number(d.total_amount || 0),
           customer: customerObj,
           manufacturer: manufacturerObj,
           customer_id: customerObj?.id ?? (typeof d.customer_id === "string" ? d.customer_id : null),
@@ -71,6 +72,7 @@ export function useDeal(id: string | undefined) {
       return {
         ...(base as any),
         items,
+        total_amount: Number((base as any)?.total_amount || 0),
         customer: customerObj,
         manufacturer: manufacturerObj,
         customer_id: customerObj?.id ?? (typeof (base as any).customer_id === "string" ? (base as any).customer_id : null),

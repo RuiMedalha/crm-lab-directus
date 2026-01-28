@@ -10,7 +10,8 @@
       "schema": { "name": "interactions" },
       "fields": [
         { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
-        { "field": "created_at", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
 
         { "field": "type", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Tipo" } },
         { "field": "direction", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Direção" } },
@@ -24,8 +25,8 @@
         { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
         { "field": "display_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome/Identificação" } },
 
-        { "field": "lead_id", "type": "string", "meta": { "interface": "input", "display_name": "Lead (id)" } },
-        { "field": "contact_id", "type": "string", "meta": { "interface": "input", "display_name": "Contacto (id)" } },
+        { "field": "lead_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Lead" }, "schema": { "foreign_key_table": "leads" } },
+        { "field": "contact_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Contacto" }, "schema": { "foreign_key_table": "contacts" } },
 
         { "field": "summary", "type": "string", "meta": { "interface": "input", "display_name": "Resumo" } },
         { "field": "payload", "type": "json", "meta": { "interface": "json", "display_name": "Payload (raw)" } }
