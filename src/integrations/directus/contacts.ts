@@ -17,10 +17,14 @@ export interface ContactItem {
   // Common fields (may vary by field map)
   company_name?: string | null;
   contact_name?: string | null;
+  firstname?: string | null;
+  lastname?: string | null;
+  full_name?: string | null;
   nif?: string | null;
   phone?: string | null;
   email?: string | null;
   whatsapp_number?: string | null;
+  whatsapp_opt_in?: boolean | null;
   contact_person?: string | null;
   contact_phone?: string | null;
   contact_email?: string | null;
@@ -28,6 +32,7 @@ export interface ContactItem {
   postal_code?: string | null;
   city?: string | null;
   website?: string | null;
+  date_created?: string | null;
   tags?: unknown;
   quick_notes?: unknown;
   sku_history?: unknown;
@@ -36,6 +41,33 @@ export interface ContactItem {
   source?: string | null;
   source_call_id?: string | null;
   moloni_client_id?: string | null;
+  accept_newsletter?: boolean | null;
+  newsletter_welcome_sent?: boolean | null;
+  newsletter_consent_at?: string | null;
+  newsletter_consent_source?: string | null;
+  newsletter_consent_user_agent?: string | null;
+  newsletter_consent_version?: string | null;
+  newsletter_unsubscribed_at?: string | null;
+  coupon_code?: string | null;
+  coupon_used?: boolean | null;
+  coupon_wc_id?: number | null;
+  coupon_expires_at?: string | null;
+  mautic_contact_id?: number | null;
+  chatwoot_contact_id?: number | null;
+  newsletter_source?: string | null;
+  subscribed_at?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  last_seen_at?: string | null;
+  newsletter_notes?: string | null;
+  delivery_addresses?: unknown;
+  logistics_notes?: string | null;
+  commercial_notes?: string | null;
+
+  // assignments
+  assigned_employee_id?: any;
+  assigned_by_employee_id?: any;
+  assigned_at?: string | null;
 
   // Allow future fields without breaking types
   [k: string]: unknown;
@@ -104,18 +136,40 @@ const FIELDS_CACHE_TTL_MS = 60_000;
 
 const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "id",
+  "date_created",
   "company_name",
   "contact_name",
+  "firstname",
+  "lastname",
+  "full_name",
   "nif",
   "phone",
   "email",
   "whatsapp_number",
+  "whatsapp_opt_in",
   "address",
   "postal_code",
   "city",
   "website",
   "accept_newsletter",
   "newsletter_welcome_sent",
+  "newsletter_consent_at",
+  "newsletter_consent_source",
+  "newsletter_consent_user_agent",
+  "newsletter_consent_version",
+  "newsletter_unsubscribed_at",
+  "coupon_code",
+  "coupon_used",
+  "coupon_wc_id",
+  "coupon_expires_at",
+  "mautic_contact_id",
+  "chatwoot_contact_id",
+  "newsletter_source",
+  "subscribed_at",
+  "status",
+  "created_at",
+  "last_seen_at",
+  "newsletter_notes",
   "tags",
   "quick_notes",
   "sku_history",
@@ -124,6 +178,12 @@ const DEFAULT_CONTACT_FIELDS = new Set<string>([
   "contact_email",
   "internal_notes",
   "notes",
+  "delivery_addresses",
+  "logistics_notes",
+  "commercial_notes",
+  "assigned_employee_id",
+  "assigned_by_employee_id",
+  "assigned_at",
   "moloni_client_id",
   "source",
   "source_call_id",
@@ -161,13 +221,15 @@ function directusFieldListForContacts(): string {
    * - mapped Directus field keys (values of VITE_DIRECTUS_CONTACT_FIELD_MAP)
    */
   const mapped = Object.values(DIRECTUS_CONTACT_FIELD_MAP || {}).filter(Boolean);
-  const fields = unique(["id", ...mapped]).filter(Boolean);
+  // If no mapping is provided, request a safe set of known CRM fields.
+  const base = mapped.length ? mapped : Array.from(DEFAULT_CONTACT_FIELDS);
+  const fields = unique(["id", "date_created", ...base]).filter(Boolean);
   return fields.join(",") || "id";
 }
 
 export async function getContactById(id: string): Promise<ContactItem | null> {
   const res = await directusRequest<{ data: ContactItem }>(
-    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: directusFieldListForContacts() })}`
+    `/items/${DIRECTUS_CONTACTS_COLLECTION}/${encodeURIComponent(id)}${qs({ fields: "*" })}`
   );
   return mapFromDirectusItem(res?.data);
 }
@@ -285,8 +347,14 @@ export async function listContacts(params?: {
     page,
     // Avoid system fields permission issues; sort by id (works for int/uuid).
     sort: "-id",
-    // Avoid requesting "*" which can trigger 403 when some fields are restricted.
-    fields: directusFieldListForContacts(),
+    /**
+     * IMPORTANT:
+     * Use fields="*" to keep the URL short.
+     * Some setups (e.g. Cloudflare/WAF) can block very long query strings when we enumerate many fields.
+     *
+     * If your policies restrict fields, adjust Directus permissions to allow the required fields.
+     */
+    fields: "*",
   };
 
   if (search) {

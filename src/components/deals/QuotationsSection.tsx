@@ -45,7 +45,7 @@ export function QuotationsSection({ dealId, customerId }: QuotationsSectionProps
 
   const handleCreateQuotation = async () => {
     try {
-      const quotation = await createQuotation.mutateAsync(dealId);
+      const quotation = await createQuotation.mutateAsync({ dealId, customerId });
       toast({ title: `Orçamento ${quotation.quotation_number} criado` });
     } catch (error) {
       toast({ title: "Erro ao criar orçamento", variant: "destructive" });

@@ -1,0 +1,475 @@
+{
+  "collections": [
+    {
+      "collection": "contacts",
+      "meta": {
+        "icon": "business",
+        "note": "CRM - Ficha de Cliente. Mantém as keys do frontend (company_name, nif, phone, etc.).",
+        "display_template": "{{company_name}}"
+      },
+      "schema": { "name": "contacts" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "company_name", "type": "string", "meta": { "required": true, "interface": "input", "display": "raw", "display_name": "Nome da Empresa" } },
+        { "field": "contact_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome do Contacto" } },
+        { "field": "firstname", "type": "string", "meta": { "interface": "input", "display_name": "Primeiro Nome (newsletter)" } },
+        { "field": "lastname", "type": "string", "meta": { "interface": "input", "display_name": "Apelido (newsletter)" } },
+        { "field": "full_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome completo (newsletter)" } },
+
+        { "field": "nif", "type": "string", "meta": { "interface": "input", "display_name": "NIF" } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "whatsapp_number", "type": "string", "meta": { "interface": "input", "display_name": "WhatsApp" } },
+
+        { "field": "address", "type": "string", "meta": { "interface": "input", "display_name": "Morada" } },
+        { "field": "postal_code", "type": "string", "meta": { "interface": "input", "display_name": "Código Postal" } },
+        { "field": "city", "type": "string", "meta": { "interface": "input", "display_name": "Localidade" } },
+        { "field": "website", "type": "string", "meta": { "interface": "input", "display_name": "Website" } },
+
+        { "field": "accept_newsletter", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Aceita Newsletter" } },
+        { "field": "newsletter_welcome_sent", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Welcome Sent" } },
+        { "field": "newsletter_consent_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Consentimento Newsletter (data)" } },
+        { "field": "newsletter_consent_source", "type": "string", "meta": { "interface": "input", "display_name": "Consentimento Newsletter (origem)" } },
+        { "field": "newsletter_consent_user_agent", "type": "text", "meta": { "interface": "textarea", "display_name": "Consentimento Newsletter (user-agent)" } },
+        { "field": "newsletter_consent_version", "type": "string", "meta": { "interface": "input", "display_name": "Consentimento Newsletter (versão RGPD)" } },
+        { "field": "newsletter_unsubscribed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (revogado em)" } },
+
+        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" } },
+        { "field": "coupon_used", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Cupão (usado)" }, "schema": { "default_value": false } },
+        { "field": "coupon_wc_id", "type": "integer", "meta": { "interface": "input", "display_name": "Cupão (WooCommerce ID)" } },
+        { "field": "coupon_expires_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Cupão (expira em)" } },
+        { "field": "mautic_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Mautic Contact ID" } },
+        { "field": "chatwoot_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Chatwoot Contact ID" } },
+        { "field": "whatsapp_opt_in", "type": "boolean", "meta": { "interface": "boolean", "display_name": "WhatsApp (opt-in)" }, "schema": { "default_value": false } },
+        {
+          "field": "status",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Newsletter (status)",
+            "options": {
+              "choices": [
+                { "text": "Active", "value": "active" },
+                { "text": "Unsubscribed", "value": "unsubscribed" },
+                { "text": "Blocked", "value": "blocked" }
+              ]
+            }
+          }
+        },
+        { "field": "created_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (created_at)" } },
+        { "field": "last_seen_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (last_seen_at)" } },
+        { "field": "newsletter_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Newsletter (notas)" } },
+        {
+          "field": "newsletter_source",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Newsletter (source)",
+            "options": {
+              "choices": [
+                { "text": "Typebot", "value": "typebot" },
+                { "text": "Site", "value": "site" },
+                { "text": "Manual", "value": "manual" }
+              ]
+            }
+          }
+        },
+        { "field": "subscribed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Newsletter (subscribed_at)" } },
+
+        { "field": "tags", "type": "json", "meta": { "interface": "tags", "display_name": "Tags" } },
+        { "field": "quick_notes", "type": "json", "meta": { "interface": "json", "display_name": "Notas (timeline)" } },
+        { "field": "sku_history", "type": "json", "meta": { "interface": "json", "display_name": "Histórico de SKU" } },
+
+        { "field": "contact_person", "type": "string", "meta": { "interface": "input", "display_name": "Contacto Secundário - Nome" } },
+        { "field": "contact_phone", "type": "string", "meta": { "interface": "input", "display_name": "Contacto Secundário - Telefone" } },
+        { "field": "contact_email", "type": "string", "meta": { "interface": "input", "display_name": "Contacto Secundário - Email" } },
+
+        { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas internas" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+
+        { "field": "delivery_addresses", "type": "json", "meta": { "interface": "json", "display_name": "Moradas alternativas (entrega)" } },
+        { "field": "logistics_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Logística (notas)" } },
+        { "field": "commercial_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Comercial (campo livre)" } },
+
+        { "field": "assigned_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Responsável" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_by_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Atribuído por" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Atribuído em" } },
+
+        { "field": "moloni_client_id", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client ID" } },
+        { "field": "source", "type": "string", "meta": { "interface": "input", "display_name": "Origem" } },
+        { "field": "source_call_id", "type": "string", "meta": { "interface": "input", "display_name": "Source Call ID" } }
+      ]
+    },
+    {
+      "collection": "newsletter_subscriptions",
+      "meta": {
+        "icon": "mail",
+        "note": "Ledger de newsletter + cupões emitidos. Matching por email OU phone (sem unique condicional).",
+        "display_template": "{{email}}"
+      },
+      "schema": { "name": "newsletter_subscriptions" },
+      "fields": [
+        { "field": "id", "type": "integer", "meta": { "hidden": true, "readonly": true, "interface": "numeric" }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" }, "schema": { "is_indexed": true } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" }, "schema": { "is_indexed": true } },
+        { "field": "firstname", "type": "string", "meta": { "interface": "input", "display_name": "Primeiro Nome" } },
+        { "field": "lastname", "type": "string", "meta": { "interface": "input", "display_name": "Apelido" } },
+        { "field": "full_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome completo" } },
+
+        { "field": "whatsapp_opt_in", "type": "boolean", "meta": { "interface": "boolean", "display_name": "WhatsApp (opt-in)" }, "schema": { "default_value": false } },
+
+        { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Source", "options": { "choices": [ { "text": "Typebot", "value": "typebot" }, { "text": "Site", "value": "site" }, { "text": "Manual", "value": "manual" } ] } } },
+
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado", "options": { "choices": [ { "text": "Active", "value": "active" }, { "text": "Unsubscribed", "value": "unsubscribed" }, { "text": "Blocked", "value": "blocked" } ] } } },
+
+        { "field": "coupon_code", "type": "string", "meta": { "interface": "input", "display_name": "Cupão (código)" } },
+        { "field": "coupon_wc_id", "type": "integer", "meta": { "interface": "input", "display_name": "Cupão (WooCommerce ID)" } },
+        { "field": "coupon_expires_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Cupão (expira em)" } },
+
+        { "field": "mautic_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Mautic Contact ID" } },
+        { "field": "chatwoot_contact_id", "type": "integer", "meta": { "interface": "input", "display_name": "Chatwoot Contact ID" } },
+
+        { "field": "created_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Created at" } },
+        { "field": "last_seen_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Last seen at" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notes" } }
+      ]
+    },
+    {
+      "collection": "newsletter_identity_map",
+      "meta": {
+        "icon": "link",
+        "note": "Mapa de identidade para resolver duplicados (contacts <-> newsletter_subscriptions).",
+        "display_template": "{{email_normalized}}"
+      },
+      "schema": { "name": "newsletter_identity_map" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "email_normalized", "type": "string", "meta": { "interface": "input", "display_name": "Email (normalized)" }, "schema": { "is_indexed": true } },
+        { "field": "phone_e164", "type": "string", "meta": { "interface": "input", "display_name": "Phone (E.164)" }, "schema": { "is_indexed": true } },
+
+        { "field": "directus_contact_id", "type": "string", "meta": { "interface": "input", "display_name": "Directus Contact ID" } },
+        { "field": "subscription_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Subscription" }, "schema": { "foreign_key_table": "newsletter_subscriptions" } },
+
+        { "field": "confidence", "type": "integer", "meta": { "interface": "input", "display_name": "Confidence (0-100)" } },
+        {
+          "field": "matched_by",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Matched by",
+            "options": {
+              "choices": [
+                { "text": "Email", "value": "email" },
+                { "text": "Phone", "value": "phone" },
+                { "text": "Both", "value": "both" },
+                { "text": "Manual", "value": "manual" }
+              ]
+            }
+          }
+        },
+        { "field": "last_verified_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Last verified at" } }
+      ]
+    },
+    {
+      "collection": "leads",
+      "meta": {
+        "icon": "support_agent",
+        "note": "CRM - Entrada de Leads (popup + não atendidas agregadas).",
+        "display_template": "{{display_name}}"
+      },
+      "schema": { "name": "leads" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
+        { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Origem (canal)" } },
+        { "field": "source_event_id", "type": "string", "meta": { "interface": "input", "display_name": "ID do evento (externo)" } },
+        { "field": "lead_data", "type": "json", "meta": { "interface": "json", "display_name": "Dados do Card360 (Lead)" } },
+
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "display_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome/Identificação" } },
+        { "field": "nif", "type": "string", "meta": { "interface": "input", "display_name": "NIF" } },
+
+        { "field": "dedupe_key", "type": "string", "meta": { "interface": "input", "display_name": "Dedupe Key" } },
+        { "field": "attempt_count", "type": "integer", "meta": { "interface": "input", "display_name": "Nº tentativas" } },
+        { "field": "attempt_log", "type": "json", "meta": { "interface": "json", "display_name": "Histórico tentativas (horários)" } },
+        { "field": "first_attempt_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Primeira tentativa" } },
+        { "field": "last_attempt_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Última tentativa" } },
+
+        { "field": "contact_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Contacto" }, "schema": { "foreign_key_table": "contacts" } },
+
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+        { "field": "claimed_by", "type": "string", "meta": { "interface": "input", "display_name": "Atendido por" } },
+        { "field": "claimed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Atendido em" } },
+        { "field": "discarded_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Descartado em" } }
+      ]
+    },
+    {
+      "collection": "employees",
+      "meta": {
+        "icon": "badge",
+        "note": "Funcionários do CRM + role (admin/gestor/vendedor/visualizador).",
+        "display_template": "{{full_name}}"
+      },
+      "schema": { "name": "employees" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "full_name", "type": "string", "meta": { "required": true, "interface": "input", "display_name": "Nome" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        {
+          "field": "role",
+          "type": "string",
+          "meta": {
+            "interface": "select-dropdown",
+            "display_name": "Role",
+            "options": {
+              "choices": [
+                { "text": "Admin", "value": "admin" },
+                { "text": "Gestor", "value": "gestor" },
+                { "text": "Vendedor", "value": "vendedor" },
+                { "text": "Visualizador", "value": "visualizador" }
+              ]
+            }
+          }
+        },
+        { "field": "is_active", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Ativo" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } }
+      ]
+    },
+    {
+      "collection": "manufacturers",
+      "meta": { "icon": "factory", "note": "Fornecedores/fabricantes.", "display_template": "{{name}}" },
+      "schema": { "name": "manufacturers" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "name", "type": "string", "meta": { "required": true, "interface": "input", "display_name": "Nome" } },
+        { "field": "sku_prefix", "type": "string", "meta": { "interface": "input", "display_name": "Prefixo SKU" } },
+        { "field": "contact_email", "type": "string", "meta": { "interface": "input", "display_name": "Email Geral" } },
+        { "field": "portal_url", "type": "string", "meta": { "interface": "input", "display_name": "Portal URL" } },
+        { "field": "order_method", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Método" } },
+        { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas Internas" } },
+        { "field": "address", "type": "string", "meta": { "interface": "input", "display_name": "Morada" } },
+        { "field": "postal_code", "type": "string", "meta": { "interface": "input", "display_name": "Código Postal" } },
+        { "field": "city", "type": "string", "meta": { "interface": "input", "display_name": "Localidade" } },
+        { "field": "phone_main", "type": "string", "meta": { "interface": "input", "display_name": "Telefone Principal" } },
+        { "field": "phone_secondary", "type": "string", "meta": { "interface": "input", "display_name": "Telefone Secundário" } },
+        { "field": "sales_rep_name", "type": "string", "meta": { "interface": "input", "display_name": "Vendedor" } },
+        { "field": "discount_info", "type": "text", "meta": { "interface": "textarea", "display_name": "Descontos" } },
+        { "field": "catalog_url", "type": "string", "meta": { "interface": "input", "display_name": "Catálogo URL" } },
+        { "field": "email_invoicing", "type": "string", "meta": { "interface": "input", "display_name": "Email Faturação" } },
+        { "field": "email_logistics", "type": "string", "meta": { "interface": "input", "display_name": "Email Logística" } },
+        { "field": "custom_field_1_name", "type": "string", "meta": { "interface": "input", "display_name": "Campo 1 Nome" } },
+        { "field": "custom_field_1_value", "type": "string", "meta": { "interface": "input", "display_name": "Campo 1 Valor" } },
+        { "field": "custom_field_2_name", "type": "string", "meta": { "interface": "input", "display_name": "Campo 2 Nome" } },
+        { "field": "custom_field_2_value", "type": "string", "meta": { "interface": "input", "display_name": "Campo 2 Valor" } }
+      ]
+    },
+    {
+      "collection": "company_settings",
+      "meta": { "icon": "settings", "note": "Definições gerais do CRM (pode ser singleton).", "display_template": "{{name}}" },
+      "schema": { "name": "company_settings" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "name", "type": "string", "meta": { "interface": "input", "display_name": "Empresa" } },
+        { "field": "vat_number", "type": "string", "meta": { "interface": "input", "display_name": "NIF" } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "logo_url", "type": "string", "meta": { "interface": "input", "display_name": "Logo URL" } },
+        { "field": "address", "type": "string", "meta": { "interface": "input", "display_name": "Morada" } },
+        { "field": "postal_code", "type": "string", "meta": { "interface": "input", "display_name": "Código Postal" } },
+        { "field": "city", "type": "string", "meta": { "interface": "input", "display_name": "Localidade" } },
+        { "field": "iban", "type": "string", "meta": { "interface": "input", "display_name": "IBAN/NIB" } },
+        { "field": "payment_instructions", "type": "text", "meta": { "interface": "textarea", "display_name": "Instruções de Pagamento" } },
+        { "field": "chatwoot_url", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot URL" } },
+        { "field": "chatwoot_token", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot Token" } },
+        { "field": "chatwoot_account_id", "type": "string", "meta": { "interface": "input", "display_name": "Chatwoot Account ID" } },
+        { "field": "whatsapp_api_url", "type": "string", "meta": { "interface": "input", "display_name": "WhatsApp API URL" } },
+        { "field": "typebot_url", "type": "string", "meta": { "interface": "input", "display_name": "Typebot URL" } },
+        { "field": "typebot_token", "type": "string", "meta": { "interface": "input", "display_name": "Typebot Token" } },
+        { "field": "moloni_client_id", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client ID" } },
+        { "field": "moloni_client_secret", "type": "string", "meta": { "interface": "input", "display_name": "Moloni Client Secret" } },
+        { "field": "moloni_api_key", "type": "string", "meta": { "interface": "input", "display_name": "Moloni API Key" } },
+        { "field": "woo_url", "type": "string", "meta": { "interface": "input", "display_name": "Woo URL" } },
+        { "field": "woo_consumer_key", "type": "string", "meta": { "interface": "input", "display_name": "Woo Consumer Key" } },
+        { "field": "woo_consumer_secret", "type": "string", "meta": { "interface": "input", "display_name": "Woo Consumer Secret" } },
+
+        { "field": "webhook_proposta_pdf", "type": "string", "meta": { "interface": "input", "display_name": "n8n: Gerar/Enviar Orçamento" } },
+        { "field": "webhook_moloni_sync", "type": "string", "meta": { "interface": "input", "display_name": "n8n: Sincronizar Moloni" } },
+        { "field": "webhook_woo_checkout", "type": "string", "meta": { "interface": "input", "display_name": "n8n: Checkout WooCommerce" } },
+        { "field": "technical_pdf_base_url", "type": "string", "meta": { "interface": "input", "display_name": "Fichas técnicas (base URL)" } },
+
+        { "field": "email_template_subject", "type": "string", "meta": { "interface": "input", "display_name": "Email (assunto)" } },
+        { "field": "email_template_html", "type": "text", "meta": { "interface": "textarea", "display_name": "Email (HTML)" } }
+      ]
+    },
+    {
+      "collection": "deals",
+      "meta": { "icon": "work", "note": "Negócios/pipeline.", "display_template": "{{title}}" },
+      "schema": { "name": "deals" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "title", "type": "string", "meta": { "interface": "input", "display_name": "Título" } },
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
+        { "field": "total_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Total" } },
+        { "field": "customer_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" }, "schema": { "foreign_key_table": "contacts" } },
+        { "field": "manufacturer_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Fornecedor" }, "schema": { "foreign_key_table": "manufacturers" } }
+        ,
+        { "field": "owner_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Dono (início)" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Responsável atual" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_by_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Atribuído por" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "assigned_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Atribuído em" } }
+      ]
+    },
+    {
+      "collection": "follow_ups",
+      "meta": { "icon": "event", "note": "Agenda de follow-ups (chamadas/email/whatsapp) atribuídos a funcionários.", "display_template": "{{title}}" },
+      "schema": { "name": "follow_ups" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado", "options": { "choices": [ { "text": "Open", "value": "open" }, { "text": "Done", "value": "done" }, { "text": "Cancelled", "value": "cancelled" } ] } } },
+        { "field": "type", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Tipo", "options": { "choices": [ { "text": "Call", "value": "call" }, { "text": "Email", "value": "email" }, { "text": "WhatsApp", "value": "whatsapp" }, { "text": "Task", "value": "task" } ] } } },
+        { "field": "due_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Quando" } },
+        { "field": "completed_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Concluído em" } },
+        { "field": "title", "type": "string", "meta": { "interface": "input", "display_name": "Título" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+
+        { "field": "contact_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Contacto" }, "schema": { "foreign_key_table": "contacts" } },
+        { "field": "quotation_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Orçamento" }, "schema": { "foreign_key_table": "quotations" } },
+        { "field": "deal_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Negócio" }, "schema": { "foreign_key_table": "deals" } },
+
+        { "field": "assigned_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Responsável" }, "schema": { "foreign_key_table": "employees" } },
+        { "field": "created_by_employee_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Criado por" }, "schema": { "foreign_key_table": "employees" } }
+      ]
+    },
+    {
+      "collection": "deal_items",
+      "meta": { "icon": "inventory_2", "note": "Itens do negócio (produtos/linhas)." },
+      "schema": { "name": "deal_items" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "deal_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Negócio" }, "schema": { "foreign_key_table": "deals" } },
+        { "field": "product_id", "type": "string", "meta": { "interface": "input", "display_name": "Product ID" } },
+        { "field": "product_name", "type": "string", "meta": { "interface": "input", "display_name": "Produto" } },
+        { "field": "sku", "type": "string", "meta": { "interface": "input", "display_name": "SKU" } },
+        { "field": "unit_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Preço" } },
+        { "field": "cost_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Custo" } },
+        { "field": "quantity", "type": "integer", "meta": { "interface": "input", "display_name": "Quantidade" } }
+      ]
+    },
+    {
+      "collection": "quotations",
+      "meta": { "icon": "request_quote", "note": "Orçamentos (migrado do Supabase).", "display_template": "{{quotation_number}}" },
+      "schema": { "name": "quotations" },
+      "fields": [
+        { "field": "id", "type": "integer", "meta": { "hidden": true, "readonly": true, "interface": "numeric" }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "quotation_number", "type": "string", "meta": { "interface": "input", "display_name": "Número" } },
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
+        { "field": "valid_until", "type": "date", "meta": { "interface": "datetime", "display_name": "Válido até" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+        { "field": "terms_conditions", "type": "text", "meta": { "interface": "textarea", "display_name": "Termos/Condições" } },
+        { "field": "internal_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas internas (não enviar)" } },
+        { "field": "sent_to_email", "type": "string", "meta": { "interface": "input", "display_name": "Enviado para (email)" } },
+        { "field": "sent_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Enviado em" } },
+        { "field": "follow_up_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Follow-up em" } },
+        { "field": "follow_up_notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Follow-up (notas)" } },
+        { "field": "subtotal", "type": "decimal", "meta": { "interface": "input", "display_name": "Subtotal" } },
+        { "field": "discount_percent", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (%)" } },
+        { "field": "discount_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (€)" } },
+        { "field": "total_amount", "type": "decimal", "meta": { "interface": "input", "display_name": "Total" } },
+        { "field": "pdf_link", "type": "string", "meta": { "interface": "input", "display_name": "PDF (link)" } },
+        { "field": "pdf_file", "type": "uuid", "meta": { "interface": "file", "display_name": "PDF (ficheiro)" }, "schema": { "foreign_key_table": "directus_files" } },
+        { "field": "deal_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Negócio" }, "schema": { "foreign_key_table": "deals" } },
+        { "field": "customer_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Cliente" }, "schema": { "foreign_key_table": "contacts" } }
+      ]
+    },
+    {
+      "collection": "quotation_items",
+      "meta": { "icon": "list_alt", "note": "Linhas do orçamento." },
+      "schema": { "name": "quotation_items" },
+      "fields": [
+        { "field": "id", "type": "integer", "meta": { "hidden": true, "readonly": true, "interface": "numeric" }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "quotation_id", "type": "integer", "meta": { "interface": "select-dropdown-m2o", "display_name": "Orçamento" }, "schema": { "foreign_key_table": "quotations" } },
+        { "field": "product_id", "type": "string", "meta": { "interface": "input", "display_name": "Product ID" } },
+        { "field": "product_name", "type": "string", "meta": { "interface": "input", "display_name": "Produto" } },
+        { "field": "technical_details", "type": "text", "meta": { "interface": "textarea", "display_name": "Detalhes técnicos" } },
+        { "field": "image_url", "type": "string", "meta": { "interface": "input", "display_name": "Imagem (URL)" } },
+        { "field": "product_url", "type": "string", "meta": { "interface": "input", "display_name": "Produto (URL)" } },
+        { "field": "sku", "type": "string", "meta": { "interface": "input", "display_name": "SKU" } },
+        { "field": "quantity", "type": "integer", "meta": { "interface": "input", "display_name": "Quantidade" } },
+        { "field": "unit_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Preço" } },
+        { "field": "iva_percent", "type": "decimal", "meta": { "interface": "input", "display_name": "IVA (%)" } },
+        { "field": "cost_price", "type": "decimal", "meta": { "interface": "input", "display_name": "Custo" } },
+        { "field": "discount_percent", "type": "decimal", "meta": { "interface": "input", "display_name": "Desconto (%)" } },
+        { "field": "line_total", "type": "decimal", "meta": { "interface": "input", "display_name": "Total linha" } },
+        { "field": "notes", "type": "text", "meta": { "interface": "textarea", "display_name": "Notas" } },
+        { "field": "supplier_email", "type": "string", "meta": { "interface": "input", "display_name": "Fornecedor (email)" } },
+        { "field": "manual_entry", "type": "boolean", "meta": { "interface": "boolean", "display_name": "Manual" }, "schema": { "default_value": false } },
+        { "field": "ficha_tecnica_url", "type": "string", "meta": { "interface": "input", "display_name": "Ficha técnica (URL)" } },
+        { "field": "sort_order", "type": "integer", "meta": { "interface": "input", "display_name": "Ordem" } }
+      ]
+    },
+    {
+      "collection": "interactions",
+      "meta": {
+        "icon": "call",
+        "note": "Histórico/auditoria de eventos (chamadas/mensagens).",
+        "display_template": "{{type}} • {{source}} • {{display_name}}"
+      },
+      "schema": { "name": "interactions" },
+      "fields": [
+        { "field": "id", "type": "uuid", "meta": { "hidden": true }, "schema": { "is_primary_key": true } },
+        { "field": "date_created", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "date_updated", "type": "timestamp", "meta": { "readonly": true, "hidden": true } },
+        { "field": "type", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Tipo" } },
+        { "field": "direction", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Direção" } },
+        { "field": "status", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Estado" } },
+        { "field": "source", "type": "string", "meta": { "interface": "select-dropdown", "display_name": "Origem (canal)" } },
+        { "field": "external_id", "type": "string", "meta": { "interface": "input", "display_name": "ID Externo" } },
+        { "field": "occurred_at", "type": "timestamp", "meta": { "interface": "datetime", "display_name": "Data/Hora do evento" } },
+        { "field": "phone", "type": "string", "meta": { "interface": "input", "display_name": "Telefone" } },
+        { "field": "email", "type": "string", "meta": { "interface": "input", "display_name": "Email" } },
+        { "field": "display_name", "type": "string", "meta": { "interface": "input", "display_name": "Nome/Identificação" } },
+        { "field": "lead_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Lead" }, "schema": { "foreign_key_table": "leads" } },
+        { "field": "contact_id", "type": "uuid", "meta": { "interface": "select-dropdown-m2o", "display_name": "Contacto" }, "schema": { "foreign_key_table": "contacts" } },
+        { "field": "summary", "type": "string", "meta": { "interface": "input", "display_name": "Resumo" } },
+        { "field": "payload", "type": "json", "meta": { "interface": "json", "display_name": "Payload (raw)" } }
+      ]
+    }
+  ],
+  "notes": [
+    "Importa este ficheiro no Directus em Settings > Data Model > Import.",
+    "Coleções incluídas (frontend Directus-only): contacts, newsletter_subscriptions, newsletter_identity_map, leads, employees, manufacturers, company_settings, deals, deal_items, quotations, quotation_items, interactions.",
+    "O frontend usa employees.role para roles (admin/gestor/vendedor/visualizador).",
+    "Se já tens coleções com estes nomes, confirma se os campos batem certo antes de fazer overwrite."
+  ]
+}

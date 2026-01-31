@@ -1,3 +1,68 @@
+# CRM Hotelequip (Directus)
+
+Este repositório contém o frontend do CRM (Vite/React) e os ficheiros de suporte para a stack Directus (schema + extensões).
+
+## Frontend (CRM)
+
+- **Login**: o CRM autentica via Directus (`/auth/login`) e guarda tokens no `localStorage`.
+- **Orçamentos**:
+  - Página global: `/#/orcamentos` (lista e pré-visualização)
+  - Criar orçamento:
+    - **Card360** (`/#/dashboard360/:id`) → botão **Novo Orçamento**
+    - **Orçamentos** (`/#/orcamentos`) → botão **Novo Orçamento** (escolher cliente)
+
+## Directus (schema / collections)
+
+O Directus v11 pode não ter Import no UI. Para aplicar o modelo via API:
+
+```bash
+cd /var/www/crm
+DIRECTUS_URL="http://127.0.0.1:8055" DIRECTUS_TOKEN="TEU_TOKEN_ADMIN" \
+  node scripts/apply-directus-model.js directus/collections.crm-full.json
+```
+
+- **Schema consolidado**: `directus/collections.crm-full.json`
+- Script: `scripts/apply-directus-model.js`
+
+## PDF de Orçamentos (layout)
+
+Existem dois “layouts”:
+
+1) **Pré-visualização no CRM** (UI)
+- Componente: `src/components/quotations/QuotationPreview.tsx`
+- Serve para ver/validar rapidamente o conteúdo (cliente, itens, totais, notas).
+
+2) **PDF final (Puppeteer)** no Directus
+- Endpoint: `directus/extensions/endpoints/gerar-pdf/index.js`
+- **Onde está o layout**: nas strings `css` e `html` dentro desse ficheiro.
+- O PDF inclui:
+  - Header com logo + dados da empresa (`company_settings`)
+  - Bloco do cliente (contacts)
+  - Tabela de itens (inclui imagem, SKU, detalhes técnicos quando existirem)
+  - Totais
+  - Condições (`terms_conditions`) e notas (`notes`)
+  - Opcional: anexação de fichas técnicas PDF (`quotation_items.ficha_tecnica_url`)
+
+### Como testar o endpoint `gerar-pdf`
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8055/gerar-pdf/QUOTATION_ID" \
+  -H "Authorization: Bearer TEU_TOKEN" \
+  -o /tmp/orcamento.pdf
+```
+
+### Logo no PDF
+
+O endpoint usa esta ordem:
+
+1. `PDF_LOGO_URL` (env)
+2. `company_settings.logo_url`
+3. fallback “Hotelequip” (texto)
+
+## Extensões Directus
+
+Ver: `directus/extensions/README.md`
+
 # Welcome to your Lovable project
 
 ## Project info

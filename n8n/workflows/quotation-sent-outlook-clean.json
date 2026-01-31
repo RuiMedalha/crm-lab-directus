@@ -1,0 +1,434 @@
+{
+  "name": "CRM - Quotation SENT (Outlook) CLEAN - PDF + Tech Sheets + Log",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/quotation-sent",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook (quotation sent)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || $json;\nreturn [{ json: b, binary: $input.item.binary || {} }];"
+      },
+      "id": "Flatten",
+      "name": "Code - Flatten body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.pdf_url }}",
+        "responseFormat": "file",
+        "binaryPropertyName": "pdf",
+        "options": {
+          "timeout": 120000,
+          "followRedirect": true
+        }
+      },
+      "id": "GenPdf",
+      "name": "HTTP - Gerar PDF (pdf-service)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        680,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hotelequip.pt/files",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ 'Orçamento ' + ($json.quotation.quotation_number || $json.quotation.id) }}"
+            }
+          ]
+        },
+        "sendBinaryData": true,
+        "binaryPropertyName": "pdf",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "UploadPdf",
+      "name": "HTTP - Upload PDF (Directus /files)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        900,
+        260
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE__",
+          "name": "Directus Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const json = $input.item.json || {};\nconst bin = $input.item.binary || {};\n\nfunction safe(v) { return String(v ?? '').trim(); }\nfunction applyVars(template, vars) {\n  let out = String(template || '');\n  for (const [k, v] of Object.entries(vars)) out = out.split(`{{${k}}}`).join(String(v ?? ''));\n  return out;\n}\n\nconst origin = 'https://api.hotelequip.pt';\nconst quotation = json.quotation || {};\nconst customer = json.customer || {};\nconst quotationId = safe(quotation.id);\nconst quotationNumber = safe(quotation.quotation_number) || quotationId;\n\n// /files response\nconst fileId = safe(json?.data?.id || json?.id);\nconst pdfLink = fileId ? `${origin}/assets/${fileId}?download=1` : '';\n\n// garantir PDF binário (para anexar) -> reutiliza o binário 'pdf' já existente\nif (bin?.pdf) {\n  // ok\n} else {\n  // best-effort: tentar baixar do assets (pode falhar se assets exigir auth)\n  try {\n    const resp = await this.helpers.httpRequest({ method: 'GET', url: pdfLink, encoding: null, followRedirect: true, timeout: 120000, headers: { Accept: 'application/pdf,*/*;q=0.8', 'User-Agent': 'CRM-HOTELEQUIP (n8n)' } });\n    const buf = Buffer.isBuffer(resp) ? resp : Buffer.from(resp);\n    bin.pdf = await this.helpers.prepareBinaryData(buf, `Orcamento-${quotationNumber}.pdf`);\n  } catch {}\n}\n\n// fichas técnicas -> tech_* binaries\nconst list = Array.isArray(json.technical_pdfs) ? json.technical_pdfs : [];\nfor (let i = 0; i < list.length; i++) {\n  const t = list[i] || {};\n  const url = safe(t.url);\n  const sku = safe(t.sku);\n  if (!url) continue;\n  try {\n    const resp = await this.helpers.httpRequest({ method: 'GET', url, encoding: null, followRedirect: true, timeout: 120000, headers: { Accept: 'application/pdf,*/*;q=0.8', 'User-Agent': 'CRM-HOTELEQUIP (n8n)' } });\n    const data = Buffer.isBuffer(resp) ? resp : Buffer.from(resp);\n    const key = `tech_${(sku || String(i + 1)).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)}`;\n    const fileName = `${sku || `ficha-tecnica-${i + 1}`}.pdf`;\n    bin[key] = await this.helpers.prepareBinaryData(data, fileName);\n  } catch {}\n}\n\nconst toEmail = safe(quotation.sent_to_email || customer.email);\n\nconst vars = {\n  company_name: safe(customer.company_name),\n  contact_name: safe(customer.contact_name),\n  quotation_number: quotationNumber,\n  pdf_link: pdfLink,\n};\n\nconst subjectTpl = safe(json.email_template_subject) || 'Orçamento {{quotation_number}} — HOTELEQUIP.PT';\nconst htmlTpl = safe(json.email_template_html) || '<!doctype html><html><body style=\"font-family:Arial,sans-serif;line-height:1.5;color:#111\"><p>Olá {{company_name}},</p><p>Segue em anexo o orçamento <strong>{{quotation_number}}</strong>.</p><p>Link do PDF (caso necessário): <a href=\"{{pdf_link}}\">{{pdf_link}}</a></p><p>Obrigado,<br/>HOTELEQUIP.PT</p></body></html>';\n\nreturn [{\n  json: {\n    ...json,\n    origin,\n    quotationId,\n    quotationNumber,\n    fileId,\n    pdfLink,\n    email_to: toEmail,\n    email_subject: applyVars(subjectTpl, vars),\n    email_html: applyVars(htmlTpl, vars),\n  },\n  binary: bin,\n}];"
+      },
+      "id": "Prepare",
+      "name": "Code - Preparar email + anexos (pdf+tech_*)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.hotelequip.pt/items/quotations/' + encodeURIComponent($json.quotationId) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "jsonBody": "={{ { pdf_file: $json.fileId || null, pdf_link: $json.pdfLink || null } }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "PatchQuotation",
+      "name": "HTTP - Patch quotation (pdf_link/pdf_file)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1340,
+        260
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE__",
+          "name": "Directus Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "={{ $json.email_subject }}",
+        "bodyContent": "={{ $json.email_html }}",
+        "additionalFields": {
+          "toRecipients": "={{ $json.email_to }}",
+          "bodyContentType": "html"
+        }
+      },
+      "id": "Draft",
+      "name": "Outlook - Create a draft",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        260
+      ],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "__REPLACE__",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "Merge",
+      "name": "Merge (draft + binary)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $input.item.json || {};\nconst bin = $input.item.binary || {};\nconst draftId = String(base?.id || base?.draftId || '').trim();\n\nreturn Object.keys(bin).map((key) => ({\n  json: {\n    ...base,\n    draftId,\n    attachment_key: key,\n    attachment_filename: (bin[key] && (bin[key].fileName || bin[key].fileName)) ? (bin[key].fileName || bin[key].fileName) : `${key}.pdf`,\n  },\n  binary: {\n    data: bin[key],\n  },\n}));"
+      },
+      "id": "Explode",
+      "name": "Code - Explodir anexos (1 item por anexo)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "Split",
+      "name": "Split in Batches (anexos)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2220,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "messageAttachment",
+        "operation": "add",
+        "messageId": "={{ $json.draftId }}",
+        "binaryPropertyName": "data",
+        "additionalFields": {
+          "name": "={{ $json.attachment_filename }}"
+        }
+      },
+      "id": "Attach",
+      "name": "Outlook - Add an attachment",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        260
+      ],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "__REPLACE__",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "send",
+        "draftId": "={{ $node['Outlook - Create a draft'].json.id }}"
+      },
+      "id": "SendDraft",
+      "name": "Outlook - Send a draft",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        420
+      ],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "__REPLACE__",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hotelequip.pt/items/interactions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "jsonBody": "={{ { type: 'email', direction: 'out', status: 'done', source: 'n8n', occurred_at: new Date().toISOString(), contact_id: ($json.customer && $json.customer.id) ? $json.customer.id : null, email: $json.email_to || null, summary: 'Orçamento enviado (Outlook/n8n)', payload: { quotation_id: $json.quotationId, quotation_number: $json.quotationNumber, pdf_link: $json.pdfLink } } }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "Log",
+      "name": "HTTP - Log interaction (Directus)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2880,
+        420
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REPLACE__",
+          "name": "Directus Bearer"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (quotation sent)": {
+      "main": [
+        [
+          {
+            "node": "Code - Flatten body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Flatten body": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Gerar PDF (pdf-service)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Gerar PDF (pdf-service)": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Upload PDF (Directus /files)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Upload PDF (Directus /files)": {
+      "main": [
+        [
+          {
+            "node": "Code - Preparar email + anexos (pdf+tech_*)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Preparar email + anexos (pdf+tech_*)": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Patch quotation (pdf_link/pdf_file)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Patch quotation (pdf_link/pdf_file)": {
+      "main": [
+        [
+          {
+            "node": "Outlook - Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outlook - Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Merge (draft + binary)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge (draft + binary)": {
+      "main": [
+        [
+          {
+            "node": "Code - Explodir anexos (1 item por anexo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Explodir anexos (1 item por anexo)": {
+      "main": [
+        [
+          {
+            "node": "Split in Batches (anexos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split in Batches (anexos)": {
+      "main": [
+        [
+          {
+            "node": "Outlook - Add an attachment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Outlook - Send a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outlook - Add an attachment": {
+      "main": [
+        [
+          {
+            "node": "Split in Batches (anexos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outlook - Send a draft": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Log interaction (Directus)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Log interaction (Directus)": {
+      "main": [
+        []
+      ]
+    },
+    "Code - Preparar email + anexos (pdf+tech_*)": {
+      "main": [
+        [
+          {
+            "node": "Merge (draft + binary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 600,
+    "timezone": "Europe/Lisbon"
+  }
+}
+

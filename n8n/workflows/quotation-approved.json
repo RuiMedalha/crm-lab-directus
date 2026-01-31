@@ -1,0 +1,85 @@
+{
+  "name": "CRM - Quotation APPROVED (follow-up + Chatwoot note)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "crm/quotation-approved",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "Webhook",
+      "name": "Webhook (quotation approved)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        320,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "DIRECTUS_URL", "value": "={{ $env.DIRECTUS_URL || '' }}" },
+            { "name": "DIRECTUS_TOKEN", "value": "={{ $env.DIRECTUS_TOKEN }}" }
+          ]
+        }
+      },
+      "id": "SetEnv",
+      "name": "Set (env)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        540,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node['Set (env)'].json.DIRECTUS_URL.replace(/\\/+$/,'') + '/items/interactions' }}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $node['Set (env)'].json.DIRECTUS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ { type: 'note', direction: 'out', status: 'done', source: 'n8n', occurred_at: new Date().toISOString(), contact_id: ($json.customer && $json.customer.id) ? $json.customer.id : null, summary: 'Orçamento aprovado', payload: { quotation_id: $json.quotation.id, quotation_number: $json.quotation.quotation_number } } }}"
+      },
+      "id": "LogInteraction",
+      "name": "HTTP - Log interaction (approved)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        760,
+        260
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (quotation approved)": {
+      "main": [
+        [
+          { "node": "Set (env)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Set (env)": {
+      "main": [
+        [
+          { "node": "HTTP - Log interaction (approved)", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "1"
+}
+

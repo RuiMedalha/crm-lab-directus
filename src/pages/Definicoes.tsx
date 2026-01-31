@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   useCompanySettings,
@@ -10,7 +10,7 @@ import {
   saveMeilisearchSettings,
   MeilisearchSettings,
 } from "@/hooks/useSettings";
-import { DIRECTUS_TOKEN, DIRECTUS_URL } from "@/integrations/directus/client";
+import { DIRECTUS_URL, getDirectusTokenForRequest } from "@/integrations/directus/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,12 +25,19 @@ export default function Definicoes() {
   const updateSettings = useUpdateCompanySettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const COMPANY_DRAFT_KEY = useMemo(() => "crm_company_settings_draft_v1", []);
+
   const [companyData, setCompanyData] = useState({
     name: "",
     vat_number: "",
     phone: "",
     email: "",
     logo_url: "",
+    address: "",
+    postal_code: "",
+    city: "",
+    iban: "",
+    payment_instructions: "",
   });
 
   const [uploading, setUploading] = useState(false);
@@ -50,6 +57,7 @@ export default function Definicoes() {
   const [integrations, setIntegrations] = useState({
     chatwoot_url: "",
     chatwoot_token: "",
+    chatwoot_account_id: "",
     whatsapp_api_url: "",
     typebot_url: "",
     typebot_token: "",
@@ -63,10 +71,16 @@ export default function Definicoes() {
         phone: settings.phone || "",
         email: settings.email || "",
         logo_url: settings.logo_url || "",
+        address: (settings as any).address || "",
+        postal_code: (settings as any).postal_code || "",
+        city: (settings as any).city || "",
+        iban: (settings as any).iban || "",
+        payment_instructions: (settings as any).payment_instructions || "",
       });
       setIntegrations({
         chatwoot_url: settings.chatwoot_url || "",
         chatwoot_token: settings.chatwoot_token || "",
+        chatwoot_account_id: (settings as any).chatwoot_account_id || "",
         whatsapp_api_url: settings.whatsapp_api_url || "",
         typebot_url: settings.typebot_url || "",
         typebot_token: settings.typebot_token || "",
@@ -75,6 +89,37 @@ export default function Definicoes() {
     setWebhooks(getWebhookSettings());
     setMeilisearch(getMeilisearchSettings());
   }, [settings]);
+
+  // Restore local draft (prevents losing work on session expiry/navigation)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(COMPANY_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft || typeof draft !== "object") return;
+      setCompanyData((prev) => ({ ...prev, ...(draft.companyData || {}) }));
+      toast({ title: "Rascunho recuperado", description: "Recuperámos alterações não guardadas das Definições." });
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist draft with debounce
+  const draftTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      try {
+        localStorage.setItem(COMPANY_DRAFT_KEY, JSON.stringify({ companyData }));
+      } catch {
+        // ignore
+      }
+    }, 400);
+    return () => {
+      if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    };
+  }, [COMPANY_DRAFT_KEY, companyData]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,9 +140,8 @@ export default function Definicoes() {
     setUploading(true);
 
     try {
-      if (!DIRECTUS_TOKEN) {
-        throw new Error("Missing Directus token (VITE_DIRECTUS_TOKEN).");
-      }
+      const token = getDirectusTokenForRequest();
+      if (!token) throw new Error("Sem sessão. Faça login para continuar.");
 
       const fd = new FormData();
       fd.append("file", file, file.name);
@@ -105,7 +149,7 @@ export default function Definicoes() {
       const res = await fetch(`${DIRECTUS_URL.replace(/\/+$/, "")}/files`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+          Authorization: `Bearer ${token}`,
         },
         body: fd,
       });
@@ -155,9 +199,15 @@ export default function Definicoes() {
     try {
       const { logo_url, ...dataToSave } = companyData;
       await updateSettings.mutateAsync(dataToSave);
+      try {
+        localStorage.removeItem(COMPANY_DRAFT_KEY);
+      } catch {
+        // ignore
+      }
       toast({ title: "Definições da empresa guardadas" });
     } catch (error) {
-      toast({ title: "Erro ao guardar definições", variant: "destructive" });
+      const msg = error instanceof Error ? error.message : String(error || "");
+      toast({ title: "Erro ao guardar definições", description: msg || undefined, variant: "destructive" });
     }
   };
 
@@ -314,6 +364,32 @@ export default function Definicoes() {
             <Separator />
 
             <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="company_address">Morada</Label>
+                <Input
+                  id="company_address"
+                  value={companyData.address}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, address: e.target.value }))}
+                  placeholder="Rua, nº, andar..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company_postal_code">Código Postal</Label>
+                <Input
+                  id="company_postal_code"
+                  value={companyData.postal_code}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, postal_code: e.target.value }))}
+                  placeholder="0000-000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company_city">Localidade</Label>
+                <Input
+                  id="company_city"
+                  value={companyData.city}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, city: e.target.value }))}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="company_name">Nome</Label>
                 <Input
@@ -353,6 +429,24 @@ export default function Definicoes() {
                   onChange={(e) =>
                     setCompanyData((prev) => ({ ...prev, email: e.target.value }))
                   }
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="company_iban">IBAN / NIB</Label>
+                <Input
+                  id="company_iban"
+                  value={companyData.iban}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, iban: e.target.value }))}
+                  placeholder="PT50 ...."
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="company_payment_instructions">Instruções de pagamento (ex: Eu Pago)</Label>
+                <Input
+                  id="company_payment_instructions"
+                  value={companyData.payment_instructions}
+                  onChange={(e) => setCompanyData((prev) => ({ ...prev, payment_instructions: e.target.value }))}
+                  placeholder="ex: Pagamento via Eu Pago / referência ..."
                 />
               </div>
             </div>
@@ -586,6 +680,14 @@ export default function Definicoes() {
                   value={integrations.chatwoot_token}
                   onChange={(e) => setIntegrations(prev => ({ ...prev, chatwoot_token: e.target.value }))}
                   placeholder="Token de acesso"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Chatwoot Account ID</Label>
+                <Input
+                  value={integrations.chatwoot_account_id}
+                  onChange={(e) => setIntegrations(prev => ({ ...prev, chatwoot_account_id: e.target.value }))}
+                  placeholder="ex: 1"
                 />
               </div>
               <div className="space-y-2">

@@ -145,3 +145,8 @@ export function useQuotationBuilder() {
   }
   return context;
 }
+
+// Versão "safe" para componentes que podem ser usados fora do provider (ex: tabs reutilizadas).
+export function useQuotationBuilderOptional() {
+  return useContext(QuotationBuilderContext);
+}
